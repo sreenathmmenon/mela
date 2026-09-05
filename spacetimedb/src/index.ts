@@ -1408,6 +1408,7 @@ function beginAgentTurn(ctx: any, matchId: bigint) {
     revision,
     phase: "waiting",
     deadlineMicros: nowMicros(ctx) + DUEL_RULES.waitMicros,
+    notice: `${state.turn === "human" ? duel.leftName : duel.rightName} is choosing a shot.`,
   };
   ctx.db.agentDuel.matchId.update(next);
   if (state.turn === "bot" && duel.mode === "melabot") {
@@ -1523,6 +1524,7 @@ function queueAgentProposal(ctx: any, duel: any, side: string, action: any) {
   const next = {
     ...duel,
     phase: "intent",
+    notice: `${name}'s plan is committed. The crowd can still change the shot.`,
     [side === "human" ? "leftIntent" : "rightIntent"]: action.intent.trim(),
     deadlineMicros: nowMicros(ctx) + DUEL_RULES.intentMicros,
   };

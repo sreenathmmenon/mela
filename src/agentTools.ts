@@ -66,18 +66,23 @@ export const AGENT_TOOLS = [
 export class AgentBridge {
   private subscriptions = new Map<string, Promise<void>>();
   private handles: { unsubscribe: () => void }[] = [];
-  private events: { matchId: string; message: string }[] = [];
+  private events: { id: string; matchId: string; message: string }[] = [];
   private onEvent = (
     _ctx: unknown,
-    row: { matchId: bigint; message: string },
+    row: { id: bigint; matchId: bigint; message: string },
   ) => {
     if (
       !row.message.startsWith("@") &&
-      !row.message.startsWith("Crowd Energy +")
+      !row.message.startsWith("Crowd Energy +") &&
+      !this.events.some((event) => event.id === row.id.toString())
     )
       this.events = [
         ...this.events,
-        { matchId: row.matchId.toString(), message: row.message },
+        {
+          id: row.id.toString(),
+          matchId: row.matchId.toString(),
+          message: row.message,
+        },
       ].slice(-32);
   };
   constructor(private connection: DbConnection) {

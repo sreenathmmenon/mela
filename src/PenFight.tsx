@@ -731,7 +731,7 @@ export function PenFight({
                     <b>{effect.actorName}</b> {copy.label}
                     <i>
                       {copy.effect} ·{" "}
-                      {effect.target === "human" ? human : "MelaBot"}
+                      {effect.target === "human" ? human : opponent}
                     </i>
                   </span>
                 );
@@ -943,7 +943,7 @@ export function PenFight({
           <p>
             {state.turn === "human"
               ? `${human} is lining up a flick. Help now or save it for the edge.`
-              : "MelaBot is acting next. Shift the desk conditions, not the outcome."}
+              : `${opponent} is acting next. Shift the desk conditions, not the outcome.`}
           </p>
           <div className="target-picker">
             <button
@@ -956,7 +956,7 @@ export function PenFight({
               className={target === "melabot" ? "selected" : ""}
               onClick={() => setTarget("melabot")}
             >
-              Affect MelaBot
+              Affect {opponent}
             </button>
           </div>
           <div className="power-grid">
@@ -1001,7 +1001,7 @@ export function PenFight({
                         setNote(
                           key === "cheer"
                             ? "Your CHEER returned Energy to everyone's pool."
-                            : `You played ${rule.label} on ${target === "human" ? human : "MelaBot"}'s pen. Follow its effect on the desk.`,
+                            : `You played ${rule.label} on ${target === "human" ? human : opponent}'s pen. Follow its effect on the desk.`,
                         );
                       } catch {
                         setNote(
@@ -1068,7 +1068,7 @@ export function PenFight({
                 ? `You did it, ${human}.`
                 : state.humanRounds === 1
                   ? "One round away. Another desk?"
-                  : "MelaBot takes this chapter."
+                  : `${opponent} takes this chapter.`
               : spectating
                 ? "Your crowd was part of this."
                 : `${human} and ${opponent} made a memory.`}
