@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BOOK_CRICKET_RULES,
+  BOOK_CRICKET_STYLES,
   CROWD_POWERS,
   applyCrowdDeliveryEffects,
   chooseMelaBotStyle,
   crowdPowerResult,
   isInningsComplete,
+  isChaseMathematicallyLost,
   isCrowdPower,
   resolveBookCricketOutcome,
   resolveChaseWinner,
@@ -24,19 +26,27 @@ import {
   spectatorProgressAfterMatch,
 } from "../spacetimedb/src/melaMemory";
 
-test("delivery scoring is deterministic and bounded by the selected style", () => {
-  const first = resolveBookCricketOutcome(18n, "steady");
-  const second = resolveBookCricketOutcome(18n, "steady");
+test("delivery scoring is deterministic and bounded by each selected strategy", () => {
+  const first = resolveBookCricketOutcome(18n, "balanced");
+  const second = resolveBookCricketOutcome(18n, "balanced");
   assert.deepEqual(first, second);
-  assert.ok(first.wicket || [0, 1, 2, 3, 4].includes(first.runs));
-  const attack = resolveBookCricketOutcome(18n, "attack");
-  assert.ok(attack.wicket || [0, 2, 4, 6].includes(attack.runs));
+  for (const style of Object.keys(BOOK_CRICKET_STYLES) as Array<
+    keyof typeof BOOK_CRICKET_STYLES
+  >) {
+    for (let seed = 1n; seed < 120n; seed += 1n) {
+      const outcome = resolveBookCricketOutcome(seed, style);
+      assert.ok(
+        outcome.wicket ||
+          BOOK_CRICKET_STYLES[style].runs.includes(outcome.runs),
+      );
+    }
+  }
 });
 
 test("wicket outcomes resolve as zero runs", () => {
   let wicket: ReturnType<typeof resolveBookCricketOutcome> | undefined;
   for (let seed = 1n; seed < 200n; seed += 1n) {
-    const result = resolveBookCricketOutcome(seed, "attack");
+    const result = resolveBookCricketOutcome(seed, "aggressive");
     if (result.wicket) {
       wicket = result;
       break;
@@ -64,17 +74,18 @@ test("target resolution distinguishes MelaBot, draw, and human wins", () => {
   assert.equal(resolveChaseWinner(8, 10), "human");
 });
 
-test("MelaBot choice is deterministic and only produces legal styles", () => {
-  assert.equal(chooseMelaBotStyle(12, 2), "attack");
-  assert.equal(chooseMelaBotStyle(8, 2), "steady");
-  assert.match(chooseMelaBotStyle(30, 1), /^(steady|attack)$/);
+test("MelaBot choice is deterministic and only produces legal shared strategies", () => {
+  assert.equal(chooseMelaBotStyle(30, 2), "aggressive");
+  assert.equal(chooseMelaBotStyle(5, 2), "safe");
+  assert.match(chooseMelaBotStyle(30, 1), /^(safe|balanced|aggressive)$/);
+  assert.equal(chooseMelaBotStyle(12, 2, 4, 0, { chaos: true }), "safe");
 });
 
 test("human and MelaBot consume the same pure delivery resolution path", () => {
   const seed = 123456n;
   assert.deepEqual(
-    resolveBookCricketOutcome(seed, "attack"),
-    resolveBookCricketOutcome(seed, "attack"),
+    resolveBookCricketOutcome(seed, "aggressive"),
+    resolveBookCricketOutcome(seed, "aggressive"),
   );
 });
 
@@ -129,19 +140,28 @@ test("BOOST, CHAOS, and SHIELD resolve effects in the locked order", () => {
 
 test("CHAOS uses a deterministic high-variance profile", () => {
   assert.deepEqual(
-    resolveBookCricketOutcome(333n, "steady", true),
-    resolveBookCricketOutcome(333n, "steady", true),
+    resolveBookCricketOutcome(333n, "balanced", true),
+    resolveBookCricketOutcome(333n, "balanced", true),
   );
 });
 
 test("DeterministicAIProvider returns the same legal proposal for identical state", () => {
   const provider = new DeterministicAIProvider();
-  const observation = { target: 16, botScore: 4, botBalls: 3, botWickets: 1 };
+  const observation = {
+    target: 16,
+    botScore: 4,
+    botBalls: 3,
+    botWickets: 1,
+    effects: {},
+  };
   assert.deepEqual(
     provider.decideAction(observation),
     provider.decideAction(observation),
   );
-  assert.match(provider.decideAction(observation).style, /^(steady|attack)$/);
+  assert.match(
+    provider.decideAction(observation).style,
+    /^(safe|balanced|aggressive)$/,
+  );
 });
 
 test("scheduled AI wakes only execute for the exact active bot turn", () => {
@@ -181,6 +201,26 @@ test("scheduled AI wakes only execute for the exact active bot turn", () => {
     }),
     false,
   );
+});
+
+test("a chase ends early only once MelaBot cannot even tie", () => {
+  assert.equal(isChaseMathematicallyLost(5, 20, 5), true);
+  assert.equal(isChaseMathematicallyLost(13, 20, 5), false);
+  assert.equal(isChaseMathematicallyLost(18, 20, 5), false);
+});
+
+test("safe, balanced, and aggressive make the risk trade-off explicit", () => {
+  assert.ok(
+    BOOK_CRICKET_STYLES.safe.wicketThreshold <
+      BOOK_CRICKET_STYLES.balanced.wicketThreshold,
+  );
+  assert.ok(
+    BOOK_CRICKET_STYLES.balanced.wicketThreshold <
+      BOOK_CRICKET_STYLES.aggressive.wicketThreshold,
+  );
+  assert.equal(Math.max(...BOOK_CRICKET_STYLES.safe.runs), 3);
+  assert.equal(Math.max(...BOOK_CRICKET_STYLES.balanced.runs), 4);
+  assert.equal(Math.max(...BOOK_CRICKET_STYLES.aggressive.runs), 6);
 });
 
 test("Mela progression rewards player participation, wins, and crowd presence separately", () => {

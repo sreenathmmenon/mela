@@ -104,6 +104,9 @@ export default function BigScreen() {
   const joinUrl = publicJoinUrl(displayedMatch.id);
   const completed = displayedMatch.status === "complete";
   const winner = memory?.winner ?? result?.winner ?? displayedMatch.winner;
+  const botRunsNeeded = Math.max(0, state.target - state.botScore);
+  const botBallsLeft = Math.max(0, 6 - state.botBalls);
+  const humanBallsLeft = Math.max(0, 6 - state.humanBalls);
 
   return (
     <main className="screen-shell">
@@ -127,7 +130,10 @@ export default function BigScreen() {
           <strong>
             {state.humanScore}/{state.humanWickets}
           </strong>
-          <small>{state.humanBalls} balls</small>
+          <small>
+            Ball {state.humanBalls}/6 · {Math.max(0, 2 - state.humanWickets)}{" "}
+            wickets left
+          </small>
         </div>
         <div className="screen-versus">
           <span>VS</span>
@@ -141,7 +147,10 @@ export default function BigScreen() {
           <strong>
             {state.botScore}/{state.botWickets}
           </strong>
-          <small>{state.botBalls} balls</small>
+          <small>
+            Ball {state.botBalls}/6 · {Math.max(0, 2 - state.botWickets)}{" "}
+            wickets left
+          </small>
         </div>
       </section>
 
@@ -166,7 +175,11 @@ export default function BigScreen() {
           <>
             <p className="eyebrow">PLAYER’S TURN</p>
             <h2>{humanName} has the book.</h2>
-            <p>The crowd can still shape the next delivery.</p>
+            <p>
+              {state.innings === 1
+                ? `${humanBallsLeft} balls remain to set the target. The crowd can shape the next delivery.`
+                : `MelaBot needs ${botRunsNeeded} from ${botBallsLeft} balls.`}
+            </p>
           </>
         )}
       </section>

@@ -220,6 +220,38 @@ button:disabled {
   text-align: center;
   color: #dfd8f2;
 }
+.delivery-result {
+  display: grid;
+  gap: 2px;
+  width: fit-content;
+  min-width: 150px;
+  margin: 15px auto 0;
+  padding: 9px 14px;
+  border: 1px solid #72d8bd;
+  border-radius: 12px;
+  background: rgba(25, 92, 78, 0.38);
+  text-align: center;
+}
+.delivery-result.out {
+  border-color: #fb7185;
+  background: rgba(118, 32, 53, 0.52);
+}
+.delivery-result strong {
+  color: #f9f2ff;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+.delivery-result span {
+  color: #d6eae5;
+  font-size: 0.73rem;
+}
+.delivery-result.out span {
+  color: #ffd7df;
+}
+.match-state.tension {
+  color: #fde68a;
+  font-weight: 800;
+}
 .result {
   margin: 16px 0 0;
   text-align: center;
@@ -231,8 +263,49 @@ button:disabled {
   border-top: 1px solid #59407b;
   text-align: center;
 }
-.player-actions button {
-  margin: 3px;
+.how-to-play {
+  max-width: 40rem;
+  margin: 0 auto 16px;
+  color: #e5d9fc;
+  line-height: 1.5;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 11px;
+}
+.choice-card {
+  display: grid;
+  gap: 5px;
+  min-height: 138px;
+  padding: 14px;
+  border: 1px solid #5f5085;
+  color: #fff;
+  text-align: left;
+}
+.choice-card strong {
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+}
+.choice-card span {
+  color: #f7e9b5;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.choice-card small {
+  color: #e2dcef;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.choice-card.safe {
+  background: linear-gradient(145deg, #1f5a62, #173c4c);
+}
+.choice-card.balanced {
+  background: linear-gradient(145deg, #55417f, #34275c);
+}
+.choice-card.aggressive {
+  background: linear-gradient(145deg, #8d3a43, #5d263e);
 }
 .join-crowd {
   background: linear-gradient(135deg, #18394b, #1b203f);
@@ -765,6 +838,12 @@ button:disabled {
   }
   .power-grid {
     grid-template-columns: 1fr;
+  }
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .choice-card {
+    min-height: 0;
   }
   .memory-grid {
     grid-template-columns: 1fr;

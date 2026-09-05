@@ -10,28 +10,49 @@ const POWER_CARDS = [
     title: "BOOST",
     cost: 18,
     cooldown: "20s",
-    copy: "+2 runs to the next non-wicket delivery.",
+    copy: "Give your chosen side +2 runs on its next non-OUT ball.",
   },
   {
     power: "chaos",
     title: "CHAOS",
     cost: 20,
     cooldown: "25s",
-    copy: "A high-variance next delivery. It can help or hurt.",
+    copy: "Make your chosen side’s next ball high-risk. It can help or hurt.",
   },
   {
     power: "shield",
     title: "SHIELD",
     cost: 15,
     cooldown: "25s",
-    copy: "Convert the next wicket into a dot ball.",
+    copy: "Protect your chosen side: its next OUT becomes a dot ball.",
   },
   {
     power: "cheer",
     title: "CHEER",
     cost: 4,
     cooldown: "10s",
-    copy: "Spend 4 to add 8 energy for everyone.",
+    copy: "Spend 4 now to add 8 shared energy for another crowd move.",
+  },
+] as const;
+
+const PLAY_CHOICES = [
+  {
+    style: "safe",
+    title: "SAFE",
+    risk: "Lower OUT risk · 0–3 runs",
+    copy: "Protect your wicket when every ball matters.",
+  },
+  {
+    style: "balanced",
+    title: "BALANCED",
+    risk: "Measured risk · 0–4 runs",
+    copy: "The all-round choice for building a total.",
+  },
+  {
+    style: "aggressive",
+    title: "AGGRESSIVE",
+    risk: "Higher OUT risk · up to 6 runs",
+    copy: "Chase a boundary when you need a swing.",
   },
 ] as const;
 
@@ -168,6 +189,27 @@ function App() {
   const melaBot = aiCharacters.find(
     (character) => character.characterKey === "melabot",
   );
+  const humanBallsLeft = matchState
+    ? Math.max(0, 6 - matchState.humanBalls)
+    : 0;
+  const humanWicketsLeft = matchState
+    ? Math.max(0, 2 - matchState.humanWickets)
+    : 0;
+  const botBallsLeft = matchState ? Math.max(0, 6 - matchState.botBalls) : 0;
+  const botWicketsLeft = matchState
+    ? Math.max(0, 2 - matchState.botWickets)
+    : 0;
+  const botRunsNeeded = matchState
+    ? Math.max(0, matchState.target - matchState.botScore)
+    : 0;
+  const wicketsLeftForCurrentInnings =
+    matchState?.innings === 1 ? humanWicketsLeft : botWicketsLeft;
+  const isTenseFinish = Boolean(
+    matchState &&
+    ((matchState.innings === 1 &&
+      (humanBallsLeft <= 2 || humanWicketsLeft <= 1)) ||
+      (matchState.innings === 2 && (botBallsLeft <= 2 || botWicketsLeft <= 1))),
+  );
 
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
@@ -281,7 +323,7 @@ function App() {
         <>
           <section className="scoreboard" aria-label="Live Book Cricket score">
             <div className="match-kicker">
-              <span>BOOK CRICKET · LIVE</span>
+              <span>BOOK CRICKET · FIRST TO THE TARGET</span>
               <span>{matchSpectators.length} in the crowd</span>
             </div>
             <div className="score-row">
@@ -290,7 +332,10 @@ function App() {
                 <strong>
                   {matchState.humanScore}/{matchState.humanWickets}
                 </strong>
-                <small>{matchState.humanBalls} balls</small>
+                <small>
+                  Ball {matchState.humanBalls}/6 · {humanWicketsLeft} wickets
+                  left
+                </small>
               </div>
               <div className="versus">VS</div>
               <div>
@@ -298,16 +343,31 @@ function App() {
                 <strong>
                   {matchState.botScore}/{matchState.botWickets}
                 </strong>
-                <small>{matchState.botBalls} balls</small>
+                <small>
+                  Ball {matchState.botBalls}/6 · {botWicketsLeft} wickets left
+                </small>
               </div>
             </div>
-            <p className="match-state">
-              Innings {matchState.innings} ·{" "}
-              {matchState.target
-                ? `Target ${matchState.target}`
-                : "Set the target"}{" "}
-              · <strong>{matchState.lastOutcome}</strong>
+            <p className={`match-state ${isTenseFinish ? "tension" : ""}`}>
+              {matchState.turn === "human"
+                ? `${humanBallsLeft} balls and ${humanWicketsLeft} wickets left to set MelaBot a target.`
+                : matchState.turn === "bot"
+                  ? `MelaBot needs ${botRunsNeeded} run${botRunsNeeded === 1 ? "" : "s"} from ${botBallsLeft} ball${botBallsLeft === 1 ? "" : "s"}.`
+                  : `Target ${matchState.target} · match complete.`}
             </p>
+            {matchState.lastOutcome !== "START" && (
+              <div
+                className={`delivery-result ${matchState.lastOutcome.includes("OUT") ? "out" : ""}`}
+                role="status"
+              >
+                <strong>{matchState.lastOutcome}</strong>
+                <span>
+                  {matchState.lastOutcome.includes("OUT")
+                    ? `${wicketsLeftForCurrentInnings ? "The innings continues while wickets remain." : "No wickets remain."}`
+                    : "Authoritative delivery result"}
+                </span>
+              </div>
+            )}
             {displayedMatch.status === "complete" && (
               <p className="result">
                 Result:{" "}
@@ -316,23 +376,33 @@ function App() {
             )}
             {ownsMatch && matchState.turn === "human" && (
               <div className="player-actions">
-                <p>The crowd is watching. Pick your delivery.</p>
-                <button
-                  className="secondary"
-                  onClick={() =>
-                    playBall({ matchId: displayedMatch.id, style: "steady" })
-                  }
-                >
-                  Steady flip
-                </button>
-                <button
-                  className="primary"
-                  onClick={() =>
-                    playBall({ matchId: displayedMatch.id, style: "attack" })
-                  }
-                >
-                  Attack flip
-                </button>
+                {matchState.humanBalls === 0 && (
+                  <p className="how-to-play">
+                    Score more than MelaBot. You have 6 balls and 2 wickets:
+                    every ball is your choice plus controlled uncertainty.
+                  </p>
+                )}
+                <p className="eyebrow">
+                  YOUR NEXT BALL · CHOOSE HOW TO PLAY IT
+                </p>
+                <div className="choice-grid">
+                  {PLAY_CHOICES.map((choice) => (
+                    <button
+                      className={`choice-card ${choice.style}`}
+                      key={choice.style}
+                      onClick={() =>
+                        playBall({
+                          matchId: displayedMatch.id,
+                          style: choice.style,
+                        })
+                      }
+                    >
+                      <strong>{choice.title}</strong>
+                      <span>{choice.risk}</span>
+                      <small>{choice.copy}</small>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {matchState.turn === "bot" && (
@@ -441,8 +511,8 @@ function App() {
                 </div>
               </div>
               <p className="crowd-note">
-                Every power spends from one shared pool. Choose together, act
-                fast.
+                Every power changes the next delivery, not the final result.
+                Save shared energy for the moment that matters.
               </p>
               {matchEffects.length > 0 && (
                 <div className="active-effects">
@@ -456,7 +526,9 @@ function App() {
               {isSpectator && activeMatch && (
                 <>
                   <fieldset className="target-picker">
-                    <legend>Choose a side to influence</legend>
+                    <legend>
+                      Choose whose next ball the crowd will influence
+                    </legend>
                     <button
                       className={selectedTarget === "human" ? "selected" : ""}
                       onClick={() => setSelectedTarget("human")}

@@ -5,6 +5,7 @@ import {
   type BookCricketStyle,
   type CrowdPower,
   applyCrowdDeliveryEffects,
+  isChaseMathematicallyLost,
   crowdPowerResult,
   isInningsComplete,
   isCrowdPower,
@@ -505,7 +506,9 @@ function resolveDelivery(
   let next = {
     ...state,
     seed: result.seed,
-    lastOutcome: result.wicket ? "WICKET" : String(result.runs),
+    lastOutcome: result.wicket
+      ? "OUT"
+      : `${result.runs} RUN${result.runs === 1 ? "" : "S"}`,
   };
   if (human)
     next = {
@@ -516,8 +519,11 @@ function resolveDelivery(
     };
   else
     next = { ...next, botBalls: balls, botWickets: wickets, botScore: score };
-  const over =
-    isInningsComplete(balls, wickets) || (!human && score >= state.target);
+  const chaseWon = !human && score >= state.target;
+  const inningsFinished = isInningsComplete(balls, wickets);
+  const chaseLost =
+    !human && isChaseMathematicallyLost(score, state.target, balls);
+  const over = inningsFinished || chaseWon || chaseLost;
   if (over && human) {
     next = {
       ...next,
@@ -530,7 +536,9 @@ function resolveDelivery(
     emit(ctx, match.id, "MelaBot is reading the field…");
     scheduleMelaBotWake(ctx, match.id, state.botBalls);
   } else if (over) {
-    const winner = resolveChaseWinner(score, state.target);
+    const winner = chaseLost
+      ? "human"
+      : resolveChaseWinner(score, state.target);
     ctx.db.match.id.update({
       ...match,
       status: "complete",
@@ -543,7 +551,13 @@ function resolveDelivery(
       turn: "complete",
       lastOutcome: winner === "draw" ? "DRAW" : `${winner.toUpperCase()} WINS`,
     };
-    emit(ctx, match.id, next.lastOutcome);
+    emit(
+      ctx,
+      match.id,
+      chaseLost
+        ? "MelaBot cannot reach the target — HUMAN WINS"
+        : next.lastOutcome,
+    );
   } else {
     emit(ctx, match.id, `${human ? "Human" : "MelaBot"} → ${next.lastOutcome}`);
     if (!human) {
@@ -693,7 +707,10 @@ export const playBall = spacetimedb.reducer(
       !match.playerIdentity.isEqual(ctx.sender)
     )
       throw new Error("Not your active match.");
-    if (state.turn !== "human" || (style !== "steady" && style !== "attack"))
+    if (
+      state.turn !== "human" ||
+      (style !== "safe" && style !== "balanced" && style !== "aggressive")
+    )
       throw new Error("Illegal delivery.");
     resolveDelivery(ctx, match, state, "human", style);
   },
@@ -851,6 +868,17 @@ export const processCrowdSchedule = spacetimedb.reducer(
         botScore: state.botScore,
         botBalls: state.botBalls,
         botWickets: state.botWickets,
+        effects: {
+          boost: effectsFor(ctx, arg.matchId, "melabot").some(
+            (effect) => effect.power === "boost",
+          ),
+          chaos: effectsFor(ctx, arg.matchId, "melabot").some(
+            (effect) => effect.power === "chaos",
+          ),
+          shield: effectsFor(ctx, arg.matchId, "melabot").some(
+            (effect) => effect.power === "shield",
+          ),
+        },
       });
       emit(ctx, arg.matchId, proposal.rationale);
       emit(ctx, arg.matchId, `MelaBot chose ${proposal.style.toUpperCase()}`);

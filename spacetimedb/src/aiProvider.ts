@@ -1,4 +1,8 @@
-import { type BookCricketStyle, chooseMelaBotStyle } from "./bookCricketRules";
+import {
+  type BookCricketStyle,
+  type CrowdDeliveryEffects,
+  chooseMelaBotStyle,
+} from "./bookCricketRules";
 
 export interface AIActionProposal {
   style: BookCricketStyle;
@@ -10,6 +14,7 @@ export interface AIObservation {
   botScore: number;
   botBalls: number;
   botWickets: number;
+  effects: Partial<CrowdDeliveryEffects>;
 }
 
 export interface AIProvider {
@@ -22,13 +27,21 @@ export interface AIProvider {
  */
 export class DeterministicAIProvider implements AIProvider {
   decideAction(observation: AIObservation): AIActionProposal {
-    const style = chooseMelaBotStyle(observation.target, observation.botScore);
+    const style = chooseMelaBotStyle(
+      observation.target,
+      observation.botScore,
+      observation.botBalls,
+      observation.botWickets,
+      observation.effects,
+    );
     return {
       style,
       rationale:
-        style === "attack"
-          ? "MelaBot is behind and takes an attacking line."
-          : "MelaBot keeps its cool with a steady line.",
+        style === "aggressive"
+          ? "MelaBot sees an opening and plays aggressively."
+          : style === "safe"
+            ? "MelaBot protects its wicket with a safe play."
+            : "MelaBot chooses a balanced play.",
     };
   }
 }

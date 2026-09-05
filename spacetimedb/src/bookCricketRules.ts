@@ -41,7 +41,15 @@ export const CROWD_POWERS = {
 
 export type CrowdPower = keyof typeof CROWD_POWERS;
 export type CrowdTarget = "human" | "melabot";
-export type BookCricketStyle = "steady" | "attack";
+/**
+ * A compact, shared decision space for both humans and MelaBot.
+ *
+ * SAFE limits upside and OUT risk. BALANCED is the default all-round choice.
+ * AGGRESSIVE offers boundary-heavy outcomes but has the largest OUT chance.
+ * The server consumes a deterministic seed, so this remains reproducible in
+ * tests while each match still contains bounded uncertainty for players.
+ */
+export type BookCricketStyle = "safe" | "balanced" | "aggressive";
 export type BookCricketWinner = "human" | "melabot" | "draw";
 
 export interface DeliveryOutcome {
@@ -55,6 +63,27 @@ export interface CrowdDeliveryEffects {
   shield: boolean;
 }
 
+export const BOOK_CRICKET_STYLES = {
+  safe: {
+    label: "SAFE",
+    summary: "Lower risk · smaller runs",
+    wicketThreshold: 5,
+    runs: [0, 1, 1, 2, 2, 3],
+  },
+  balanced: {
+    label: "BALANCED",
+    summary: "Measured risk · steady scoring",
+    wicketThreshold: 10,
+    runs: [0, 1, 2, 2, 3, 4],
+  },
+  aggressive: {
+    label: "AGGRESSIVE",
+    summary: "Big runs · higher OUT risk",
+    wicketThreshold: 20,
+    runs: [0, 2, 4, 4, 6, 6],
+  },
+} as const;
+
 /** Pure, deterministic resolution used by both human and MelaBot deliveries. */
 export function resolveBookCricketOutcome(
   seed: bigint,
@@ -63,15 +92,14 @@ export function resolveBookCricketOutcome(
 ): DeliveryOutcome {
   const nextSeed = (seed * 1103515245n + 12345n) % 2147483647n;
   const roll = Number(nextSeed % 100n);
-  const wicketThreshold = chaos ? 24 : style === "attack" ? 18 : 7;
+  const styleRules = BOOK_CRICKET_STYLES[style];
+  const wicketThreshold = chaos ? 24 : styleRules.wicketThreshold;
   const wicket = roll < wicketThreshold;
   const runs = wicket
     ? 0
     : chaos
       ? [0, 0, 2, 4, 6, 6][roll % 6]
-      : style === "attack"
-        ? [0, 2, 4, 4, 6, 6][roll % 6]
-        : [0, 1, 1, 2, 3, 4][roll % 6];
+      : styleRules.runs[roll % styleRules.runs.length];
   return { seed: nextSeed, wicket, runs };
 }
 
@@ -94,6 +122,23 @@ export function isInningsComplete(balls: number, wickets: number): boolean {
   );
 }
 
+export function ballsRemaining(balls: number) {
+  return Math.max(0, BOOK_CRICKET_RULES.maxBallsPerInnings - balls);
+}
+
+export function wicketsRemaining(wickets: number) {
+  return Math.max(0, BOOK_CRICKET_RULES.maxWicketsPerInnings - wickets);
+}
+
+/** A human win is locked only once MelaBot can no longer even tie. */
+export function isChaseMathematicallyLost(
+  botScore: number,
+  target: number,
+  botBalls: number,
+) {
+  return botScore + ballsRemaining(botBalls) * 6 < target - 1;
+}
+
 export function resolveChaseWinner(
   botScore: number,
   target: number,
@@ -106,8 +151,18 @@ export function resolveChaseWinner(
 export function chooseMelaBotStyle(
   target: number,
   botScore: number,
+  botBalls = 0,
+  botWickets = 0,
+  effects: Partial<CrowdDeliveryEffects> = {},
 ): BookCricketStyle {
-  return target - botScore > 6 ? "attack" : "steady";
+  const needed = Math.max(0, target - botScore);
+  const left = ballsRemaining(botBalls);
+  if (effects.boost || effects.shield) return "aggressive";
+  if (effects.chaos) return "safe";
+  if (botWickets >= BOOK_CRICKET_RULES.maxWicketsPerInnings - 1) return "safe";
+  if (needed > left * 3 || (left <= 2 && needed > 4)) return "aggressive";
+  if (needed <= 3 && left >= 3) return "safe";
+  return "balanced";
 }
 
 export function isCrowdPower(value: string): value is CrowdPower {

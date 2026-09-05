@@ -19,16 +19,20 @@ Book Cricket is Mela’s first game, not its product boundary. This ruleset targ
 
 ## Delivery model
 
-The batter chooses one legal style for each delivery:
+The batter chooses one legal style for every ball. This is the meaningful
+decision in the fast six-ball format; it is not a decorative animation.
 
-- **Steady flip** — safer weighted outcome profile.
-- **Attack flip** — higher chance of 4/6, with increased wicket risk.
+| Choice         | OUT risk | Possible non-OUT runs | Tactical use                                  |
+| -------------- | -------: | --------------------- | --------------------------------------------- |
+| **SAFE**       |       5% | 0–3                   | Protect a wicket or defend a small lead.      |
+| **BALANCED**   |      10% | 0–4                   | Default, measured scoring.                    |
+| **AGGRESSIVE** |      20% | 0, 2, 4, 6            | Chase a difficult target or make a late push. |
 
 The client submits only the requested style. The server selects and resolves the outcome using a match-owned deterministic seed and delivery sequence; no client can submit a score, wicket, random value, or outcome.
 
 Possible delivery results are `0`, `1`, `2`, `3`, `4`, `6`, or `WICKET`. A wicket scores zero runs. Crowd effects alter the authoritative resolution as specified below.
 
-MelaBot chooses `steady` or `attack` deterministically from current score, target, balls/wickets remaining, active effects, and a small personality policy. It uses the same legal-action and resolution functions as the human.
+MelaBot chooses `safe`, `balanced`, or `aggressive` deterministically from current score, target, balls/wickets remaining, active effects, and a small personality policy. It uses the same legal-action and resolution functions as the human.
 
 ## Timing
 
@@ -50,12 +54,12 @@ Crowd Energy is a shared resource per match, not a client-side value.
 
 The spectator chooses a permitted target side (`human` or `melabot`) for side-targeted powers. The UI may favour the human target, but the server validates target, phase, membership, shared energy, cooldown, stacking, and expiry.
 
-| Power | Cost | Spectator cooldown | Effect | Stacking / expiry |
-|---|---:|---:|---|---|
-| **BOOST** | 18 | 20 s | The selected side’s next non-wicket delivery gains +2 runs, capped at 6. | One active BOOST per target side; expires after next target delivery or 20 s. |
-| **CHAOS** | 20 | 25 s | The selected side’s next delivery resolves through the deterministic high-variance chaos profile; it can help or hurt. | One active CHAOS per target side; expires after next target delivery or 20 s. |
-| **SHIELD** | 15 | 25 s | The selected side’s next wicket is converted to a dot ball. | One active SHIELD per target side; expires after next target delivery or 25 s. |
-| **CHEER** | 4 | 10 s | Replenishes the shared Crowd Energy pool by 8, capped at its maximum, creating a collective resource decision. | Immediate; no effect row. |
+| Power      | Cost | Spectator cooldown | Effect                                                                                                                 | Stacking / expiry                                                              |
+| ---------- | ---: | -----------------: | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **BOOST**  |   18 |               20 s | The selected side’s next non-wicket delivery gains +2 runs, capped at 6.                                               | One active BOOST per target side; expires after next target delivery or 20 s.  |
+| **CHAOS**  |   20 |               25 s | The selected side’s next delivery resolves through the deterministic high-variance chaos profile; it can help or hurt. | One active CHAOS per target side; expires after next target delivery or 20 s.  |
+| **SHIELD** |   15 |               25 s | The selected side’s next wicket is converted to a dot ball.                                                            | One active SHIELD per target side; expires after next target delivery or 25 s. |
+| **CHEER**  |    4 |               10 s | Replenishes the shared Crowd Energy pool by 8, capped at its maximum, creating a collective resource decision.         | Immediate; no effect row.                                                      |
 
 Different side-targeted effects may coexist. For a delivery, apply CHAOS to choose the base profile, resolve the base outcome, then apply SHIELD to a wicket, then apply BOOST only to a non-wicket score. Consumed effects are removed atomically with the delivery. Duplicate active effect kind/target pairs are rejected rather than stacked.
 
@@ -63,7 +67,7 @@ All power costs, cooldowns, caps, profiles, innings limits, and timeouts must li
 
 ## Deterministic MelaBot personality
 
-MelaBot is “cool under pressure, reckless when behind.” It attacks more often when chasing a difficult target with few deliveries remaining; otherwise it uses steady flips. It recognizes active crowd effects in its legal decision policy and always continues without an external service.
+MelaBot is “cool under pressure, reckless when behind.” It becomes aggressive when a chase is difficult, protects its wicket when nearly home or on its last wicket, and otherwise chooses balanced play. It recognizes active crowd effects in its legal decision policy and always continues without an external service.
 
 ## Live commentary and memory
 
