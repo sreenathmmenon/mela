@@ -1057,8 +1057,19 @@ function resolvePenFlick(
     // correct side rather than treating it as a global invulnerability flag.
     effects: { ...actorEffects.state, guard: false },
   });
-  for (const effect of actorEffects.rows)
-    if (effect.power !== "guard") ctx.db.crowdEffect.id.delete(effect.id);
+  // Name the spectator at the moment their power actually fires. Announcing it
+  // when it is BOUGHT would let the player aim off to cancel a known tilt, so
+  // the crowd's interference has to stay hidden until it has been applied.
+  for (const effect of actorEffects.rows) {
+    if (effect.power === "guard") continue;
+    const label = effect.power === "tilt" ? "DESK TILT" : effect.power.toUpperCase();
+    emit(
+      ctx,
+      match.id,
+      `${effect.actorName}'s ${label} changed ${actor === "human" ? "the human's" : "MelaBot's"} flick.`,
+    );
+    ctx.db.crowdEffect.id.delete(effect.id);
+  }
   let actorOut = resolution.actorOut;
   let targetOut = resolution.targetOut;
   const actorGuard = actorEffects.rows.find(
@@ -1070,12 +1081,20 @@ function resolvePenFlick(
   if (actorOut && actorGuard) {
     actorOut = false;
     ctx.db.crowdEffect.id.delete(actorGuard.id);
-    emit(ctx, match.id, `GUARD kept ${actor} on the desk.`);
+    emit(
+      ctx,
+      match.id,
+      `${actorGuard.actorName}'s GUARD kept ${actor} on the desk.`,
+    );
   }
   if (targetOut && targetGuard) {
     targetOut = false;
     ctx.db.crowdEffect.id.delete(targetGuard.id);
-    emit(ctx, match.id, `GUARD kept ${target} on the desk.`);
+    emit(
+      ctx,
+      match.id,
+      `${targetGuard.actorName}'s GUARD kept ${target} on the desk.`,
+    );
   }
   let next: any = {
     ...state,

@@ -49,6 +49,12 @@ const POWER_CARDS = [
 // should never be shown a probability; they should be shown a decision.
 // BALANCED is not removed, it is the default "just play the ball" delivery,
 // so the only things we name are the two deviations from normal.
+/** gameKind as stored in the database, mapped to how Mela names it on screen. */
+const GAME_LABELS: Record<string, string> = {
+  book_cricket: "Book Cricket",
+  pen_fight: "Pen Fight",
+};
+
 const PLAY_CHOICES = [
   {
     style: "safe",
@@ -159,11 +165,20 @@ function App() {
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
   const requestedJoinMatchId = useMemo(matchIdFromJoinLink, []);
-  const showOperatorMetrics = useMemo(
-    () =>
-      new URLSearchParams(window.location.search).get("operator") === "metrics",
-    [],
-  );
+  /**
+   * The operator dashboard is gated on a key in the URL, compared against a
+   * value baked in at build time. This keeps the numbers off a guessable URL;
+   * it is NOT real authentication, and cannot be — the app has no server of
+   * its own to check a password against, and every table it reads is public.
+   * Treat it as a lock on a door, not a safe.
+   */
+  const showOperatorMetrics = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const expected = import.meta.env.VITE_OPERATOR_KEY as string | undefined;
+    if (expected) return params.get("operator") === expected;
+    // With no key configured the dashboard stays reachable for local work.
+    return params.get("operator") === "metrics";
+  }, []);
   const onMatchEvent = useCallback(
     (event: { id: bigint; matchId: bigint; message: string }) =>
       setMatchEvents((feed) =>
@@ -340,10 +355,8 @@ function App() {
     if (played < 1) return null;
     const wins = myBookCricketRecord?.wins ?? 0;
     const losses = Math.max(0, played - wins);
-    if (wins > losses)
-      return `You lead MelaBot ${wins}\u2013${losses}.`;
-    if (losses > wins)
-      return `MelaBot leads you ${losses}\u2013${wins}.`;
+    if (wins > losses) return `You lead MelaBot ${wins}\u2013${losses}.`;
+    if (losses > wins) return `MelaBot leads you ${losses}\u2013${wins}.`;
     return `You and MelaBot are level at ${wins}\u2013${losses}.`;
   })();
 
@@ -363,6 +376,57 @@ function App() {
   })();
 
   const currentMetrics = melaMetrics[0];
+
+  /**
+   * Everything the operator dashboard shows beyond the world counters is
+   * derived here from tables the client already subscribes to — matchMemory
+   * carries gameKind, winner and crowd figures per completed match, so no new
+   * query or schema column is needed to break the totals down by game.
+   */
+  const operatorBreakdown = useMemo(() => {
+    const perGame = new Map<
+      string,
+      {
+        played: number;
+        human: number;
+        bot: number;
+        draw: number;
+        crowd: number;
+      }
+    >();
+
+    for (const memory of memories) {
+      const row = perGame.get(memory.gameKind) ?? {
+        played: 0,
+        human: 0,
+        bot: 0,
+        draw: 0,
+        crowd: 0,
+      };
+      row.played += 1;
+      if (memory.winner === "human") row.human += 1;
+      else if (memory.winner === "draw") row.draw += 1;
+      else row.bot += 1;
+      row.crowd += Number(memory.crowdParticipants);
+      perGame.set(memory.gameKind, row);
+    }
+
+    // Distinct spectator identities, counted across every match. A person who
+    // watches three matches is one crowd member, not three.
+    const spectatorIdentities = new Set(
+      spectators.map((row) => row.identity.toHexString()),
+    );
+
+    return {
+      games: [...perGame.entries()].map(([kind, row]) => ({ kind, ...row })),
+      totalCompleted: memories.length,
+      humanWins: [...perGame.values()].reduce((n, r) => n + r.human, 0),
+      botWins: [...perGame.values()].reduce((n, r) => n + r.bot, 0),
+      draws: [...perGame.values()].reduce((n, r) => n + r.draw, 0),
+      distinctSpectators: spectatorIdentities.size,
+      spectatorJoins: spectators.length,
+    };
+  }, [memories, spectators]);
   // The crowd's own game: is this the moment, or should they hold energy? The
   // advice is derived from live match state, never a fixed string.
   const crowdAdvice = !matchState
@@ -454,16 +518,18 @@ function App() {
     window.history.replaceState({}, "", url.href);
     const target = matches.find((match) => match.id === requestedJoinMatchId);
     if (!target || target.status !== "active") {
-      setError("That match has ended. Start a fresh match or scan a live crowd QR.");
+      setError(
+        "That match has ended. Start a fresh match or scan a live crowd QR.",
+      );
       return;
     }
     const alreadyIn = Boolean(
       myIdentity &&
-        (target.playerIdentity.isEqual(myIdentity) ||
-          spectators.some(
-            (row) =>
-              row.matchId === target.id && row.identity.isEqual(myIdentity),
-          )),
+      (target.playerIdentity.isEqual(myIdentity) ||
+        spectators.some(
+          (row) =>
+            row.matchId === target.id && row.identity.isEqual(myIdentity),
+        )),
     );
     setPinnedMatchId(target.id);
     setShowHome(false);
@@ -481,7 +547,9 @@ function App() {
       )
       .catch((reason) =>
         setError(
-          reason instanceof Error ? reason.message : "Could not join that crowd.",
+          reason instanceof Error
+            ? reason.message
+            : "Could not join that crowd.",
         ),
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -552,9 +620,7 @@ function App() {
 
   // "balanced" is not offered as a card — it is the default ball one delivery —
   // so the parameter is widened past what PLAY_CHOICES exposes.
-  const playDelivery = async (
-    style: "safe" | "balanced" | "aggressive",
-  ) => {
+  const playDelivery = async (style: "safe" | "balanced" | "aggressive") => {
     if (!displayedMatch) return;
     setPendingStyle(style);
     try {
@@ -981,25 +1047,25 @@ function App() {
                     </button>
                   </div>
                 ) : (
-                <>
-                <p className="eyebrow">YOUR NEXT BALL</p>
-                <div className="choice-grid">
-                  {PLAY_CHOICES.map((choice) => (
-                    <button
-                      className={`choice-card ${choice.style}`}
-                      key={choice.style}
-                      disabled={pendingStyle !== null}
-                      onClick={() => playDelivery(choice.style)}
-                    >
-                      <strong>{choice.title}</strong>
-                      <span>{choice.risk}</span>
-                      {pendingStyle === choice.style && (
-                        <small>Opening the book…</small>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                </>
+                  <>
+                    <p className="eyebrow">YOUR NEXT BALL</p>
+                    <div className="choice-grid">
+                      {PLAY_CHOICES.map((choice) => (
+                        <button
+                          className={`choice-card ${choice.style}`}
+                          key={choice.style}
+                          disabled={pendingStyle !== null}
+                          onClick={() => playDelivery(choice.style)}
+                        >
+                          <strong>{choice.title}</strong>
+                          <span>{choice.risk}</span>
+                          {pendingStyle === choice.style && (
+                            <small>Opening the book…</small>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -1331,46 +1397,151 @@ function App() {
               </article>
             </section>
           )}
-          {showOperatorMetrics && currentMetrics && (
-            <section
-              className="operator-metrics"
-              aria-label="Mela operator metrics"
-            >
-              <div className="feed-header">
-                <h2>Mela pulse</h2>
-                <span>Authoritative aggregates</span>
-              </div>
-              <p>
-                Safe totals for demo operators—identities and sessions stay
-                private.
-              </p>
-              <div>
-                <span>
-                  <strong>{currentMetrics.matchesCompleted.toString()}</strong>{" "}
-                  completed matches
-                </span>
-                <span>
-                  <strong>
-                    {currentMetrics.uniquePlayerIdentities.toString()}
-                  </strong>{" "}
-                  unique players
-                </span>
-                <span>
-                  <strong>
-                    {currentMetrics.uniqueSpectatorIdentities.toString()}
-                  </strong>{" "}
-                  unique crowd members
-                </span>
-                <span>
-                  <strong>
-                    {currentMetrics.spectatorToPlayerConversions.toString()}
-                  </strong>{" "}
-                  crowd-to-player conversions
-                </span>
-              </div>
-            </section>
-          )}
         </>
+      )}
+      {showOperatorMetrics && currentMetrics && (
+        <section
+          className="operator-board"
+          aria-label="Mela operator dashboard"
+        >
+          <div className="feed-header">
+            <h2>Mela pulse</h2>
+            <span>Live from the database</span>
+          </div>
+
+          <div className="op-grid">
+            <div className="op-stat">
+              <strong>{currentMetrics.matchesCompleted.toString()}</strong>
+              <span>Matches completed</span>
+            </div>
+            <div className="op-stat">
+              <strong>
+                {currentMetrics.uniquePlayerIdentities.toString()}
+              </strong>
+              <span>People who played</span>
+            </div>
+            <div className="op-stat">
+              <strong>
+                {currentMetrics.uniqueSpectatorIdentities.toString()}
+              </strong>
+              <span>People who watched</span>
+            </div>
+            <div className="op-stat">
+              <strong>{currentMetrics.crowdActions.toString()}</strong>
+              <span>Crowd actions spent</span>
+            </div>
+          </div>
+
+          <div className="op-split">
+            <article className="op-panel">
+              <h3>By game</h3>
+              {operatorBreakdown.games.length === 0 ? (
+                <p className="op-empty">No completed matches yet.</p>
+              ) : (
+                <table className="op-table">
+                  <thead>
+                    <tr>
+                      <th>Game</th>
+                      <th>Played</th>
+                      <th>Human</th>
+                      <th>MelaBot</th>
+                      <th>Crowd</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {operatorBreakdown.games.map((game) => (
+                      <tr key={game.kind}>
+                        <td>{GAME_LABELS[game.kind] ?? game.kind}</td>
+                        <td>{game.played}</td>
+                        <td className="op-teal">{game.human}</td>
+                        <td className="op-rust">{game.bot}</td>
+                        <td className="op-honey">{game.crowd}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </article>
+
+            <article className="op-panel">
+              <h3>Who is winning</h3>
+              {operatorBreakdown.totalCompleted === 0 ? (
+                <p className="op-empty">No completed matches yet.</p>
+              ) : (
+                <>
+                  {/* Teal is the player and rust is MelaBot everywhere
+                      else in Mela, so the bar needs no legend. */}
+                  <div
+                    className="op-bar"
+                    role="img"
+                    aria-label={`Players have won ${operatorBreakdown.humanWins} of ${operatorBreakdown.totalCompleted} completed matches, MelaBot ${operatorBreakdown.botWins}.`}
+                  >
+                    <span
+                      className="op-bar-human"
+                      style={{
+                        width: `${(operatorBreakdown.humanWins / operatorBreakdown.totalCompleted) * 100}%`,
+                      }}
+                    />
+                    <span
+                      className="op-bar-bot"
+                      style={{
+                        width: `${(operatorBreakdown.botWins / operatorBreakdown.totalCompleted) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <dl className="op-legend">
+                    <div>
+                      <dt className="op-teal">Players</dt>
+                      <dd>{operatorBreakdown.humanWins}</dd>
+                    </div>
+                    <div>
+                      <dt className="op-rust">MelaBot</dt>
+                      <dd>{operatorBreakdown.botWins}</dd>
+                    </div>
+                    {operatorBreakdown.draws > 0 && (
+                      <div>
+                        <dt>Draws</dt>
+                        <dd>{operatorBreakdown.draws}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </>
+              )}
+            </article>
+
+            <article className="op-panel">
+              <h3>The crowd</h3>
+              <dl className="op-rows">
+                <div>
+                  <dt>Crowd joins</dt>
+                  <dd>{operatorBreakdown.spectatorJoins}</dd>
+                </div>
+                <div>
+                  <dt>Distinct people</dt>
+                  <dd>{operatorBreakdown.distinctSpectators}</dd>
+                </div>
+                <div>
+                  <dt>Spent energy</dt>
+                  <dd>{currentMetrics.spectatorsWhoActed.toString()}</dd>
+                </div>
+                <div>
+                  <dt>Became players</dt>
+                  <dd>
+                    {currentMetrics.spectatorToPlayerConversions.toString()}
+                  </dd>
+                </div>
+              </dl>
+              <p className="op-note">
+                A crowd join is one scan of a match QR. Distinct people counts
+                each identity once however many matches they watch.
+              </p>
+            </article>
+          </div>
+
+          <p className="op-foot">
+            Aggregates only — no identities, no sessions, nothing personal.
+          </p>
+        </section>
       )}
     </main>
   );

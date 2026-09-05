@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
@@ -19,6 +19,18 @@ const PENS = [
   ["pen-fountain", "Ink pen", "Your dad's good one"],
 ] as const;
 const PEN_KEY = "mela.pen";
+
+/**
+ * What each crowd power does, phrased for the person watching the desk rather
+ * than for the spectator who bought it. The desk badge has to explain itself
+ * in a glance to someone who never opened the crowd panel.
+ */
+const EFFECT_ON_DESK: Record<string, { label: string; effect: string }> = {
+  nudge: { label: "NUDGE", effect: "extra push" },
+  tilt: { label: "DESK TILT", effect: "sideways drift" },
+  guard: { label: "GUARD", effect: "saved from the edge" },
+  cheer: { label: "CHEER", effect: "energy returned" },
+};
 
 const powers = [
   ["nudge", "NUDGE", 14, "Give your side's next flick a small extra push."],
@@ -104,6 +116,11 @@ export function PenFight({
   const owns = Boolean(
     match && identity && match.playerIdentity.isEqual(identity),
   );
+  /** Crowd effects standing on this match right now, oldest first. */
+  const liveEffects = useMemo(
+    () => (match ? effects.filter((row) => row.matchId === match.id) : []),
+    [effects, match],
+  );
   const spectating = Boolean(
     match &&
     identity &&
@@ -145,8 +162,7 @@ export function PenFight({
       x: Math.round(Math.max(0, Math.min(1000, state.humanX + ux * 600))),
       y: Math.round(Math.max(0, Math.min(1000, state.humanY + uy * 600))),
     });
-    const ceiling =
-      state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE;
+    const ceiling = state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE;
     setForce(
       Math.round(MIN_FORCE + (drawn / PULL_MAX) * (ceiling - MIN_FORCE)),
     );
@@ -222,8 +238,12 @@ export function PenFight({
     const len = Math.max(1, Math.hypot(dx, dy));
     const a = Math.atan2(dy, dx) + dir * 0.14;
     setAim({
-      x: Math.round(Math.max(0, Math.min(1000, state.humanX + Math.cos(a) * len))),
-      y: Math.round(Math.max(0, Math.min(1000, state.humanY + Math.sin(a) * len))),
+      x: Math.round(
+        Math.max(0, Math.min(1000, state.humanX + Math.cos(a) * len)),
+      ),
+      y: Math.round(
+        Math.max(0, Math.min(1000, state.humanY + Math.sin(a) * len)),
+      ),
     });
   };
   const commitFlick = async () => {
@@ -247,8 +267,7 @@ export function PenFight({
   // MelaBot's intent, derived from the same public board state its own policy
   // reads. Its reasoning already reaches the event feed, but that scrolls away
   // from where the player is looking — the desk. This puts it on the desk.
-  const edgeOf = (x: number, y: number) =>
-    Math.min(x, y, 1000 - x, 1000 - y);
+  const edgeOf = (x: number, y: number) => Math.min(x, y, 1000 - x, 1000 - y);
   const myMargin = state ? edgeOf(state.humanX, state.humanY) : 500;
   const botMargin = state ? edgeOf(state.botX, state.botY) : 500;
   const gap = state
@@ -343,6 +362,36 @@ export function PenFight({
           <i className="notebook-line l2" />
           <i className="notebook-line l3" />
           <div className="danger-zone">EDGE</div>
+          {/* The crowd's work belongs on the desk, not only in a side panel:
+              this is the moment a spectator's name is worth seeing, and the
+              player is looking at the pens.
+
+              Only the SPECTATORS see effects that are still pending. Showing
+              the player an incoming DESK TILT would let them aim off to cancel
+              it, which makes the crowd harmless — so the player learns what the
+              crowd did from the event feed, after it has already landed. */}
+          {liveEffects.length > 0 && spectating && (
+            <div className="desk-crowd-effects">
+              {liveEffects.map((effect) => {
+                const copy = EFFECT_ON_DESK[effect.power] ?? {
+                  label: effect.power.toUpperCase(),
+                  effect: "in play",
+                };
+                return (
+                  <span
+                    key={effect.id.toString()}
+                    className={`desk-effect ${effect.target === "human" ? "on-human" : "on-bot"}`}
+                  >
+                    <b>{effect.actorName}</b> {copy.label}
+                    <i>
+                      {copy.effect} ·{" "}
+                      {effect.target === "human" ? human : "MelaBot"}
+                    </i>
+                  </span>
+                );
+              })}
+            </div>
+          )}
           <div
             className={`pen-token human ${myPen} ${humanTeeter ? "teeter" : ""}`}
             style={{
@@ -414,7 +463,8 @@ export function PenFight({
             ))}
           </div>
           <p className="pen-note">
-            Every pen plays exactly the same. Pick the one that feels like yours.
+            Every pen plays exactly the same. Pick the one that feels like
+            yours.
           </p>
         </section>
       )}
@@ -543,18 +593,12 @@ export function PenFight({
             THE CROWD IS WITH YOU · {crowd.energy}/{crowd.maxEnergy} ENERGY
           </p>
           <p>
-            Spectators can alter the next flick’s conditions. Watch the desk for
-            their NUDGE, TILT, and GUARD signals.
+            Spectators are spending Energy on your desk right now. You will not
+            see what they chose until it lands — watch the feed after each
+            flick.
           </p>
-          {effects.filter((e) => e.matchId === match.id).length > 0 && (
-            <p className="active-effects">
-              Active:{" "}
-              {effects
-                .filter((e) => e.matchId === match.id)
-                .map((e) => `${e.power.toUpperCase()} → ${e.target}`)
-                .join(" · ")}
-            </p>
-          )}
+          {/* Deliberately no list of pending effects here. The player finds
+              out what the crowd did once it has landed, never before. */}
         </section>
       )}
       {completed && (

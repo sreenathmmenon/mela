@@ -1534,38 +1534,235 @@ button:disabled {
   color: var(--ink-soft);
 }
 
-.operator-metrics {
+/* ======================================================================
+   OPERATOR DASHBOARD — ?operator=<key>
+   Not a separate app: it reuses the scorebook surfaces, the display face and
+   the semantic colours the rest of Mela already teaches. Teal is the player,
+   rust is MelaBot, honey is the crowd, so the tables and the win bar need no
+   legend to be read at a glance.
+   ============================================================================ */
+.operator-board {
   margin: var(--s7) 0 0;
   padding: var(--s5);
-  border: 1.5px dashed var(--teal);
+  border: 1.5px solid var(--rule);
   border-radius: var(--radius-l);
-  background: var(--teal-wash);
+  background: var(--surface);
 }
-.operator-metrics > p {
-  margin: var(--s3) 0 var(--s4);
-  color: var(--ink-soft);
-  font-size: 0.84rem;
-  line-height: 1.45;
+.operator-board .feed-header {
+  margin-bottom: var(--s4);
 }
-.operator-metrics > div:last-child {
+
+/* The four headline numbers. */
+.op-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--s2);
+  margin-bottom: var(--s5);
 }
-.operator-metrics span {
+.op-stat {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   padding: var(--s3);
-  border-radius: var(--radius-s);
-  background: var(--surface);
   border: 1.5px solid var(--rule-soft);
-  color: var(--ink-soft);
-  font-size: 0.75rem;
+  border-radius: var(--radius-s);
+  background: var(--wash);
 }
-.operator-metrics strong {
-  color: var(--ink);
+.op-stat strong {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--ink);
+  /* Tabular figures so the row does not jitter as counts tick up. */
+  font-variant-numeric: tabular-nums;
+}
+.op-stat span {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.op-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s3);
+}
+.op-panel {
+  padding: var(--s4);
+  border: 1.5px solid var(--rule-soft);
+  border-radius: var(--radius-m);
+  background: var(--canvas);
+}
+.op-panel h3 {
+  margin: 0 0 var(--s3);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--ink);
+}
+.op-empty {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+}
+
+/* The by-game table can outgrow a narrow panel, so it scrolls inside its own
+   box rather than clipping the last column or widening the page. */
+.op-table-wrap {
+  overflow-x: auto;
+}
+.op-table {
+  width: 100%;
+  min-width: 260px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.op-table th {
+  text-align: right;
+  /* Left padding separates the headings: without it "PLAYED HUMAN MELABOT"
+     runs together into one unreadable string at narrow panel widths. */
+  padding: 0 0 var(--s2) var(--s2);
+  white-space: nowrap;
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid var(--rule-soft);
+}
+.op-table th:first-child,
+.op-table td:first-child {
+  text-align: left;
+}
+.op-table td {
+  padding: var(--s2) 0 var(--s2) var(--s2);
+  text-align: right;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.op-table tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Semantic colours, matching the rest of Mela. */
+.op-teal {
+  color: var(--teal-text);
+  font-weight: 700;
+}
+.op-rust {
+  color: var(--rust-text);
+  font-weight: 700;
+}
+.op-honey {
+  color: var(--honey-text);
+  font-weight: 700;
+}
+
+/* Win split: one bar, player against bot, no percentages written out. */
+.op-bar {
+  display: flex;
+  height: 14px;
+  margin-bottom: var(--s3);
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--wash-deep);
+}
+.op-bar-human {
+  background: var(--teal);
+}
+.op-bar-bot {
+  background: var(--rust);
+}
+
+.op-legend,
+.op-rows {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+}
+.op-legend {
+  /* One row per side, so the label and its count stay paired. */
+  grid-template-columns: 1fr;
+}
+.op-legend > div,
+.op-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+.op-legend dt,
+.op-rows dt {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.op-legend dd,
+.op-rows dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.op-note {
+  margin: var(--s3) 0 0;
+  color: var(--ink-faint);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.op-foot {
+  margin: var(--s4) 0 0;
+  padding-top: var(--s3);
+  border-top: 1.5px solid var(--rule-soft);
+  color: var(--ink-faint);
+  font-size: 0.74rem;
+}
+
+/* Crowd effects, named, on the desk itself — spectators only, so the player
+   cannot aim off to cancel a tilt they can see coming. */
+.desk-crowd-effects {
+  position: absolute;
+  top: var(--s2);
+  left: var(--s2);
+  right: var(--s2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  /* Above the paper and pens, but never intercepting a flick drag. */
+  z-index: 4;
+  pointer-events: none;
+}
+.desk-effect {
+  display: grid;
+  gap: 1px;
+  padding: 5px 9px;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius-s);
+  background: var(--honey-wash);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--honey-deep);
+  box-shadow: 0 1px 0 var(--rule);
+}
+.desk-effect b {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.desk-effect i {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-size: 0.64rem;
+}
+/* Tint by whose pen it lands on, matching Mela's teal-you / rust-bot rule. */
+.desk-effect.on-human {
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+.desk-effect.on-bot {
+  background: var(--rust-wash);
+  color: var(--rust-deep);
 }
 
 /* ======================================================================
@@ -2778,7 +2975,8 @@ button:disabled {
   .join-row {
     flex-direction: column;
   }
-  .operator-metrics > div:last-child {
+  /* Four headline numbers become two rows of two on a phone. */
+  .op-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .join-qr,
