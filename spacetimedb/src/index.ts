@@ -33,6 +33,7 @@ import {
   playerMatchStartDelta,
   spectatorJoinDelta,
 } from "./melaMetrics";
+import { checkDisplayName } from "./displayNameRules";
 import {
   PEN_FIGHT_POWERS,
   PEN_FIGHT_RULES,
@@ -1189,8 +1190,10 @@ export const onboard = spacetimedb.reducer(
   (ctx: any, { displayName }: any) => {
     ensureWorld(ctx);
     const name = displayName.trim();
-    if (name.length < 2 || name.length > 24)
-      throw new Error("Name must be 2–24 characters.");
+    // Validated server-side: the client can be bypassed by calling this
+    // reducer directly, and this name is about to render on a projector.
+    const check = checkDisplayName(name);
+    if (!check.ok) throw new Error(check.message ?? "That name cannot be used.");
     const old = ctx.db.playerProfile.identity.find(ctx.sender);
     if (old)
       ctx.db.playerProfile.identity.update({
