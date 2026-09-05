@@ -3,6 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
+import { PenFight } from "./PenFight";
 
 const POWER_CARDS = [
   {
@@ -235,6 +236,7 @@ function App() {
 
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
+  const createPenFight = useReducer(reducers.createPenFight);
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
@@ -278,6 +280,20 @@ function App() {
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to start a match.",
+      );
+    } finally {
+      setCreatingMatch(false);
+    }
+  };
+  const startPenFight = async () => {
+    setCreatingMatch(true);
+    try {
+      await createPenFight();
+      setError(null);
+      setFeedback("The desk is live. Aim, choose force, and flick your pen.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to set up the desk.",
       );
     } finally {
       setCreatingMatch(false);
@@ -329,6 +345,13 @@ function App() {
       setPendingPower(null);
     }
   };
+
+  if (me && displayedMatch?.gameKind === "pen_fight")
+    return (
+      <PenFight
+        onBack={() => window.location.assign(window.location.pathname)}
+      />
+    );
 
   return (
     <main className="mela-shell">
@@ -396,15 +419,27 @@ function App() {
         </section>
       )}
       {me && !activeMatch && (
-        <button
-          className="primary start"
-          onClick={startMatch}
-          disabled={creatingMatch}
-        >
-          {creatingMatch
-            ? "Starting the live match…"
-            : "Start Book Cricket vs MelaBot"}
-        </button>
+        <section className="game-picker">
+          <p className="eyebrow">CHOOSE YOUR GAME</p>
+          <div>
+            <button
+              className="primary"
+              onClick={startMatch}
+              disabled={creatingMatch}
+            >
+              <strong>BOOK CRICKET</strong>
+              <span>Fast strategy + uncertainty</span>
+            </button>
+            <button
+              className="pen-start"
+              onClick={startPenFight}
+              disabled={creatingMatch}
+            >
+              <strong>PEN FIGHT</strong>
+              <span>Flick. Hit. Survive.</span>
+            </button>
+          </div>
+        </section>
       )}
 
       {displayedMatch && matchState && (

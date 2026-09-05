@@ -31,6 +31,13 @@ import {
   playerMatchStartDelta,
   spectatorJoinDelta,
 } from "../spacetimedb/src/melaMetrics";
+import {
+  PEN_FIGHT_RULES,
+  penFightCrowdEnergyResult,
+  penFightRoundWinner,
+  resolvePenFlick,
+  validatePenFlick,
+} from "../spacetimedb/src/penFightRules";
 
 test("delivery scoring is deterministic and bounded by each selected strategy", () => {
   const first = resolveBookCricketOutcome(18n, "balanced");
@@ -305,4 +312,56 @@ test("authoritative metrics distinguish people, participation, replay, and conve
   assert.equal(spectatorJoinDelta(true).uniqueSpectatorIdentities, 0);
   assert.equal(completedMatchDelta().matchesCompleted, 1);
   assert.equal(crowdActionDelta().crowdActions, 1);
+});
+
+test("Pen Fight physics is deterministic, bounded, and rewards a legal flick", () => {
+  const input = {
+    seed: 9n,
+    actorX: 260,
+    actorY: 500,
+    targetX: 740,
+    targetY: 500,
+    aimX: 740,
+    aimY: 500,
+    force: 65,
+    contact: 50,
+    effects: { nudge: false, tilt: false, guard: false },
+  };
+  assert.deepEqual(resolvePenFlick(input), resolvePenFlick(input));
+  const result = resolvePenFlick(input);
+  assert.ok(result.actorX >= 0 && result.actorX <= PEN_FIGHT_RULES.arenaSize);
+  assert.equal(
+    validatePenFlick({
+      aimX: 740,
+      aimY: 500,
+      force: 65,
+      contact: 50,
+      opening: true,
+    }),
+    true,
+  );
+  assert.equal(
+    validatePenFlick({
+      aimX: 740,
+      aimY: 500,
+      force: 100,
+      contact: 50,
+      opening: true,
+    }),
+    false,
+  );
+  assert.equal(penFightCrowdEnergyResult(14, "nudge"), 0);
+});
+
+test("Pen Fight stalemate resolves from actual safer positioning", () => {
+  assert.equal(
+    penFightRoundWinner({
+      humanX: 500,
+      humanY: 500,
+      botX: 900,
+      botY: 900,
+      seed: 1n,
+    }),
+    "human",
+  );
 });

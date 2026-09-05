@@ -190,6 +190,54 @@ export const MetricsIdentity = __t.object("MetricsIdentity", {
 });
 export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
+export const PenFightMetrics = __t.object("PenFightMetrics", {
+  id: __t.u64(),
+  matchesStarted: __t.u64(),
+  matchesCompleted: __t.u64(),
+  uniquePlayers: __t.u64(),
+  uniqueSpectators: __t.u64(),
+  participants: __t.u64(),
+  crowdActions: __t.u64(),
+  roundsCompleted: __t.u64(),
+  knockouts: __t.u64(),
+  updatedAt: __t.timestamp(),
+});
+export type PenFightMetrics = __Infer<typeof PenFightMetrics>;
+
+export const PenFightMetricsIdentity = __t.object("PenFightMetricsIdentity", {
+  identity: __t.identity(),
+  hasPlayed: __t.u32(),
+  hasSpectated: __t.u32(),
+});
+export type PenFightMetricsIdentity = __Infer<typeof PenFightMetricsIdentity>;
+
+export const PenFightRecord = __t.object("PenFightRecord", {
+  identity: __t.identity(),
+  displayName: __t.string(),
+  matchesPlayed: __t.u32(),
+  wins: __t.u32(),
+  roundsWon: __t.u32(),
+  knockouts: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type PenFightRecord = __Infer<typeof PenFightRecord>;
+
+export const PenFightState = __t.object("PenFightState", {
+  matchId: __t.u64(),
+  round: __t.u32(),
+  humanRounds: __t.u32(),
+  botRounds: __t.u32(),
+  turn: __t.string(),
+  humanX: __t.u32(),
+  humanY: __t.u32(),
+  botX: __t.u32(),
+  botY: __t.u32(),
+  turnsInRound: __t.u32(),
+  lastOutcome: __t.string(),
+  seed: __t.u64(),
+});
+export type PenFightState = __Infer<typeof PenFightState>;
+
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),
   displayName: __t.string(),

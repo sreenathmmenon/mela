@@ -7,15 +7,23 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import CreateBookCricketReducer from "../create_book_cricket_reducer";
+import CreatePenFightReducer from "../create_pen_fight_reducer";
+import FlickPenReducer from "../flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
 import OnboardReducer from "../onboard_reducer";
 import PlayBallReducer from "../play_ball_reducer";
 import UseCrowdPowerReducer from "../use_crowd_power_reducer";
+import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
 
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
+export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
+export type FlickPenParams = __Infer<typeof FlickPenReducer>;
 export type JoinMatchAsSpectatorParams = __Infer<
   typeof JoinMatchAsSpectatorReducer
 >;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;
+export type UsePenFightCrowdPowerParams = __Infer<
+  typeof UsePenFightCrowdPowerReducer
+>;

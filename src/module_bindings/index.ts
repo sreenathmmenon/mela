@@ -35,10 +35,13 @@ import {
 
 // Import all reducer arg schemas
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
+import CreatePenFightReducer from "./create_pen_fight_reducer";
+import FlickPenReducer from "./flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import OnboardReducer from "./onboard_reducer";
 import PlayBallReducer from "./play_ball_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
+import UsePenFightCrowdPowerReducer from "./use_pen_fight_crowd_power_reducer";
 
 // Import all procedure arg schemas
 
@@ -57,6 +60,9 @@ import MatchParticipantRow from "./match_participant_table";
 import MatchSpectatorRow from "./match_spectator_table";
 import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
+import PenFightMetricsRow from "./pen_fight_metrics_table";
+import PenFightRecordRow from "./pen_fight_record_table";
+import PenFightStateRow from "./pen_fight_state_table";
 import PlayerProfileRow from "./player_profile_table";
 import SpectatorCooldownRow from "./spectator_cooldown_table";
 import WorldRow from "./world_table";
@@ -338,6 +344,69 @@ const tablesSchema = __schema({
     },
     MelaProfileRow,
   ),
+  penFightMetrics: __table(
+    {
+      name: "pen_fight_metrics",
+      indexes: [
+        {
+          accessor: "id",
+          name: "pen_fight_metrics_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        {
+          name: "pen_fight_metrics_id_key",
+          constraint: "unique",
+          columns: ["id"],
+        },
+      ],
+    },
+    PenFightMetricsRow,
+  ),
+  penFightRecord: __table(
+    {
+      name: "pen_fight_record",
+      indexes: [
+        {
+          accessor: "identity",
+          name: "pen_fight_record_identity_idx_btree",
+          algorithm: "btree",
+          columns: ["identity"],
+        },
+      ],
+      constraints: [
+        {
+          name: "pen_fight_record_identity_key",
+          constraint: "unique",
+          columns: ["identity"],
+        },
+      ],
+    },
+    PenFightRecordRow,
+  ),
+  penFightState: __table(
+    {
+      name: "pen_fight_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "pen_fight_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "pen_fight_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    PenFightStateRow,
+  ),
   playerProfile: __table(
     {
       name: "player_profile",
@@ -444,10 +513,13 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
+  __reducerSchema("create_pen_fight", CreatePenFightReducer),
+  __reducerSchema("flick_pen", FlickPenReducer),
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("play_ball", PlayBallReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
+  __reducerSchema("use_pen_fight_crowd_power", UsePenFightCrowdPowerReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

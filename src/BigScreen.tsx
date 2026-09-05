@@ -32,6 +32,7 @@ export default function BigScreen() {
   );
   const [matches] = useTable(tables.match);
   const [states] = useTable(tables.bookCricketState);
+  const [penStates] = useTable(tables.penFightState);
   const [participants] = useTable(tables.matchParticipant);
   const [crowds] = useTable(tables.matchCrowd);
   const [spectators] = useTable(tables.matchSpectator);
@@ -54,6 +55,9 @@ export default function BigScreen() {
     latestBookMatch;
   const state = displayedMatch
     ? states.find((row) => row.matchId === displayedMatch.id)
+    : undefined;
+  const penState = displayedMatch
+    ? penStates.find((row) => row.matchId === displayedMatch.id)
     : undefined;
   const humanName = displayedMatch
     ? (participants.find(
@@ -89,7 +93,7 @@ export default function BigScreen() {
     [events, displayedMatch],
   );
 
-  if (!displayedMatch || !state)
+  if (!displayedMatch || (!state && !penState))
     return (
       <main className="screen-shell screen-empty">
         <p className="eyebrow">MELA · BIG SCREEN</p>
@@ -102,6 +106,79 @@ export default function BigScreen() {
     );
 
   const joinUrl = publicJoinUrl(displayedMatch.id);
+  if (displayedMatch.gameKind === "pen_fight" && penState)
+    return (
+      <main className="screen-shell pen-screen">
+        <header className="screen-header">
+          <div>
+            <p className="eyebrow">MELA · PEN FIGHT</p>
+            <h1>Two pens. One desk. One crowd.</h1>
+          </div>
+          <div className="screen-join">
+            <QRCodeSVG value={joinUrl} size={148} />
+            <div>
+              <strong>JOIN THE CROWD</strong>
+              <span>Scan · name yourself · shape the next flick</span>
+            </div>
+          </div>
+        </header>
+        <section className="screen-score">
+          <div>
+            <span>{humanName}</span>
+            <strong>{penState.humanRounds}</strong>
+            <small>rounds won</small>
+          </div>
+          <div className="screen-versus">
+            <span>BEST OF 3</span>
+            <strong>ROUND {penState.round}</strong>
+            <small>{matchSpectators.length} around the desk</small>
+          </div>
+          <div>
+            <span>{aiName}</span>
+            <strong>{penState.botRounds}</strong>
+            <small>rounds won</small>
+          </div>
+        </section>
+        <section className="screen-turn">
+          <p className="eyebrow">
+            {displayedMatch.status === "complete"
+              ? "DUEL REMEMBERED"
+              : penState.turn === "human"
+                ? "PLAYER'S FLICK"
+                : "MELABOT'S FLICK"}
+          </p>
+          <h2>
+            {displayedMatch.status === "complete"
+              ? `${displayedMatch.winner === "human" ? humanName : aiName} wins the desk.`
+              : penState.turn === "human"
+                ? `${humanName} is aiming.`
+                : "MelaBot is lining up a response."}
+          </h2>
+          <p>{penState.lastOutcome}</p>
+        </section>
+        <section className="screen-lower">
+          <article className="screen-crowd">
+            <p className="eyebrow">SHARED CROWD ENERGY</p>
+            <h2>
+              {crowd?.energy ?? 0}
+              <span> / {crowd?.maxEnergy ?? 0}</span>
+            </h2>
+            <p>
+              Hands around the desk can nudge, tilt, or guard the next flick.
+            </p>
+          </article>
+          <article className="screen-moments">
+            <p className="eyebrow">LIVE DESK MOMENTS</p>
+            <ul>
+              {moments.map((event) => (
+                <li key={event.id.toString()}>{event.message}</li>
+              ))}
+            </ul>
+          </article>
+        </section>
+      </main>
+    );
+  if (!state) return null;
   const completed = displayedMatch.status === "complete";
   const winner = memory?.winner ?? result?.winner ?? displayedMatch.winner;
   const botRunsNeeded = Math.max(0, state.target - state.botScore);

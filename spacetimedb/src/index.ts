@@ -30,6 +30,17 @@ import {
   playerMatchStartDelta,
   spectatorJoinDelta,
 } from "./melaMetrics";
+import {
+  PEN_FIGHT_POWERS,
+  PEN_FIGHT_RULES,
+  type PenFightPower,
+  type PenSide,
+  isPenFightPower,
+  penFightCrowdEnergyResult,
+  penFightRoundWinner,
+  resolvePenFlick as resolvePenFightPhysics,
+  validatePenFlick,
+} from "./penFightRules";
 
 const WORLD_ID = 1n;
 
@@ -184,6 +195,23 @@ const spacetimedb = schema({
       seed: t.u64(),
     },
   ),
+  penFightState: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      round: t.u32(),
+      humanRounds: t.u32(),
+      botRounds: t.u32(),
+      turn: t.string(),
+      humanX: t.u32(),
+      humanY: t.u32(),
+      botX: t.u32(),
+      botY: t.u32(),
+      turnsInRound: t.u32(),
+      lastOutcome: t.string(),
+      seed: t.u64(),
+    },
+  ),
   matchHistory: table(
     { public: true },
     {
@@ -225,6 +253,41 @@ const spacetimedb = schema({
       runsScored: t.u32(),
       highestScore: t.u32(),
       updatedAt: t.timestamp(),
+    },
+  ),
+  penFightRecord: table(
+    { public: true },
+    {
+      identity: t.identity().primaryKey(),
+      displayName: t.string(),
+      matchesPlayed: t.u32(),
+      wins: t.u32(),
+      roundsWon: t.u32(),
+      knockouts: t.u32(),
+      updatedAt: t.timestamp(),
+    },
+  ),
+  penFightMetrics: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey(),
+      matchesStarted: t.u64(),
+      matchesCompleted: t.u64(),
+      uniquePlayers: t.u64(),
+      uniqueSpectators: t.u64(),
+      participants: t.u64(),
+      crowdActions: t.u64(),
+      roundsCompleted: t.u64(),
+      knockouts: t.u64(),
+      updatedAt: t.timestamp(),
+    },
+  ),
+  penFightMetricsIdentity: table(
+    { public: false },
+    {
+      identity: t.identity().primaryKey(),
+      hasPlayed: t.u32(),
+      hasSpectated: t.u32(),
     },
   ),
   liveEvent: table(
@@ -451,6 +514,65 @@ const applyMetricDelta = (ctx: any, delta: MelaMetricDelta) => {
       BigInt(delta.spectatorToPlayerConversions),
     updatedAt: ctx.timestamp,
   });
+};
+const ensurePenMetrics = (ctx: any) => {
+  const existing = ctx.db.penFightMetrics.id.find(1n);
+  if (existing) return existing;
+  const matches = Array.from(ctx.db.match.iter()).filter(
+    (match: any) => match.gameKind === "pen_fight",
+  ) as any[];
+  const spectators = Array.from(ctx.db.matchSpectator.iter()).filter(
+    (row: any) => matches.some((match) => match.id === row.matchId),
+  ) as any[];
+  const uniquePlayers = new Set(
+    matches.map((match) => identityKey(match.playerIdentity)),
+  ).size;
+  const uniqueSpectators = new Set(
+    spectators.map((row) => identityKey(row.identity)),
+  ).size;
+  const metrics = {
+    id: 1n,
+    matchesStarted: BigInt(matches.length),
+    matchesCompleted: BigInt(
+      matches.filter((match) => match.status === "complete").length,
+    ),
+    uniquePlayers: BigInt(uniquePlayers),
+    uniqueSpectators: BigInt(uniqueSpectators),
+    participants: BigInt(matches.length + spectators.length),
+    crowdActions: 0n,
+    roundsCompleted: 0n,
+    knockouts: 0n,
+    updatedAt: ctx.timestamp,
+  };
+  ctx.db.penFightMetrics.insert(metrics);
+  return metrics;
+};
+const penMetricIdentity = (ctx: any, identity: any) => {
+  const old = ctx.db.penFightMetricsIdentity.identity.find(identity);
+  if (old) return old;
+  const hasPlayed = Array.from(ctx.db.match.iter()).some(
+    (match: any) =>
+      match.gameKind === "pen_fight" && match.playerIdentity.isEqual(identity),
+  )
+    ? 1
+    : 0;
+  const hasSpectated = Array.from(ctx.db.matchSpectator.iter()).some(
+    (row: any) =>
+      row.identity.isEqual(identity) &&
+      ctx.db.match.id.find(row.matchId)?.gameKind === "pen_fight",
+  )
+    ? 1
+    : 0;
+  const row = { identity, hasPlayed, hasSpectated };
+  ctx.db.penFightMetricsIdentity.insert(row);
+  return row;
+};
+const updatePenMetrics = (ctx: any, fields: Record<string, number>) => {
+  const metrics = ensurePenMetrics(ctx);
+  const next: any = { ...metrics, updatedAt: ctx.timestamp };
+  for (const [key, value] of Object.entries(fields))
+    next[key] = metrics[key] + BigInt(value);
+  ctx.db.penFightMetrics.id.update(next);
 };
 const player = (ctx: any) => {
   const row = ctx.db.playerProfile.identity.find(ctx.sender);
@@ -725,6 +847,210 @@ function resolveDelivery(
   ctx.db.bookCricketState.matchId.update(next);
 }
 
+const penEffectsFor = (ctx: any, matchId: bigint, target: string) => {
+  const effects = effectsFor(ctx, matchId, target);
+  return {
+    rows: effects,
+    state: {
+      nudge: effects.some((e) => e.power === "nudge"),
+      tilt: effects.some((e) => e.power === "tilt"),
+      guard: effects.some((e) => e.power === "guard"),
+    },
+  };
+};
+function finishPenMatch(
+  ctx: any,
+  match: any,
+  state: any,
+  winner: PenSide,
+  knockout: boolean,
+) {
+  ctx.db.match.id.update({
+    ...match,
+    status: "complete",
+    winner,
+    endedAt: ctx.timestamp,
+  });
+  ctx.db.matchHistory.insert({
+    id: nextId(ctx.db.matchHistory.iter()),
+    matchId: match.id,
+    winner,
+    humanScore: state.humanRounds,
+    botScore: state.botRounds,
+    occurredAt: ctx.timestamp,
+  });
+  const human = ctx.db.playerProfile.identity.find(match.playerIdentity);
+  const activity = ctx.db.matchCrowdActivity.matchId.find(match.id);
+  ctx.db.matchMemory.insert({
+    matchId: match.id,
+    sequence: match.id,
+    gameKind: "pen_fight",
+    humanName: human?.displayName ?? "Player",
+    aiName: "MelaBot",
+    winner,
+    humanScore: state.humanRounds,
+    humanWickets: 0,
+    botScore: state.botRounds,
+    botWickets: 0,
+    crowdParticipants: Array.from(ctx.db.matchSpectator.iter()).filter(
+      (row: any) => row.matchId === match.id,
+    ).length,
+    crowdActions: activity?.actions ?? 0,
+    crowdEnergySpent: activity?.energySpent ?? 0,
+    notableMoment: knockout
+      ? `${winner === "human" ? (human?.displayName ?? "Player") : "MelaBot"} won with a desk-edge knockout.`
+      : `${winner === "human" ? (human?.displayName ?? "Player") : "MelaBot"} held the safer desk position.`,
+    completedAt: ctx.timestamp,
+  });
+  const profile = ensureMelaProfile(ctx, match.playerIdentity);
+  const win = winner === "human";
+  const progress = playerProgressAfterMatch(profile.progressPoints, win);
+  ctx.db.melaProfile.identity.update({
+    ...profile,
+    ...progress,
+    matchesPlayed: profile.matchesPlayed + 1,
+    matchesWon: profile.matchesWon + (win ? 1 : 0),
+    updatedAt: ctx.timestamp,
+  });
+  const record = ctx.db.penFightRecord.identity.find(match.playerIdentity);
+  const nextRecord = {
+    matchesPlayed: (record?.matchesPlayed ?? 0) + 1,
+    wins: (record?.wins ?? 0) + (win ? 1 : 0),
+    roundsWon: (record?.roundsWon ?? 0) + state.humanRounds,
+    knockouts: (record?.knockouts ?? 0) + (knockout && win ? 1 : 0),
+  };
+  if (record)
+    ctx.db.penFightRecord.identity.update({
+      ...record,
+      ...nextRecord,
+      updatedAt: ctx.timestamp,
+    });
+  else
+    ctx.db.penFightRecord.insert({
+      identity: match.playerIdentity,
+      displayName: human?.displayName ?? "Player",
+      ...nextRecord,
+      updatedAt: ctx.timestamp,
+    });
+  updatePenMetrics(ctx, {
+    matchesCompleted: 1,
+    roundsCompleted: state.humanRounds + state.botRounds,
+    knockouts: knockout ? 1 : 0,
+  });
+  emit(
+    ctx,
+    match.id,
+    winner === "human" ? "HUMAN WINS THE DESK" : "MELABOT WINS THE DESK",
+  );
+}
+function resolvePenFlick(
+  ctx: any,
+  match: any,
+  state: any,
+  side: PenSide,
+  aimX: number,
+  aimY: number,
+  force: number,
+  contact: number,
+) {
+  const human = side === "human";
+  const actor = human ? "human" : "melabot";
+  const target = human ? "melabot" : "human";
+  const effects = penEffectsFor(ctx, match.id, actor);
+  const resolution = resolvePenFightPhysics({
+    seed: state.seed,
+    actorX: human ? state.humanX : state.botX,
+    actorY: human ? state.humanY : state.botY,
+    targetX: human ? state.botX : state.humanX,
+    targetY: human ? state.botY : state.humanY,
+    aimX,
+    aimY,
+    force,
+    contact,
+    effects: effects.state,
+  });
+  for (const effect of effects.rows) ctx.db.crowdEffect.id.delete(effect.id);
+  const actorOut = resolution.actorOut;
+  const targetOut = resolution.targetOut;
+  let next: any = {
+    ...state,
+    seed: resolution.seed,
+    turnsInRound: state.turnsInRound + 1,
+    lastOutcome: resolution.hit ? "CONTACT!" : "NEAR MISS",
+  };
+  if (human)
+    Object.assign(next, {
+      humanX: resolution.actorX,
+      humanY: resolution.actorY,
+      botX: resolution.targetX,
+      botY: resolution.targetY,
+    });
+  else
+    Object.assign(next, {
+      botX: resolution.actorX,
+      botY: resolution.actorY,
+      humanX: resolution.targetX,
+      humanY: resolution.targetY,
+    });
+  if (resolution.nearEdge)
+    emit(ctx, match.id, "A pen is hanging near the edge!");
+  if (
+    targetOut ||
+    actorOut ||
+    next.turnsInRound >= PEN_FIGHT_RULES.maxTurnsPerRound
+  ) {
+    const winner: PenSide = targetOut
+      ? actor
+      : actorOut
+        ? target
+        : penFightRoundWinner({
+            humanX: next.humanX,
+            humanY: next.humanY,
+            botX: next.botX,
+            botY: next.botY,
+            seed: next.seed,
+          });
+    if (winner === "human") next.humanRounds += 1;
+    else next.botRounds += 1;
+    const matchWinner =
+      next.humanRounds >= PEN_FIGHT_RULES.roundsToWin
+        ? "human"
+        : next.botRounds >= PEN_FIGHT_RULES.roundsToWin
+          ? "melabot"
+          : undefined;
+    if (matchWinner) {
+      next.turn = "complete";
+      next.lastOutcome = `${matchWinner.toUpperCase()} WINS`;
+      finishPenMatch(ctx, match, next, matchWinner, targetOut || actorOut);
+    } else {
+      next.round += 1;
+      next.turnsInRound = 0;
+      next.humanX = 260;
+      next.humanY = 500;
+      next.botX = 740;
+      next.botY = 500;
+      next.turn = next.round % 2 === 0 ? "bot" : "human";
+      next.lastOutcome = `${winner.toUpperCase()} TAKES ROUND ${state.round}`;
+      emit(ctx, match.id, next.lastOutcome);
+      if (next.turn === "bot")
+        scheduleMelaBotWake(ctx, match.id, next.turnsInRound);
+    }
+  } else {
+    next.turn = human ? "bot" : "human";
+    emit(
+      ctx,
+      match.id,
+      `${human ? "Human" : "MelaBot"} ${resolution.hit ? "made contact" : "missed"}`,
+    );
+    if (!human) {
+    } else {
+      emit(ctx, match.id, "MelaBot is lining up a flick…");
+      scheduleMelaBotWake(ctx, match.id, next.turnsInRound);
+    }
+  }
+  ctx.db.penFightState.matchId.update(next);
+}
+
 export const init = spacetimedb.init((ctx: any) => {
   ensureWorld(ctx);
   ensureMelaBot(ctx);
@@ -878,6 +1204,197 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
   );
   emit(ctx, matchId, `${p.displayName} started batting`);
 });
+export const createPenFight = spacetimedb.reducer((ctx: any) => {
+  const p = player(ctx);
+  for (const existing of ctx.db.match.iter())
+    if (existing.status === "active")
+      throw new Error("A live Mela match is already on the desk.");
+  const metricIdentity = penMetricIdentity(ctx, ctx.sender);
+  updatePenMetrics(ctx, {
+    matchesStarted: 1,
+    participants: 1,
+    uniquePlayers: metricIdentity.hasPlayed ? 0 : 1,
+  });
+  ctx.db.penFightMetricsIdentity.identity.update({
+    ...metricIdentity,
+    hasPlayed: 1,
+  });
+  const matchId = nextMatchId(ctx);
+  ctx.db.match.insert({
+    id: matchId,
+    worldId: WORLD_ID,
+    gameKind: "pen_fight",
+    playerIdentity: ctx.sender,
+    status: "active",
+    winner: "",
+    createdAt: ctx.timestamp,
+    endedAt: undefined,
+  });
+  ctx.db.matchParticipant.insert({
+    id: nextId(ctx.db.matchParticipant.iter()),
+    matchId,
+    actorKind: "human",
+    role: "player",
+    identity: ctx.sender,
+    displayName: p.displayName,
+  });
+  ctx.db.matchParticipant.insert({
+    id: nextId(ctx.db.matchParticipant.iter()),
+    matchId,
+    actorKind: "ai",
+    role: "opponent",
+    identity: undefined,
+    displayName: "MelaBot",
+  });
+  ctx.db.penFightState.insert({
+    matchId,
+    round: 1,
+    humanRounds: 0,
+    botRounds: 0,
+    turn: "human",
+    humanX: 260,
+    humanY: 500,
+    botX: 740,
+    botY: 500,
+    turnsInRound: 0,
+    lastOutcome: "AIM YOUR FIRST FLICK",
+    seed: matchId + 71n,
+  });
+  ctx.db.matchCrowd.insert({
+    matchId,
+    energy: PEN_FIGHT_RULES.crowdEnergyStart,
+    maxEnergy: PEN_FIGHT_RULES.crowdEnergyMax,
+  });
+  ctx.db.matchCrowdActivity.insert({
+    matchId,
+    actions: 0,
+    energySpent: 0,
+    lastActor: "The desk",
+    lastPower: "watching",
+  });
+  scheduleCrowdTask(
+    ctx,
+    "regen",
+    matchId,
+    0n,
+    nowMicros(ctx) + BOOK_CRICKET_RULES.crowdEnergyRegenMicros,
+  );
+  emit(ctx, matchId, `${p.displayName} set their pen on the desk`);
+});
+export const flickPen = spacetimedb.reducer(
+  {
+    matchId: t.u64(),
+    aimX: t.u32(),
+    aimY: t.u32(),
+    force: t.u32(),
+    contact: t.u32(),
+  },
+  (ctx: any, action: any) => {
+    const match = ctx.db.match.id.find(action.matchId);
+    const state = ctx.db.penFightState.matchId.find(action.matchId);
+    if (
+      !match ||
+      !state ||
+      match.status !== "active" ||
+      match.gameKind !== "pen_fight" ||
+      !match.playerIdentity.isEqual(ctx.sender)
+    )
+      throw new Error("Not your live Pen Fight.");
+    if (
+      state.turn !== "human" ||
+      !validatePenFlick({ ...action, opening: state.turnsInRound === 0 })
+    )
+      throw new Error("Choose a legal aim, force, and contact point.");
+    resolvePenFlick(
+      ctx,
+      match,
+      state,
+      "human",
+      action.aimX,
+      action.aimY,
+      action.force,
+      action.contact,
+    );
+  },
+);
+export const usePenFightCrowdPower = spacetimedb.reducer(
+  { matchId: t.u64(), power: t.string(), target: t.string() },
+  (ctx: any, { matchId, power, target }: any) => {
+    const match = ctx.db.match.id.find(matchId);
+    if (!match || match.status !== "active" || match.gameKind !== "pen_fight")
+      throw new Error("That Pen Fight is not live.");
+    if (
+      !spectatorFor(ctx, matchId, ctx.sender) ||
+      !isPenFightPower(power) ||
+      (target !== "human" && target !== "melabot")
+    )
+      throw new Error("Join the crowd and choose a legal desk action.");
+    const now = nowMicros(ctx);
+    const cooldown = cooldownFor(ctx, matchId, ctx.sender, power);
+    if (cooldown && cooldown.readyAtMicros > now)
+      throw new Error("That desk move is cooling down.");
+    const crowd = ctx.db.matchCrowd.matchId.find(matchId);
+    const energy = crowd && penFightCrowdEnergyResult(crowd.energy, power);
+    if (!crowd || energy === undefined)
+      throw new Error("The crowd needs more Energy.");
+    if (
+      power !== "cheer" &&
+      penEffectsFor(ctx, matchId, target).rows.some(
+        (effect) => effect.power === power,
+      )
+    )
+      throw new Error("That desk effect is already waiting.");
+    const rule = PEN_FIGHT_POWERS[power as PenFightPower];
+    ctx.db.matchCrowd.matchId.update({ ...crowd, energy });
+    if (cooldown)
+      ctx.db.spectatorCooldown.id.update({
+        ...cooldown,
+        readyAtMicros: now + rule.cooldownMicros,
+      });
+    else
+      ctx.db.spectatorCooldown.insert({
+        id: nextId(ctx.db.spectatorCooldown.iter()),
+        matchId,
+        identity: ctx.sender,
+        power,
+        readyAtMicros: now + rule.cooldownMicros,
+      });
+    const profile = player(ctx);
+    const activity = ctx.db.matchCrowdActivity.matchId.find(matchId);
+    if (activity)
+      ctx.db.matchCrowdActivity.matchId.update({
+        ...activity,
+        actions: activity.actions + 1,
+        energySpent: activity.energySpent + rule.cost,
+        lastActor: profile.displayName,
+        lastPower: power,
+      });
+    updatePenMetrics(ctx, { crowdActions: 1 });
+    if (power === "cheer") {
+      emit(
+        ctx,
+        matchId,
+        `${profile.displayName} CHEERED — the desk has more Energy`,
+      );
+      return;
+    }
+    const effectId = nextId(ctx.db.crowdEffect.iter());
+    const expiresAtMicros = now + rule.durationMicros;
+    ctx.db.crowdEffect.insert({
+      id: effectId,
+      matchId,
+      power,
+      target,
+      expiresAtMicros,
+    });
+    scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);
+    emit(
+      ctx,
+      matchId,
+      `${profile.displayName} used ${rule.label} for ${target}`,
+    );
+  },
+);
 export const playBall = spacetimedb.reducer(
   { matchId: t.u64(), style: t.string() },
   (ctx: any, { matchId, style }: any) => {
@@ -908,6 +1425,17 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
     if (match.playerIdentity.isEqual(ctx.sender))
       throw new Error("The player is already in this match.");
     if (spectatorFor(ctx, matchId, ctx.sender)) return;
+    if (match.gameKind === "pen_fight") {
+      const metricIdentity = penMetricIdentity(ctx, ctx.sender);
+      updatePenMetrics(ctx, {
+        participants: 1,
+        uniqueSpectators: metricIdentity.hasSpectated ? 0 : 1,
+      });
+      ctx.db.penFightMetricsIdentity.identity.update({
+        ...metricIdentity,
+        hasSpectated: 1,
+      });
+    }
     const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
     applyMetricDelta(
       ctx,
@@ -1045,6 +1573,45 @@ export const processCrowdSchedule = spacetimedb.reducer(
     const match = ctx.db.match.id.find(arg.matchId);
     if (!match || match.status !== "active") return;
     if (arg.kind === "ai_wake") {
+      if (match.gameKind === "pen_fight") {
+        const state = ctx.db.penFightState.matchId.find(arg.matchId);
+        if (
+          !state ||
+          state.turn !== "bot" ||
+          state.turnsInRound !== Number(arg.effectId)
+        )
+          return;
+        const dx = state.humanX - state.botX;
+        const dy = state.humanY - state.botY;
+        const edge =
+          Math.min(
+            state.humanX,
+            state.humanY,
+            1000 - state.humanX,
+            1000 - state.humanY,
+          ) < 150;
+        const force = edge ? 92 : Math.hypot(dx, dy) < 210 ? 78 : 58;
+        const aimX = Math.max(0, Math.min(1000, state.humanX + dx * 0.18));
+        const aimY = Math.max(0, Math.min(1000, state.humanY + dy * 0.18));
+        emit(
+          ctx,
+          arg.matchId,
+          edge
+            ? "MelaBot goes for the edge shot."
+            : "MelaBot lines up a measured flick.",
+        );
+        resolvePenFlick(
+          ctx,
+          match,
+          state,
+          "melabot",
+          Math.round(aimX),
+          Math.round(aimY),
+          force,
+          50,
+        );
+        return;
+      }
       const state = ctx.db.bookCricketState.matchId.find(arg.matchId);
       if (
         !state ||
