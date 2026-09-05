@@ -1854,6 +1854,9 @@ button:disabled {
 .aim-line {
   position: absolute;
   height: 3px;
+  /* The anchor is the pen's CENTRE (pen tokens are translate(-50%,-50%)), so
+     the line must lift itself by half its height to start exactly there. */
+  margin-top: -1.5px;
   transform-origin: left center;
   background: linear-gradient(90deg, var(--teal-text), var(--honey));
   z-index: 1;
@@ -2846,5 +2849,80 @@ button:disabled {
 @media (max-width: 760px) {
   .memory-hero::after {
     display: none;
+  }
+}
+
+/* ---------- Pen Fight: slingshot flick ---------- */
+/* The launch guide is deliberately SHORT — it hints direction and strength
+   without giving away a full trajectory, which is what every game in this
+   genre gates behind a stat. Colour ramps green -> amber -> red with power. */
+.aim-line {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+.aim-line.live {
+  opacity: 1;
+  height: 4px;
+  margin-top: -2px;
+  background: linear-gradient(
+    90deg,
+    hsl(calc(140 - var(--power, 0) * 1.4) 70% 45%),
+    hsl(calc(140 - var(--power, 0) * 1.4) 85% 55%)
+  );
+  box-shadow: 0 0 10px hsl(calc(140 - var(--power, 0) * 1.4) 80% 50% / 0.5);
+}
+/* The rubber band back to the finger: this is the bit that makes it feel
+   like a slingshot rather than a click. */
+.pull-band {
+  position: absolute;
+  height: 2px;
+  margin-top: -1px;
+  transform-origin: left center;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(60, 40, 24, 0.55) 0 6px,
+    transparent 6px 11px
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+.power-readout {
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(60, 40, 24, 0.16);
+  overflow: hidden;
+  margin: 4px 0 12px;
+}
+.power-readout i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #3fbf6f, #f3b83a 55%, #e04b3c);
+  transition: width 0.06s linear;
+}
+.keyboard-flick {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.keyboard-flick button {
+  min-width: 46px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+.keyboard-flick button.primary {
+  flex: 1;
+}
+.pen-arena {
+  cursor: grab;
+}
+.pen-arena:active {
+  cursor: grabbing;
+}
+@media (max-width: 640px) {
+  .keyboard-flick button {
+    min-width: 42px;
   }
 }

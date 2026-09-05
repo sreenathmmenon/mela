@@ -17,6 +17,12 @@ function spinFor(matchId: bigint, x: number, y: number, base: number) {
   const mix = (Number(matchId % 7n) * 31 + x * 3 + y * 5) % 34;
   return base + mix - 17;
 }
+// Mirrors penFightRules.ts. The server validates every flick regardless, so a
+// drift here can only ever cost the player a rejected shot, never an illegal one.
+const MIN_FORCE = 20;
+const MAX_FORCE = 100;
+const OPENING_FORCE_MAX = 66;
+
 const url = (id: bigint) =>
   `${(import.meta.env.VITE_PUBLIC_APP_URL || location.origin).replace(/\/$/, "")}/?join=${id}`;
 
@@ -40,7 +46,9 @@ export function PenFight({
   const [records] = useTable(tables.penFightRecord);
   const [aim, setAim] = useState({ x: 740, y: 500 });
   const [force, setForce] = useState(60);
-  const [contact, setContact] = useState(50);
+  const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [target, setTarget] = useState<"human" | "melabot">("human");
   const [note, setNote] = useState("");
   const [aiming, setAiming] = useState(false);
@@ -81,12 +89,36 @@ export function PenFight({
       )?.displayName ?? "Player")
     : "Player";
   const completed = match?.status === "complete";
-  const place = (event: PointerEvent<HTMLDivElement>) => {
+  /**
+   * One gesture sets the whole flick. Drag back from your pen like a
+   * slingshot: the direction you pull is the direction it will NOT go, and how
+   * far you pull is how hard it goes. This is the model Carrom Pool, 8 Ball and
+   * Angry Birds all converged on, and it works identically for mouse and touch.
+   */
+  const PULL_MAX = 320; // arena units of pull that map to full power
+  const pull = (event: PointerEvent<HTMLDivElement>) => {
+    if (!state) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) / rect.width) * 1000;
+    const py = ((event.clientY - rect.top) / rect.height) * 1000;
+    // Vector from the drag point back to the pen = the launch direction.
+    const dx = state.humanX - px;
+    const dy = state.humanY - py;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+    const ux = dx / len;
+    const uy = dy / len;
+    const drawn = Math.min(PULL_MAX, len);
     setAim({
-      x: Math.round(((event.clientX - rect.left) / rect.width) * 1000),
-      y: Math.round(((event.clientY - rect.top) / rect.height) * 1000),
+      x: Math.round(Math.max(0, Math.min(1000, state.humanX + ux * 600))),
+      y: Math.round(Math.max(0, Math.min(1000, state.humanY + uy * 600))),
     });
+    const ceiling =
+      state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE;
+    setForce(
+      Math.round(MIN_FORCE + (drawn / PULL_MAX) * (ceiling - MIN_FORCE)),
+    );
+    setPullPoint({ x: px, y: py });
   };
   // Presentation only: the desk reacts to what the server already resolved —
   // a shudder on contact, a gold flash when a round is decided.
@@ -131,6 +163,44 @@ export function PenFight({
         <p>Your live Pen Fight state is arriving from Mela.</p>
       </section>
     );
+  // The opening flick is capped by the server for fairness; mirror that here so
+  // the power bar cannot promise strength the reducer will refuse.
+  const isOpening = state.turnsInRound < 2;
+  const maxForceNow = isOpening ? OPENING_FORCE_MAX : MAX_FORCE;
+  const cappedForce = Math.min(force, maxForceNow);
+  // The bar fills against the power available RIGHT NOW. During the opening the
+  // ceiling is lower, so a full bar honestly means "as hard as this flick can
+  // legally go" rather than freezing part-way with no explanation.
+  const powerPct = Math.round(
+    ((cappedForce - MIN_FORCE) / Math.max(1, maxForceNow - MIN_FORCE)) * 100,
+  );
+  const nudgeAim = (dir: number) => {
+    const dx = aim.x - state.humanX;
+    const dy = aim.y - state.humanY;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const a = Math.atan2(dy, dx) + dir * 0.14;
+    setAim({
+      x: Math.round(Math.max(0, Math.min(1000, state.humanX + Math.cos(a) * len))),
+      y: Math.round(Math.max(0, Math.min(1000, state.humanY + Math.sin(a) * len))),
+    });
+  };
+  const commitFlick = async () => {
+    try {
+      await flick({
+        matchId: match.id,
+        aimX: aim.x,
+        aimY: aim.y,
+        force: cappedForce,
+        // Contact stays centred: one gesture beats two, and a spin control can
+        // be added later as a dial if players actually ask for it.
+        contact: 50,
+      });
+      setNote("Flick committed. Watch the desk.");
+    } catch {
+      setNote("That flick is not legal right now.");
+    }
+  };
+
   const actor = state.turn === "human" ? human : "MelaBot";
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
@@ -177,16 +247,25 @@ export function PenFight({
         <div
           className={`pen-arena ${deskFx.impact ? "impact" : ""} ${edgeDanger ? "danger" : ""}`}
           onPointerDown={
-            owns && state.turn === "human"
+            owns && state.turn === "human" && !completed
               ? (event) => {
                   event.currentTarget.setPointerCapture(event.pointerId);
                   setAiming(true);
-                  place(event);
+                  pull(event);
                 }
               : undefined
           }
-          onPointerMove={aiming ? place : undefined}
-          onPointerUp={() => setAiming(false)}
+          onPointerMove={aiming ? pull : undefined}
+          onPointerUp={() => {
+            if (!aiming) return;
+            setAiming(false);
+            setPullPoint(null);
+            void commitFlick();
+          }}
+          onPointerCancel={() => {
+            setAiming(false);
+            setPullPoint(null);
+          }}
         >
           <i className="notebook-line l1" />
           <i className="notebook-line l2" />
@@ -214,21 +293,33 @@ export function PenFight({
             <i className="pen-shadow" />
             <span>M</span>
           </div>
-          {owns && state.turn === "human" && (
+          {owns && state.turn === "human" && !completed && (
             <>
+              {/* The launch line: short and power-tinted, so it hints direction
+                  without handing over a full trajectory. */}
               <div
-                className="aim-line"
+                className={`aim-line ${aiming ? "live" : ""}`}
                 style={{
                   left: `${state.humanX / 10}%`,
                   top: `${state.humanY / 10}%`,
-                  width: `${Math.hypot(aim.x - state.humanX, aim.y - state.humanY) / 10}%`,
+                  width: `${12 + (powerPct / 100) * 22}%`,
                   transform: `rotate(${Math.atan2(aim.y - state.humanY, aim.x - state.humanX)}rad)`,
+                  ["--power" as string]: `${powerPct}`,
                 }}
               />
-              <div
-                className="aim-dot"
-                style={{ left: `${aim.x / 10}%`, top: `${aim.y / 10}%` }}
-              />
+              {/* The rubber band back to your finger — this is what makes the
+                  gesture read as a slingshot rather than a click. */}
+              {aiming && pullPoint && (
+                <div
+                  className="pull-band"
+                  style={{
+                    left: `${state.humanX / 10}%`,
+                    top: `${state.humanY / 10}%`,
+                    width: `${Math.hypot(pullPoint.x - state.humanX, pullPoint.y - state.humanY) / 10}%`,
+                    transform: `rotate(${Math.atan2(pullPoint.y - state.humanY, pullPoint.x - state.humanX)}rad)`,
+                  }}
+                />
+              )}
             </>
           )}
         </div>
@@ -236,49 +327,48 @@ export function PenFight({
       {owns && !completed && state.turn === "human" && (
         <section className="flick-controls">
           <p className="eyebrow">
-            DRAG FROM YOUR PEN TOWARD MELABOT · SET YOUR FLICK · COMMIT
+            {aiming
+              ? "RELEASE TO FLICK"
+              : "PULL BACK FROM YOUR PEN, THEN LET GO"}
           </p>
-          <label>
-            Force{" "}
-            <input
-              type="range"
-              min="24"
-              max="100"
-              value={force}
-              onChange={(e) => setForce(Number(e.target.value))}
-            />
-            <b>{force}</b>
-          </label>
-          <label>
-            Contact{" "}
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={contact}
-              onChange={(e) => setContact(Number(e.target.value))}
-            />
-            <b>{contact < 35 ? "LEFT" : contact > 65 ? "RIGHT" : "CENTER"}</b>
-          </label>
-          <button
-            className="primary wide"
-            onClick={async () => {
-              try {
-                await flick({
-                  matchId: match.id,
-                  aimX: aim.x,
-                  aimY: aim.y,
-                  force,
-                  contact,
-                });
-                setNote("Flick committed. Watch the desk.");
-              } catch {
-                setNote("That flick is not legal right now.");
-              }
-            }}
-          >
-            FLICK THE PEN
-          </button>
+          <div className="power-readout" aria-hidden="true">
+            <i style={{ width: `${powerPct}%` }} />
+          </div>
+          {/* Keyboard path: holding a pointer down is a motor-accessibility
+              barrier, so aim and power are also reachable with arrows + space. */}
+          <div className="keyboard-flick">
+            <button
+              onClick={() => nudgeAim(-1)}
+              aria-label="Aim left"
+              title="Aim left"
+            >
+              ◀
+            </button>
+            <button
+              onClick={() => setForce((f) => Math.max(MIN_FORCE, f - 8))}
+              aria-label="Less power"
+              title="Less power"
+            >
+              −
+            </button>
+            <button className="primary" onClick={() => void commitFlick()}>
+              FLICK
+            </button>
+            <button
+              onClick={() => setForce((f) => Math.min(maxForceNow, f + 8))}
+              aria-label="More power"
+              title="More power"
+            >
+              +
+            </button>
+            <button
+              onClick={() => nudgeAim(1)}
+              aria-label="Aim right"
+              title="Aim right"
+            >
+              ▶
+            </button>
+          </div>
         </section>
       )}
       <p className="pen-result" role="status">
