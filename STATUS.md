@@ -10,6 +10,27 @@
   dusk" pass (`3cae643`), which the human rejected for keeping the old
   dark-purple world.
 
+## Layout defect sweep after the redesign
+
+The human reported overlapping text/boxes and overflows on some pages. Four
+were found and fixed (CSS only):
+
+1. The scorebook's rust margin rule struck through every block below the
+   header (choice tickets, QR panel, AI panel) because content padding did
+   not clear it. Content now indents past the rule (60px desktop / 32px
+   mobile), like a real notebook margin.
+2. The flick-control value column was too narrow for "CENTER", spilling into
+   the force slider; column widened, value set to no-wrap.
+3. The Pen Fight score strip could collide a long display name with the
+   round badge; it now wraps.
+4. The memory card's corner stamp could overlap the headline at mid widths;
+   it is hidden below 760px.
+
+Re-verified in the browser after the fixes: Pen Fight 1440/390, Book Cricket
+1440/390 (fresh match played to completion), memory card 1440/700, stage
+1440/900, and the 390px crowd booth — no overlaps or overflows remain in the
+checked states.
+
 ## Full redesign: Daylight Mela
 
 After seeing the first design pass, the human asked for a ground-up redesign:
