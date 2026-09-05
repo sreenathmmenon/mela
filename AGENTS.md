@@ -18,13 +18,17 @@ Locked problem statement: “Today’s games are isolated sessions; there’s no
 
 Mela is gaming-first: multiple games are the doorway into one persistent, realtime shared playground. Humans play, spectators make meaningful moves, AI characters participate under the same rules, and the world remembers outcomes.
 
+Book Cricket is P0’s first vertical slice, not the product boundary. Keep the Mela world layer game-agnostic where practical: world, identity, presence, player/spectator/AI actors, Crowd Energy, events, durable history, subscriptions, discrete scheduling, and QR/big-screen experiences are reusable. Keep game-specific state and rules behind a `game_kind` boundary so Pen Fight and later games reuse the same living world. Do not build a speculative generic game engine; extract an abstraction only after actual games prove it shared.
+
 Do not turn Mela into a generic multiplayer SaaS product, AI-agent platform, coding-agent orchestrator, chatbot, ordinary isolated game, static mini-game catalogue, social network, or voting demo. Do not remove spectators, AI participation, persistence, or SpacetimeDB authority without explicit human approval.
 
 North star: **Players play. Spectators influence. AI participates. The world remembers.**
 
 ## 3. Architecture and ownership
 
-SpacetimeDB is the authoritative realtime world engine. Reducers validate and mutate every shared gameplay action; tables store presence, sessions, game state, energy/cooldowns, AI state, scores, and events. Clients subscribe to the smallest required set of tables/queries and render server state. Never trust browser values for score, energy, cooldown, role, winners, game results, AI state, or progression.
+**SpacetimeDB-first rule:** treat SpacetimeDB as the authoritative world runtime, never as a secondary persistence layer behind a conventional backend. Use native tables, reducers, subscriptions, event tables, schedules, views, procedures, identities, and Maincloud whenever they cleanly solve a Mela requirement. Do not add Redis, Socket.IO, Express/Fastify authority APIs, separate WebSocket services, or separate game backends without a concrete approved requirement.
+
+World authority invariants: reducers are the sole authoritative mutation boundary; clients are projections; persistent history is distinct from transient event tables; external AI may propose but never directly mutate world state. Reducers validate and mutate every shared gameplay action; tables store presence, sessions, game state, energy/cooldowns, AI state, scores, and events. Clients subscribe to the smallest required set of tables/queries and render server state. Never trust browser values for score, energy, cooldown, role, winners, game results, AI state, or progression. Do not create artificial high-frequency simulation ticks or prematurely shard the Mela world.
 
 The frontend owns routes, responsive presentation, optimistic *pending* UI only, local input state, accessibility, reconnect UX, and QR/big-screen experiences. It does not decide authoritative outcomes.
 
@@ -63,6 +67,16 @@ Demo judgment criteria: the gaming-first thesis is immediately visible, spectato
 `STATUS.md` is the single source of truth for progress. Update it after every meaningful implementation, test result, deployment attempt, failure, feedback item, or material decision. Never fabricate test results, user feedback, deployment state, or credentials. Keep its required sections current, including one explicit next task.
 
 A new provider must start by reading this file and STATUS.md, inspect the repository and current Git state, run the documented checks, then continue the highest-priority accepted task. If context is missing, record the uncertainty and ask the human rather than inventing product requirements.
+
+Multi-agent rule: an **Architecture/Coordinator** owns product direction, schema/reducer authority, and cross-agent contracts. It sits above explicitly scoped specialists for SpacetimeDB, game rules, frontend, AI, synthetic QA, and release/demo. Specialists have exclusive scope and do not concurrently edit the same authority surface. Coordinate with scoped branches/commits, reviewed handoffs, `STATUS.md`, architecture documents, tests, and Git—not hidden chat context.
+
+Synthetic-user rule: before declaring a multiplayer feature complete, exercise it through real multi-client/synthetic scenarios whenever practical. The target test loop is client → subscription → reducer → committed world state → subscription assertion, including player, spectator, AI, concurrent, invalid-action, reconnect, and fresh-stranger/QR flows. Pure game-rule/unit simulation is valuable but does not substitute for this real-world loop.
+
+P0 Book Cricket is locked as Human Player vs MelaBot over two innings, with the human batting first and spectators active throughout. Keep match participants actor-generic for later Human vs Human. Crowd Energy is one shared match pool with per-spectator cooldowns. P0 AI is deterministic; external LLM is P1 and may only propose actions that pass ordinary authoritative validation.
+
+Internal state transitions use shared domain/rule functions called by public reducers and private scheduled entry points; do not model them as reducer-to-reducer calls. Event tables are transient state delivery (with commit-log records), while durable product history uses normal tables. Schedule only discrete turn timeout, effect expiry, deterministic AI wake, and stale cleanup—never a high-frequency tick.
+
+When changing a SpacetimeDB architectural assumption, verify it against current official documentation and record whether it is a researched fact, recommendation, assumption, or human approval decision.
 
 ## 9. Current constraints and risks
 
