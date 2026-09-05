@@ -30,7 +30,7 @@ North star: **Players play. Spectators influence. AI participates. The world rem
 
 World authority invariants: reducers are the sole authoritative mutation boundary; clients are projections; persistent history is distinct from transient event tables; external AI may propose but never directly mutate world state. Reducers validate and mutate every shared gameplay action; tables store presence, sessions, game state, energy/cooldowns, AI state, scores, and events. Clients subscribe to the smallest required set of tables/queries and render server state. Never trust browser values for score, energy, cooldown, role, winners, game results, AI state, or progression. Do not create artificial high-frequency simulation ticks or prematurely shard the Mela world.
 
-The frontend owns routes, responsive presentation, optimistic *pending* UI only, local input state, accessibility, reconnect UX, and QR/big-screen experiences. It does not decide authoritative outcomes.
+The frontend owns routes, responsive presentation, optimistic _pending_ UI only, local input state, accessibility, reconnect UX, and QR/big-screen experiences. It does not decide authoritative outcomes.
 
 AI decisions sit behind `AIProvider.decideAction(worldState, characterState)`. Keep a deterministic provider as the always-available fallback; providers and keys remain server-side. An LLM failure must not make a game unusable.
 
@@ -80,4 +80,6 @@ When changing a SpacetimeDB architectural assumption, verify it against current 
 
 ## 9. Current constraints and risks
 
-At this initial handoff, no implementation is present in the workspace and the referenced master-plan file has not been supplied there. Treat the pasted brief as the known product direction; request the full plan before inventing details that depend on it. Current technical risks are setup/bootstrap time, realtime concurrency correctness, spectator-power abuse, reliable AI fallback, and unverified Maincloud deployment.
+Book Cricket and Pen Fight are implemented; STATUS.md records current verification. The production/demo frontend is Railway at `https://mela-web-production.up.railway.app`, with SpacetimeDB Maincloud `mela-cah23`. Do not deploy Mela to the personal-site GitHub Pages path.
+
+Agent Duel is explicitly approved for Pen Fight. WebMCP and remote MCP share definitions in `src/agentTools.ts`; both are ordinary reducer clients. Keep seed/pending crowd state outside agent observations and enforce seat/turn rules in SpacetimeDB. See `docs/WEBMCP_AGENT_DUEL.md`. The public Chrome origin-trial token expires 17 November 2026; verify actual native tool discovery/execution on Railway and keep human play available when the API is absent.

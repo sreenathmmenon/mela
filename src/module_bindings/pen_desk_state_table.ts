@@ -22,5 +22,4 @@ export default __t.row({
   botY: __t.u32().name("bot_y"),
   turnsInRound: __t.u32().name("turns_in_round"),
   lastOutcome: __t.string().name("last_outcome"),
-  seed: __t.u64(),
 });

@@ -11,9 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  matchId: __t.u64().primaryKey().name("match_id"),
-  actions: __t.u32(),
-  energySpent: __t.u32().name("energy_spent"),
-  lastActor: __t.string().name("last_actor"),
-  lastPower: __t.string().name("last_power"),
+  id: __t.u64().primaryKey(),
+  matchId: __t.u64().name("match_id"),
+  name: __t.string(),
+  power: __t.string(),
 });

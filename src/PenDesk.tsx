@@ -10,6 +10,7 @@ export type DeskInput = (clientX: number, clientY: number) => DeskPoint | null;
 type Props = DeskFrame & {
   pull: DeskPoint | null;
   humanName: string;
+  botName?: string;
   onMoving: (moving: boolean) => void;
   inputRef?: { current: DeskInput | null };
 };
@@ -89,7 +90,12 @@ export function PenDesk(props: Props) {
     props.onMoving(true);
     const updateCue = (progress: number) => {
       if (!cue.current) return;
-      const text = shotCue(motion, progress, latest.current.humanName);
+      const text = shotCue(
+        motion,
+        progress,
+        latest.current.humanName,
+        latest.current.botName,
+      );
       cue.current.hidden = !text;
       if (cue.current.textContent !== text) cue.current.textContent = text;
       cue.current.dataset.phase =
@@ -163,7 +169,7 @@ export function PenDesk(props: Props) {
         data-renderer="three-webgl"
         data-motion-sequence={props.motion?.sequence}
         role="img"
-        aria-label={`3D Pen Fight desk. ${props.humanName}'s pen and MelaBot's pen.`}
+        aria-label={`3D Pen Fight desk. ${props.humanName}'s pen and ${props.botName ?? "MelaBot"}'s pen.`}
       >
         {!ready && (
           <span className="desk-render-notice">
@@ -175,7 +181,8 @@ export function PenDesk(props: Props) {
           <small>{props.interactive ? "YOUR FLICK" : "PLAYER"}</small>
         </span>
         <span className="desk-name bot-name" ref={botLabel}>
-          MelaBot<small>THE CHALLENGER</small>
+          {props.botName ?? "MelaBot"}
+          <small>THE CHALLENGER</small>
         </span>
       </div>
       <span

@@ -7,6 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { AgentDuelPanel } from "./AgentDuel";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
 import { isMuted, playSound, toggleMuted } from "./sound";
@@ -87,15 +88,16 @@ export function PenFight({
   const conn = useSpacetimeDB();
   const identity = conn.identity;
   const [matches] = useTable(tables.match);
-  const [states] = useTable(tables.penFightState);
+  const [duels] = useTable(tables.agentDuel);
+  const [states] = useTable(tables.penDeskState);
   const [participants] = useTable(tables.matchParticipant);
   const [crowds] = useTable(tables.matchCrowd);
   const [spectators] = useTable(tables.matchSpectator);
-  const [effects] = useTable(tables.crowdEffect);
+  const [effects] = useTable(tables.visibleCrowdEffects);
   const [profiles] = useTable(tables.playerProfile);
   const [memories] = useTable(tables.matchMemory);
   const [records] = useTable(tables.penFightRecord);
-  const [cooldowns] = useTable(tables.spectatorCooldown);
+  const [cooldowns] = useTable(tables.ownSpectatorCooldown);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [motion, setMotion] = useState<PenMotion>();
   const [moving, setMoving] = useState(false);
@@ -194,8 +196,9 @@ export function PenFight({
   const me = identity
     ? profiles.find((row) => row.identity.isEqual(identity))
     : undefined;
+  const duel = duels.find((row) => row.matchId === match?.id);
   const owns = Boolean(
-    match && identity && match.playerIdentity.isEqual(identity),
+    !duel && match && identity && match.playerIdentity.isEqual(identity),
   );
   /** Crowd effects standing on this match right now, oldest first. */
   const liveEffects = useMemo(
@@ -213,11 +216,13 @@ export function PenFight({
   const join = useReducer(reducers.joinMatchAsSpectator);
   const power = useReducer(reducers.usePenFightCrowdPower);
   const rematch = useReducer(reducers.createPenFight);
-  const human = match
-    ? (participants.find(
-        (row) => row.matchId === match.id && row.actorKind === "human",
-      )?.displayName ?? "Player")
-    : "Player";
+  const human =
+    duel?.leftName ??
+    (match
+      ? (participants.find(
+          (row) => row.matchId === match.id && row.role === "player",
+        )?.displayName ?? "Player")
+      : "Player");
   const completed = match?.status === "complete";
   // Start each authoritative human turn from the opponent's CURRENT position,
   // not the opening coordinate left over from the previous exchange.
@@ -307,7 +312,7 @@ export function PenFight({
   // a shudder on contact, a gold flash when a round is decided.
   const lastOutcome = state?.lastOutcome;
   const revision = state
-    ? `${state.matchId}:${state.round}:${state.turnsInRound}:${state.seed}`
+    ? `${state.matchId}:${state.round}:${state.turnsInRound}:${state.turn}`
     : undefined;
   const [deskFx, setDeskFx] = useState({ impact: false, round: false });
   useEffect(() => {
@@ -456,7 +461,8 @@ export function PenFight({
           ? "In range. Pull back and aim through its middle."
           : "Pull back, release. A longer pull means more force.";
 
-  const actor = state.turn === "human" ? human : "MelaBot";
+  const opponent = duel?.rightName ?? "MelaBot";
+  const actor = state.turn === "human" ? human : opponent;
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
   const memory = memories.find((row) => row.matchId === match.id);
@@ -508,11 +514,15 @@ export function PenFight({
         <div>
           <p className="eyebrow">MELA · PEN FIGHT</p>
           <h1>
-            {completed
-              ? "A desk to remember."
-              : owns
-                ? "Your pen. Your move."
-                : `${human}’s desk. Your influence.`}
+            {duel
+              ? completed
+                ? "Two minds. One remembered desk."
+                : "Agents plan. The crowd interferes."
+              : completed
+                ? "A desk to remember."
+                : owns
+                  ? "Your pen. Your move."
+                  : `${human}’s desk. Your influence.`}
           </h1>
           <p>Knock the other pen off. First to two rounds wins.</p>
         </div>
@@ -527,6 +537,7 @@ export function PenFight({
           Sound {muted ? "off" : "on"}
         </button>
       </header>
+      <AgentDuelPanel matchId={match.id} />
       {owns && (
         <p className="pen-rivalry">
           {rivalry(record?.wins ?? 0, record?.matchesPlayed ?? 0)}{" "}
@@ -551,7 +562,7 @@ export function PenFight({
         </span>
         <b>ROUND {state.round} · FIRST TO 2</b>
         <span>
-          <strong>{state.botRounds}</strong> MelaBot
+          <strong>{state.botRounds}</strong> {duel?.rightName ?? "MelaBot"}
         </span>
       </section>
       <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
@@ -568,11 +579,15 @@ export function PenFight({
               ? "Watch the contact. Let the pens settle."
               : completed
                 ? state.lastOutcome
-                : state.turn === "human"
-                  ? owns
-                    ? myPlan
-                    : `${human} is aiming. Choose a crowd move below, or save your Energy.`
-                  : botPlan}
+                : duel
+                  ? duel.phase === "intent"
+                    ? "Shot committed. The crowd has its moment."
+                    : `${actor} is choosing a shot.`
+                  : state.turn === "human"
+                    ? owns
+                      ? myPlan
+                      : `${human} is aiming. Choose a crowd move below, or save your Energy.`
+                    : botPlan}
           </span>
         </div>
         <div
@@ -737,6 +752,7 @@ export function PenFight({
             aiming={aiming}
             pen={myPen}
             humanName={human}
+            botName={opponent}
             onMoving={setMoving}
             completed={completed}
           />
@@ -1055,11 +1071,11 @@ export function PenFight({
                   : "MelaBot takes this chapter."
               : spectating
                 ? "Your crowd was part of this."
-                : `${human} and MelaBot made a memory.`}
+                : `${human} and ${opponent} made a memory.`}
           </h2>
           <p>{memory?.notableMoment ?? state.lastOutcome}</p>
           <p>
-            {human} {state.humanRounds} · MelaBot {state.botRounds}
+            {human} {state.humanRounds} · {opponent} {state.botRounds}
             {memory
               ? ` · ${memory.crowdParticipants} spectator${memory.crowdParticipants === 1 ? "" : "s"} · ${memory.crowdActions} crowd move${memory.crowdActions === 1 ? "" : "s"}`
               : ""}

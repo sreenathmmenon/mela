@@ -8,6 +8,7 @@ import {
   type PenMotion,
 } from "../spacetimedb/src/penFightMotion";
 import { PenDesk } from "./PenDesk";
+import { AgentDuelPanel } from "./AgentDuel";
 const ignoreMoving = () => {};
 
 function publicJoinUrl(matchId: bigint) {
@@ -72,11 +73,11 @@ export default function BigScreen() {
   );
   const [matches] = useTable(tables.match);
   const [states] = useTable(tables.bookCricketState);
-  const [penStates] = useTable(tables.penFightState);
+  const [penStates] = useTable(tables.penDeskState);
   const [participants] = useTable(tables.matchParticipant);
   const [crowds] = useTable(tables.matchCrowd);
   const [spectators] = useTable(tables.matchSpectator);
-  const [effects] = useTable(tables.crowdEffect);
+  const [effects] = useTable(tables.visibleCrowdEffects);
   const [history] = useTable(tables.matchHistory);
   const [memories] = useTable(tables.matchMemory);
   const [aiCharacters] = useTable(tables.aiCharacter);
@@ -102,12 +103,16 @@ export default function BigScreen() {
     : undefined;
   const humanName = displayedMatch
     ? (participants.find(
-        (row) => row.matchId === displayedMatch.id && row.actorKind === "human",
+        (row) => row.matchId === displayedMatch.id && row.role === "player",
       )?.displayName ?? "Player")
     : "Player";
   const aiName =
+    participants.find(
+      (p) => p.matchId === displayedMatch?.id && p.role === "opponent",
+    )?.displayName ??
     aiCharacters.find((character) => character.characterKey === "melabot")
-      ?.displayName ?? "MelaBot";
+      ?.displayName ??
+    "MelaBot";
   const crowd = displayedMatch
     ? crowds.find((row) => row.matchId === displayedMatch.id)
     : undefined;
@@ -163,6 +168,7 @@ export default function BigScreen() {
             </div>
           </div>
         </header>
+        <AgentDuelPanel matchId={displayedMatch.id} />
         <section className="screen-score">
           <div>
             <span>{humanName}</span>
@@ -221,6 +227,7 @@ export default function BigScreen() {
             aiming={false}
             pen="pen-reynolds"
             humanName={humanName}
+            botName={aiName}
             completed={displayedMatch.status === "complete"}
             onMoving={ignoreMoving}
           />

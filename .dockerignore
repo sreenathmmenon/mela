@@ -1,5 +1,8 @@
 node_modules
 dist
+dist-server
+.playwright-cli
+output
 .git
 .env.local
 spacetimedb/target

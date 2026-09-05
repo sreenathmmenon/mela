@@ -7,6 +7,7 @@ import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
 import BigScreen from "./BigScreen.tsx";
 import { AUTH_TOKEN_KEY } from "./identity.ts";
 import { initAnalytics } from "./analytics.ts";
+import { WebMCPTools } from "./AgentDuel";
 
 const HOST =
   import.meta.env.VITE_SPACETIMEDB_HOST ??
@@ -67,6 +68,7 @@ initAnalytics();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
+      <WebMCPTools />
       <MelaRoot />
     </SpacetimeDBProvider>
   </StrictMode>,

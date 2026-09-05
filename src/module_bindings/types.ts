@@ -10,6 +10,33 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const AgentDuel = __t.object("AgentDuel", {
+  matchId: __t.u64(),
+  mode: __t.string(),
+  phase: __t.string(),
+  revision: __t.u64(),
+  leftIdentity: __t.option(__t.identity()),
+  rightIdentity: __t.option(__t.identity()),
+  leftName: __t.string(),
+  rightName: __t.string(),
+  leftIntent: __t.string(),
+  rightIntent: __t.string(),
+  deadlineMicros: __t.u64(),
+  notice: __t.string(),
+});
+export type AgentDuel = __Infer<typeof AgentDuel>;
+
+export const AgentProposal = __t.object("AgentProposal", {
+  matchId: __t.u64(),
+  revision: __t.u64(),
+  side: __t.string(),
+  aimX: __t.u32(),
+  aimY: __t.u32(),
+  force: __t.u32(),
+  contact: __t.u32(),
+});
+export type AgentProposal = __Infer<typeof AgentProposal>;
+
 export const AiCharacter = __t.object("AiCharacter", {
   id: __t.u64(),
   characterKey: __t.string(),
@@ -74,6 +101,14 @@ export const CrowdSchedule = __t.object("CrowdSchedule", {
   effectId: __t.u64(),
 });
 export type CrowdSchedule = __Infer<typeof CrowdSchedule>;
+
+export const DuelCrowdCredit = __t.object("DuelCrowdCredit", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  name: __t.string(),
+  power: __t.string(),
+});
+export type DuelCrowdCredit = __Infer<typeof DuelCrowdCredit>;
 
 export const LiveEvent = __t.object("LiveEvent", {
   id: __t.u64(),
@@ -198,6 +233,36 @@ export const MetricsIdentity = __t.object("MetricsIdentity", {
 });
 export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
+export const OwnCooldownProjection = __t.object("OwnCooldownProjection", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  identity: __t.identity(),
+  power: __t.string(),
+  readyAtMicros: __t.u64(),
+});
+export type OwnCooldownProjection = __Infer<typeof OwnCooldownProjection>;
+
+export const OwnSpectatorCooldown = __t.object("OwnSpectatorCooldown", {});
+export type OwnSpectatorCooldown = __Infer<typeof OwnSpectatorCooldown>;
+
+export const PenDeskProjection = __t.object("PenDeskProjection", {
+  matchId: __t.u64(),
+  round: __t.u32(),
+  humanRounds: __t.u32(),
+  botRounds: __t.u32(),
+  turn: __t.string(),
+  humanX: __t.u32(),
+  humanY: __t.u32(),
+  botX: __t.u32(),
+  botY: __t.u32(),
+  turnsInRound: __t.u32(),
+  lastOutcome: __t.string(),
+});
+export type PenDeskProjection = __Infer<typeof PenDeskProjection>;
+
+export const PenDeskState = __t.object("PenDeskState", {});
+export type PenDeskState = __Infer<typeof PenDeskState>;
+
 export const PenFightMetrics = __t.object("PenFightMetrics", {
   id: __t.u64(),
   matchesStarted: __t.u64(),
@@ -265,6 +330,19 @@ export const SpectatorCooldown = __t.object("SpectatorCooldown", {
 });
 export type SpectatorCooldown = __Infer<typeof SpectatorCooldown>;
 
+export const VisibleCrowdEffect = __t.object("VisibleCrowdEffect", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  power: __t.string(),
+  target: __t.string(),
+  actorName: __t.string(),
+  expiresAtMicros: __t.u64(),
+});
+export type VisibleCrowdEffect = __Infer<typeof VisibleCrowdEffect>;
+
+export const VisibleCrowdEffects = __t.object("VisibleCrowdEffects", {});
+export type VisibleCrowdEffects = __Infer<typeof VisibleCrowdEffects>;
+
 export const World = __t.object("World", {
   id: __t.u64(),
   name: __t.string(),
@@ -290,4 +368,3 @@ export const WorldPresence = __t.object("WorldPresence", {
   lastSeenAt: __t.timestamp(),
 });
 export type WorldPresence = __Infer<typeof WorldPresence>;
-

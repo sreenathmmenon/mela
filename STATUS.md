@@ -1,6 +1,18 @@
 # MELA STATUS
 
-## Current pass — Pen Fight aiming and interaction playtest
+## Current pass — WebMCP Agent Duel
+
+- Sreenath approved host-opened Pen Fight Agent vs MelaBot, then two external agents, with visible intent, crowd interference, fallback, a remote MCP URL and a 20–30 second demonstration capture. Railway is the demo/submission origin.
+- Implemented shared `mela_get_desk`, `mela_claim_seat`, `mela_flick` definitions for native Chrome WebMCP and Streamable HTTP MCP at `/mcp`. The Railway runtime transports calls only; SpacetimeDB resolves all gameplay.
+- Added `agentDuel`, private `agentProposal`, durable `duelCrowdCredit`; added safe state/cooldown/effect views. Existing Pen Fight seed, crowd effects, cooldowns and activity become private without deleting rows. Agent seats cannot also spectate. Existing human and agent actions share `resolvePenFlick`.
+- Agent intent commits for 3 seconds before authoritative resolution; a 30-second missed turn invokes deterministic fallback. Revision/phase validates schedules. Completed memory names both seats and applied crowd actions. Hosting an agent win does not award human game skill.
+- Supplied public token is in index.html and expires **17 November 2026**. Its `isThirdParty=true` requires activation through an external same-origin script. Native Chrome diagnostics measured `WrongOrigin` for static/meta-only activation; `public/origin-trial.js` implements Chrome's documented external-script activation. Final production native verification is pending below.
+- 75/75 deterministic tests passed; frontend typecheck/build, module build and bundled MCP transport build passed. Real SDK clients rejected seat theft, spectator/agent overlap, human bypass, off-turn/illegal/duplicate/stale moves and post-completion moves; TILT remained hidden and landed through committed resolution; disconnect timeout advanced the turn.
+- Local completed Agent vs MelaBot match 6: TealMind **2–1** MelaBot; host/crowd states converged and durable memory credited CrowdNila's NUDGE. A raw unprivileged subscription to `pen_fight_state` was refused. Local migration of baseline `mela-pen-feel-0906` succeeded with additive tables/views and four access changes, no data deletion.
+- Remote MCP SDK discovery returned all three tools and a real subscribed desk through `http://127.0.0.1:8081/mcp`. Mobile 390×844 memory view inspected without horizontal overflow. Final live browser, recording and Railway/Maincloud release evidence will be appended after verification.
+- Next task: complete production native WebMCP checks, remote MCP validation, real-browser duel/crowd recording and release evidence. See `docs/WEBMCP_AGENT_DUEL.md` for contracts, migration and transport-session limits.
+
+## Previous pass — Pen Fight aiming and interaction playtest
 
 - 6 September 2026, baseline `7b65d90`. Sreenath asked for a careful game-design/UX continuation. This pass fixes concrete play problems in the existing 3D game rather than changing its world architecture or rules.
 - **Current-turn aiming:** the old default stayed at opening coordinate `(740,500)` after the pens moved. Each new authoritative human turn now points at MelaBot's current position; manual adjustments remain available. A new turn cancels a stale gesture.

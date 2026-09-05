@@ -45,10 +45,15 @@ export function canGrabPen(point: DeskPoint, centre: DeskPoint) {
   );
 }
 
-export function shotCue(motion: PenMotion, progress: number, human: string) {
+export function shotCue(
+  motion: PenMotion,
+  progress: number,
+  human: string,
+  bot = "MelaBot",
+) {
   if (progress >= 1) return "";
   if (progress < 0.38)
-    return `${motion.actor === "human" ? human : "MelaBot"} flicks…`;
+    return `${motion.actor === "human" ? human : bot} flicks…`;
   if (progress >= 0.75) {
     if (motion.guarded)
       return motion.actorOut || motion.targetOut

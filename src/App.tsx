@@ -214,8 +214,8 @@ function App() {
   const [records] = useTable(tables.bookCricketRecord);
   const [crowds] = useTable(tables.matchCrowd);
   const [spectators] = useTable(tables.matchSpectator);
-  const [cooldowns] = useTable(tables.spectatorCooldown);
-  const [effects] = useTable(tables.crowdEffect);
+  const [cooldowns] = useTable(tables.ownSpectatorCooldown);
+  const [effects] = useTable(tables.visibleCrowdEffects);
   const [aiCharacters] = useTable(tables.aiCharacter);
   const [melaMetrics] = useTable(tables.melaMetrics);
   useTable(tables.liveEvent, { onInsert: onMatchEvent });
@@ -501,6 +501,7 @@ function App() {
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
   const createPenFight = useReducer(reducers.createPenFight);
+  const createAgentDuel = useReducer(reducers.createAgentDuel);
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
@@ -867,6 +868,48 @@ function App() {
               <span className="game-go">
                 {creatingMatch ? "Setting up…" : "Play →"}
               </span>
+            </button>
+          </div>
+          <div className="duel-launch">
+            <button
+              className="secondary"
+              disabled={creatingMatch}
+              onClick={async () => {
+                setCreatingMatch(true);
+                try {
+                  await createAgentDuel({ mode: "melabot" });
+                  setShowHome(false);
+                  setPinnedMatchId(null);
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "Unable to open duel.",
+                  );
+                } finally {
+                  setCreatingMatch(false);
+                }
+              }}
+            >
+              Host Agent vs MelaBot →
+            </button>
+            <button
+              className="secondary"
+              disabled={creatingMatch}
+              onClick={async () => {
+                setCreatingMatch(true);
+                try {
+                  await createAgentDuel({ mode: "duel" });
+                  setShowHome(false);
+                  setPinnedMatchId(null);
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "Unable to open duel.",
+                  );
+                } finally {
+                  setCreatingMatch(false);
+                }
+              }}
+            >
+              Host two agents →
             </button>
           </div>
           {liveMatchesToWatch.length > 0 && (

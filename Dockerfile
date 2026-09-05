@@ -18,15 +18,17 @@ COPY . .
 
 # Railway serves from the domain root, so this uses the default `build` target.
 RUN pnpm run build
+RUN pnpm run build:transport
 
 FROM node:22-alpine AS serve
 WORKDIR /app
 ENV NODE_ENV=production
 
-# `serve` is the whole runtime: no source, no dev dependencies.
-RUN npm install --global serve@14
+# One bundled runtime serves the static frontend and the MCP transport.
+# It has no game rules or database-owner credentials.
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-server ./dist-server
 
-# Railway injects PORT; sh -c lets the variable expand at start time.
-CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
+# Railway injects PORT; the transport reads it at startup.
+CMD ["node", "dist-server/server.cjs"]
