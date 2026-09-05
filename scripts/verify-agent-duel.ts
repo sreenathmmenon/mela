@@ -7,7 +7,7 @@ const db = process.env.TEST_SPACETIME_DB || "mela-agent-duel-0906";
 if (!url.includes("127.0.0.1"))
   throw new Error("This test creates local QA matches only.");
 const connections: DbConnection[] = [];
-async function connect(name: string) {
+async function connect(name: string, humanProfile = true) {
   const c = await new Promise<DbConnection>((resolve, reject) => {
     DbConnection.builder()
       .withUri(url)
@@ -32,10 +32,11 @@ async function connect(name: string) {
       ]),
   );
   // Local rule fixtures only: this does not send or claim delivery of email.
-  await c.reducers.onboardWithEmail({
-    displayName: name,
-    email: `${name.toLowerCase()}@example.com`,
-  });
+  if (humanProfile)
+    await c.reducers.onboardWithEmail({
+      displayName: name,
+      email: `${name.toLowerCase()}@example.com`,
+    });
   return c;
 }
 async function until(check: () => boolean, timeout = 12000) {
@@ -48,8 +49,8 @@ async function until(check: () => boolean, timeout = 12000) {
 }
 try {
   const host = await connect("DuelHost"),
-    left = await connect("TealMind"),
-    right = await connect("RustMind"),
+    left = await connect("TealMind", false),
+    right = await connect("RustMind", false),
     crowd = await connect("CrowdNila");
   await host.reducers.createAgentDuel({ mode: "duel" });
   const match = [...host.db.match.iter()]

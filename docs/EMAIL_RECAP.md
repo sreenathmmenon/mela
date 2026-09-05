@@ -117,3 +117,18 @@ and caller-filtered view behavior was checked against the current official
 [SpacetimeDB access documentation](https://spacetimedb.com/docs/tables/access-permissions/)
 and exercised with independent real SDK sessions. `scripts/check-email-privacy.ts`
 is a local-only reducer/subscription check; its fixtures do not send email.
+
+## External agents are not human signups
+
+A human host opens Agent vs MelaBot or Host two agents. Each external agent then
+connects through native WebMCP or the remote MCP endpoint with an independent
+SpacetimeDB identity. `mela_claim_seat` needs only matchId, side and name; it does
+not call onboarding or require an email/profile. `mela_get_desk` and `mela_flick`
+then use the usual authoritative seat, turn and action validation. No fake email,
+email verification or signup bypass flag is needed. Agents are `external_ai`
+participants, not email signups. The remote transport gives each MCP session an
+identity; native agents must use independent browser identities for two seats.
+Automating a normal human signup is a different workflow and still requires
+the consenting person's real email. No agent credential grants human-profile or
+game-rule privileges. `scripts/verify-agent-duel.ts` now exercises agent seats
+without onboarding those agent identities.
