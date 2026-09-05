@@ -5,7 +5,7 @@
 - Date/time: 2026-09-05, Asia/Kolkata
 - Agent/provider: Codex (GPT-5)
 - Branch: `main`
-- Delivery state: Complete Book Cricket delivery in progress. Maincloud module publish passed; GitHub Pages workflow deploys with this commit.
+- Delivery state: Complete Book Cricket experience deployed and verified on Maincloud plus GitHub Pages.
 
 ## Complete Book Cricket experience
 
@@ -23,7 +23,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 - [x] Public QR join flow: `?join=<match-id>` carries only a non-secret match id. A fresh phone uses scan → display name → server-validated spectator admission.
 - [x] Dedicated read-only big-screen route (`/#/screen?match=<match-id>`): shared score, turn state, Crowd Energy/effects, major events, result, and QR. It has no player/spectator controls or privileged mutation path.
 - [x] Post-match story with result, score, crowd contribution, profile/form updates, recent memory, and replay CTA.
-- [x] GitHub Pages deployment workflow configured for `https://sreenathmenon.com/mela` and the live Maincloud module. Hash stage route works on static hosting without server rewrites.
+- [x] GitHub Pages deployment workflow configured for `https://sreenathmenon.com/mela` and the live Maincloud module. The production route and hash stage route work on static hosting without server rewrites.
 
 ## Authoritative schema and reducers
 
@@ -41,6 +41,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 | Module build                | Pass   | `pnpm run spacetime:build` on 2026-09-05.                                                                                                                                                                                                                                                                                    |
 | Maincloud publish           | Pass   | Published `mela-cah23` to Maincloud. Database identity: `c200fad7d7acce35e4289bd2d998b2eedfd145f765f58cb2c86534d67d844d3a`; dashboard: `https://spacetimedb.com/mela-cah23`.                                                                                                                                                 |
 | Production frontend build   | Pass   | `pnpm run build:pages` with Maincloud host/database and production app origin. Output uses the `/mela/` static-host base path.                                                                                                                                                                                               |
+| Public deployment           | Pass   | GitHub Pages workflow run `33963081220` succeeded. `https://sreenathmenon.com/mela/` returned HTTP 200 and a fresh production browser connected to Maincloud, onboarded as `Live Smoke`, and received its authoritative profile/start state.                                                                                 |
 | QR stranger journey         | Pass   | Two fresh independent browser identities opened `?join=6`, saw the invited-crowd onboarding, entered Asha/Nila display names, and were automatically admitted into the same active match as spectators.                                                                                                                      |
 | Four-surface realtime       | Pass   | Player, Asha, Nila, and the read-only stage converged on the same score, two spectators, Crowd Energy/effects, human turn, scheduled MelaBot innings, final result, and durable memory.                                                                                                                                      |
 | Crowd concurrency           | Pass   | Asha BOOST and Nila CHAOS were submitted concurrently against the same shared pool; both legal requests serialized to energy 12/60 with both effects visible on player, phones, and stage. No double-spend or negative balance.                                                                                              |
@@ -53,17 +54,16 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 - Maincloud host: `https://maincloud.spacetimedb.com`
 - Maincloud database: `mela-cah23`
 - Frontend target: `https://sreenathmenon.com/mela`
-- GitHub Pages is enabled for workflow deployment; the workflow is committed under `.github/workflows/deploy-pages.yml` and must finish successfully after this push before the public frontend is considered live-verified.
+- GitHub Pages is enabled and live through `.github/workflows/deploy-pages.yml`; workflow run `33963081220` deployed the current frontend.
 
 ## Known limitations
 
-- The public frontend deployment is awaiting the workflow result for this commit; it is not represented as live-verified until its GitHub Actions run and remote smoke test pass.
 - Synthetic validation is an exercised multi-browser end-to-end scenario rather than a dedicated high-volume load harness; high-volume load remains deliberately out of scope.
 - No external LLM, configurable AI roster, Pen Fight, generic game engine, social graph, OAuth/accounts, WebMCP, Redis, Socket.IO, separate backend, or high-frequency tick was introduced.
 
 ## Next task
 
-Wait for the GitHub Pages workflow, smoke-test the deployed frontend against Maincloud, record the exact result, then complete the focused release commit/push. Do not begin a new product phase.
+Complete Book Cricket is delivered. Do not begin a new product phase without explicit approval.
 
 ## Handoff notes
 
