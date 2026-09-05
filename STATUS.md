@@ -1,6 +1,34 @@
 # MELA STATUS
 
-## Current pass — physical Pen Fight desk and shot feel
+## Current pass — actual 3D Pen Fight desk
+
+- 6 September 2026. Baseline `b85936d`. Sreenath rejected the previous small-pen/2.5D result and explicitly asked for a better actual game surface. This pass replaces the primary SVG scene with real Three.js/WebGL geometry, not another CSS perspective treatment.
+- Solid cylindrical pens, raised clips, ribbed grips, tapered metal tips, a thick wooden desk, perspective camera, directional lighting and cast/received shadows. Pen models are approximately 420 board units long; automated projection checks require over 80px visible length at a 364px phone canvas. All playable corners remain in view. Camera framing is fitted per viewport.
+- Pointer input now ray-projects onto the same desk plane used for rendering. Direction arrow, pull tether/finger ring and force feedback share that projection. Escape cancels without committing; button/keyboard controls remain. Moved the cosmetic picker below the flick controls and corrected turn-label contrast.
+- Player, spectator and big-screen use the same renderer. Animation consumes existing committed `@pen-motion/1:` events. No schema, reducer, server physics, scoring, AI, progression or Book Cricket changes. This is real **3D rendering**, not a new rigid-body physics simulation.
+- Scene is dynamically imported only when Pen Fight mounts (about 132kB gzip). Resources and resize observers are disposed; pixel ratio is capped at 2; animation frames run during shots, not an idle simulation loop. Reduced motion shows committed positions directly. WebGL loss/unavailability switches to an explicitly labelled square-coordinate SVG fallback.
+- Checked current official Three.js renderer/raycaster documentation: https://threejs.org/docs/. Native rendering/projection capability is a technical fact; using it as a non-authoritative presentation layer is the implementation decision within Sreenath's approved 3D request.
+
+### Verification — actual 3D pass
+
+- **63/63 tests pass**, including three new camera tests: projection/input round trips across four aspect ratios, full-board framing plus phone pen-size minimum, and perspective pull direction. Existing Book Cricket/Pen Fight/crowd/AI/history tests remain passing.
+- Frontend typecheck, standard build, Pages production build and SpacetimeDB module build passed. Changed-file formatting and whitespace checks passed. Vite warns about the lazy 522kB uncompressed scene chunk; it is split from the initial app, not silently claimed as zero-cost.
+- Local player Asha and independent spectator Nila, database `mela-pen-feel-0906`, match 8: both animated human sequence `1:0:1909890900` and AI sequence `1:1:1109230037`; both settled to human `(323,413)`, bot `(610,464)`. Match completed **Asha 0–2 MelaBot**, with matching player/crowd result. Big screen for match 8 also showed the same completed result.
+- Match 9: Nila's NUDGE was accepted and the player feed explicitly confirmed it changed the human flick. Human and autonomous AI state converged at `(421,524)` / `(682,518)` in both browsers. Reduced-motion player emitted **no animated frames**, with controls unlocked.
+- Match 11: real pointer drag through the perspective scene emitted authoritative sequence `1:0:3078609690`. An earlier Escape-cancelled drag left the sequence unset and returned to the ready hint.
+- Desktop 1440×1000 and mobile 390×844 visually inspected. Mobile canvas 362×323; no horizontal page overflow. Evidence: `output/playwright/pen-3d-desktop-final.png`, `pen-3d-mobile-final.png`, `pen-3d-pull.png`, `pen-3d-motion.png` (local ignored artifacts).
+- Forced browser WebGL context loss: simplified-view notice appeared, WebGL canvas removed, fallback board measured square 362×362. A hot-reload check exposed an animation lock when its frame loop was cancelled; fixed with cleanup unlock and a bounded settle timer, then completed the full fresh-page match test.
+- Book Cricket UI regression: match 10 completed **Asha 15/0–MelaBot 0/2**, human win, normal six-ball innings and autonomous chase. No Book Cricket code or authority changed.
+- Local browser logs include the pre-existing favicon 404; no new application exception in the verified fresh-page flow. The deprecated shadow-map warning from the first prototype was removed by selecting the supported PCF shadow map.
+- Release: implementation ready for commit/push; production deployment not yet claimed. No Maincloud module publication is needed because server code/schema are unchanged.
+
+### Remaining limits / next task
+
+- Actual low-end-phone GPU performance, native touch/audio feel and real-person playtesting have not been established by desktop browser emulation. No claim of world-best ranking or emotional attachment is made.
+- The existing simplified server collision model remains authoritative; visual pen length/rotation do not introduce capsule/3D collision rules. Pen cosmetic selection remains device-local, as before.
+- Next task: release this verified 3D frontend, then have Sreenath inspect the visible pen proportions and actual phone play feel before another visual direction change.
+
+## Previous pass — physical Pen Fight desk and shot feel
 
 - 6 September 2026, Codex. Baseline: `300bfe6`. Sreenath explicitly redirected the work to pens, aiming arrows, game actions and desk appearance rather than surrounding identity/share UX.
 - Implemented a square-coordinate 2.5D wooden desk: grain, lighting, bevel, thickness, contact shadows, detailed metallic/gel/ink pen rendering, and the player's name on the barrel. Uses SVG/CSS/Web Animations, not a new WebGL/game-engine dependency.

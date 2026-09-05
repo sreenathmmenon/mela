@@ -1,23 +1,18 @@
 .pen-shell .pen-arena-wrap {
-  max-width: 640px;
-  margin: 18px auto 30px;
-  padding: 12px 12px 19px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #805734, #4c2c1e);
-  box-shadow:
-    0 9px 0 #432c21,
-    0 14px 0 #2c201b,
-    0 24px 30px #22140b30;
+  max-width: 760px;
+  margin: 12px auto 18px;
+  padding: 0;
+  border-radius: 22px;
+  background: #e7e6d9;
+  box-shadow: 0 14px 40px #203d3215;
 }
 .pen-shell .pen-arena {
-  aspect-ratio: 1;
+  aspect-ratio: 1.12;
   border: 0;
   border-radius: 9px;
-  background: #bf844a;
-  box-shadow:
-    0 2px 2px #fff0cd70,
-    inset 0 0 8px #301c17;
-  overflow: visible;
+  background: radial-gradient(ellipse at 35% 25%, #f5eedc, #cad9cf);
+  box-shadow: none;
+  overflow: hidden;
   isolation: isolate;
 }
 .physical-desk {
@@ -30,23 +25,29 @@
   pointer-events: none;
   border-radius: 9px;
 }
-.screen-pen-arena.physical-stage {
+.pen-shell .pen-arena:has(.physical-desk),
+.screen-pen-arena:has(.physical-desk) {
   aspect-ratio: 1;
-  width: min(62vh, 640px);
+}
+.screen-pen-arena.physical-stage {
+  aspect-ratio: 1.12;
+  width: min(70vh, 820px);
   margin: 24px auto;
   overflow: visible;
-  border: 12px solid #533622;
+  border: 0;
   border-radius: 16px;
-  box-shadow:
-    0 10px 0 #2b201b,
-    0 24px 32px #22150a30;
+  background: radial-gradient(ellipse at 35% 25%, #f5eedc, #cad9cf);
+  box-shadow: 0 14px 40px #203d3220;
 }
 .pen-shell .pen-turn {
   min-height: 58px;
   align-items: center;
+  color: #173e3b;
+  padding: 12px 16px;
 }
 .pen-shell .pen-turn span {
   max-width: 330px;
+  color: #465d51;
 }
 .pen-shell .pen-arena .notebook-line,
 .pen-shell .pen-arena .danger-zone {
@@ -76,7 +77,8 @@
 }
 .pen-shell .flick-controls {
   max-width: 640px;
-  margin: 12px auto;
+  margin: 8px auto;
+  padding: 12px;
 }
 .pen-shell .pen-picker {
   max-width: 640px;
@@ -105,7 +107,7 @@
 }
 @media (min-width: 900px) {
   .pen-shell .pen-arena-wrap {
-    max-width: 560px;
+    max-width: 700px;
   }
 }
 @media (max-width: 640px) {
@@ -121,7 +123,7 @@
     font-size: 0.8rem;
   }
   .pen-shell .pen-arena-wrap {
-    padding: 7px 7px 13px;
+    padding: 0;
     margin-top: 10px;
   }
   .pen-shell .pen-turn {
@@ -140,6 +142,48 @@
     bottom: 12px;
     padding: 6px 10px;
   }
+}
+.three-desk {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.three-desk canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.desk-name {
+  position: absolute;
+  transform: translate(-50%, 0);
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #fff7e5e8;
+  color: #183c3e;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px #29180018;
+}
+.desk-name small {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1px;
+  opacity: 0.72;
+  margin-top: 2px;
+}
+.bot-name {
+  color: #a03724;
+}
+.desk-render-notice {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 12px;
+  background: #fff8e7;
+  padding: 8px;
+  border-radius: 8px;
 }
 @media (prefers-reduced-motion: reduce) {
   .physical-desk * {

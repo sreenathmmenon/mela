@@ -23,7 +23,7 @@ import {
 } from "./penFightExperience";
 import "./pens.css";
 import "./penFightExperience.css";
-import { PenDesk, SHOT_DURATION } from "./PenDesk";
+import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
 import {
   PEN_MOTION_PREFIX,
   readPenMotion,
@@ -138,6 +138,7 @@ export function PenFight({
   const busy = useRef(false);
   const [muted, setMuted] = useState(isMuted);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const deskInput = useRef<DeskInput | null>(null);
   const dragRevision = useRef<string>();
   const shot = useRef<{ x: number; y: number; force: number } | null>(null);
   const memoryCard = useRef<HTMLElement>(null);
@@ -239,12 +240,21 @@ export function PenFight({
   const pull = (event: PointerEvent<HTMLDivElement>) => {
     if (!state) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * 1000;
-    const py = ((event.clientY - rect.top) / rect.height) * 1000;
+    const point = deskInput.current?.(event.clientX, event.clientY) ?? {
+      x: ((event.clientX - rect.left) / rect.width) * 1000,
+      y: ((event.clientY - rect.top) / rect.height) * 1000,
+    };
     // Vector from the drag point back to the pen = the launch direction.
     if (!dragStart.current) return;
-    const dx = ((dragStart.current.x - event.clientX) / rect.width) * 1000;
-    const dy = ((dragStart.current.y - event.clientY) / rect.height) * 1000;
+    const start = deskInput.current?.(
+      dragStart.current.x,
+      dragStart.current.y,
+    ) ?? {
+      x: ((dragStart.current.x - rect.left) / rect.width) * 1000,
+      y: ((dragStart.current.y - rect.top) / rect.height) * 1000,
+    };
+    const dx = start.x - point.x;
+    const dy = start.y - point.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return;
     const ux = dx / len;
@@ -261,7 +271,7 @@ export function PenFight({
     );
     setForce(nextForce);
     shot.current = { ...nextAim, force: nextForce };
-    setPullPoint({ x: px, y: py });
+    setPullPoint(point);
   };
   // Presentation only: the desk reacts to what the server already resolved —
   // a shudder on contact, a gold flash when a round is decided.
@@ -556,10 +566,13 @@ export function PenFight({
                   if (!event.isPrimary || event.button !== 0) return;
                   event.currentTarget.focus({ preventScroll: true });
                   const bounds = event.currentTarget.getBoundingClientRect();
-                  const x =
-                    ((event.clientX - bounds.left) / bounds.width) * 1000;
-                  const y =
-                    ((event.clientY - bounds.top) / bounds.height) * 1000;
+                  const { x, y } = deskInput.current?.(
+                    event.clientX,
+                    event.clientY,
+                  ) ?? {
+                    x: ((event.clientX - bounds.left) / bounds.width) * 1000,
+                    y: ((event.clientY - bounds.top) / bounds.height) * 1000,
+                  };
                   if (Math.hypot(x - state.humanX, y - state.humanY) > 110) {
                     setNote(
                       "Start on your pen's ring. Pull back, then release.",
@@ -642,6 +655,7 @@ export function PenFight({
             </div>
           )}
           <PenDesk
+            inputRef={deskInput}
             human={{ x: state.humanX, y: state.humanY }}
             bot={{ x: state.botX, y: state.botY }}
             motion={motion}
@@ -675,35 +689,10 @@ export function PenFight({
           )}
         </div>
       </section>
-      {owns && !completed && (
-        <details className="pen-picker">
-          <summary>Your {penName} · Change pen</summary>
-          <div className="pen-swatches">
-            {PENS.map(([id, name, blurb]) => (
-              <button
-                key={id}
-                className={`pen-swatch ${id} ${myPen === id ? "chosen" : ""}`}
-                onClick={() => choosePen(id)}
-                aria-pressed={myPen === id}
-                title={`${name} — ${blurb}`}
-              >
-                <i aria-hidden="true" />
-                <span>{name}</span>
-              </button>
-            ))}
-          </div>
-          <p className="pen-note">
-            Every pen plays exactly the same. Pick the one that feels like
-            yours.
-          </p>
-        </details>
-      )}
       {owns && !completed && state.turn === "human" && (
         <section className="flick-controls">
           <p className="eyebrow">
-            {aiming
-              ? "RELEASE TO FLICK"
-              : "PULL BACK FROM YOUR PEN, THEN LET GO"}
+            {aiming ? "RELEASE TO FLICK" : "AIM · SET YOUR POWER · FLICK"}
           </p>
           <div className="power-readout" aria-hidden="true">
             <i style={{ width: `${powerPct}%` }} />
@@ -748,6 +737,29 @@ export function PenFight({
             </button>
           </div>
         </section>
+      )}
+      {owns && !completed && (
+        <details className="pen-picker">
+          <summary>Your {penName} · Change pen</summary>
+          <div className="pen-swatches">
+            {PENS.map(([id, name, blurb]) => (
+              <button
+                key={id}
+                className={`pen-swatch ${id} ${myPen === id ? "chosen" : ""}`}
+                onClick={() => choosePen(id)}
+                aria-pressed={myPen === id}
+                title={`${name} — ${blurb}`}
+              >
+                <i aria-hidden="true" />
+                <span>{name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="pen-note">
+            Every pen plays exactly the same. Pick the one that feels like
+            yours.
+          </p>
+        </details>
       )}
       <p className="pen-result" role="status">
         {state.lastOutcome}
