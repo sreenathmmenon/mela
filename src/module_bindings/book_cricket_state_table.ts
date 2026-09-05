@@ -22,5 +22,8 @@ export default __t.row({
   botWickets: __t.u32().name("bot_wickets"),
   target: __t.u32(),
   lastOutcome: __t.string().name("last_outcome"),
+  humanTimeline: __t.string().name("human_timeline"),
+  botTimeline: __t.string().name("bot_timeline"),
+  lastCrowdSwing: __t.string().name("last_crowd_swing"),
   seed: __t.u64(),
 });

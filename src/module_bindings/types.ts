@@ -41,6 +41,9 @@ export const BookCricketState = __t.object("BookCricketState", {
   botWickets: __t.u32(),
   target: __t.u32(),
   lastOutcome: __t.string(),
+  humanTimeline: __t.string(),
+  botTimeline: __t.string(),
+  lastCrowdSwing: __t.string(),
   seed: __t.u64(),
 });
 export type BookCricketState = __Infer<typeof BookCricketState>;
@@ -57,6 +60,7 @@ export const CrowdEffect = __t.object("CrowdEffect", {
   matchId: __t.u64(),
   power: __t.string(),
   target: __t.string(),
+  actorName: __t.string(),
   expiresAtMicros: __t.u64(),
 });
 export type CrowdEffect = __Infer<typeof CrowdEffect>;
@@ -165,6 +169,8 @@ export const MelaMetrics = __t.object("MelaMetrics", {
   completedPlayerMatches: __t.u64(),
   replayedMatches: __t.u64(),
   spectatorToPlayerConversions: __t.u64(),
+  abandonedMatches: __t.u64(),
+  spectatorsWhoActed: __t.u64(),
   updatedAt: __t.timestamp(),
 });
 export type MelaMetrics = __Infer<typeof MelaMetrics>;
@@ -187,6 +193,7 @@ export const MetricsIdentity = __t.object("MetricsIdentity", {
   hasPlayed: __t.u32(),
   hasSpectated: __t.u32(),
   completedPlayerMatches: __t.u32(),
+  hasActed: __t.u32(),
 });
 export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
@@ -282,3 +289,4 @@ export const WorldPresence = __t.object("WorldPresence", {
   lastSeenAt: __t.timestamp(),
 });
 export type WorldPresence = __Infer<typeof WorldPresence>;
+

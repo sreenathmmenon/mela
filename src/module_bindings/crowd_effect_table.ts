@@ -15,5 +15,6 @@ export default __t.row({
   matchId: __t.u64().name("match_id"),
   power: __t.string(),
   target: __t.string(),
+  actorName: __t.string().name("actor_name"),
   expiresAtMicros: __t.u64().name("expires_at_micros"),
 });

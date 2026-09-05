@@ -50,3 +50,9 @@ createRoot(document.getElementById("root")!).render(
     </SpacetimeDBProvider>
   </StrictMode>,
 );
+
+// Hand off from the pre-render splash only once React has painted a frame, so
+// there is never a gap between the two.
+requestAnimationFrame(() =>
+  requestAnimationFrame(() => document.getElementById("boot")?.remove()),
+);

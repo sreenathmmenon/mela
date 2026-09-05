@@ -19,6 +19,7 @@ import {
 import { DeterministicPenFightAIProvider } from "./penFightAiProvider";
 import {
   crowdInfluenceForPower,
+  describeCrowdSwing,
   nextBookCricketRecord,
   notableCrowdMoment,
   playerProgressAfterMatch,
@@ -26,6 +27,7 @@ import {
 } from "./melaMemory";
 import {
   type MelaMetricDelta,
+  abandonedMatchDelta,
   completedMatchDelta,
   crowdActionDelta,
   playerMatchStartDelta,
@@ -142,6 +144,8 @@ const spacetimedb = schema({
       completedPlayerMatches: t.u64(),
       replayedMatches: t.u64(),
       spectatorToPlayerConversions: t.u64(),
+      abandonedMatches: t.u64(),
+      spectatorsWhoActed: t.u64(),
       updatedAt: t.timestamp(),
     },
   ),
@@ -153,6 +157,7 @@ const spacetimedb = schema({
       hasPlayed: t.u32(),
       hasSpectated: t.u32(),
       completedPlayerMatches: t.u32(),
+      hasActed: t.u32(),
     },
   ),
   match: table(
@@ -193,6 +198,11 @@ const spacetimedb = schema({
       botWickets: t.u32(),
       target: t.u32(),
       lastOutcome: t.string(),
+      /** Compact per-innings ball log, e.g. "4,1,W,6" — read left to right. */
+      humanTimeline: t.string(),
+      botTimeline: t.string(),
+      /** Names the crowd's effect on the most recent ball, or "" when none. */
+      lastCrowdSwing: t.string(),
       seed: t.u64(),
     },
   ),
@@ -345,6 +355,7 @@ const spacetimedb = schema({
       matchId: t.u64(),
       power: t.string(),
       target: t.string(),
+      actorName: t.string(),
       expiresAtMicros: t.u64(),
     },
   ),
@@ -446,6 +457,8 @@ const historicalMetricSnapshot = (ctx: any) => {
   }
   return {
     matchesStarted: matches.length,
+    abandonedMatches: matches.filter((m: any) => m.status === "abandoned")
+      .length,
     matchesCompleted: histories.length,
     uniquePlayerIdentities: playerIds.size,
     uniqueSpectatorIdentities: spectatorIds.size,
@@ -471,6 +484,8 @@ const ensureMetrics = (ctx: any) => {
     completedPlayerMatches: BigInt(snapshot.completedPlayerMatches),
     replayedMatches: BigInt(snapshot.replayedMatches),
     spectatorToPlayerConversions: BigInt(snapshot.spectatorToPlayerConversions),
+    abandonedMatches: BigInt(snapshot.abandonedMatches),
+    spectatorsWhoActed: 0n,
     updatedAt: ctx.timestamp,
   };
   ctx.db.melaMetrics.insert(metrics);
@@ -489,7 +504,13 @@ const metricsIdentityFor = (ctx: any, identity: any) => {
     }
   for (const spectator of ctx.db.matchSpectator.iter())
     if (spectator.identity.isEqual(identity)) hasSpectated = 1;
-  const row = { identity, hasPlayed, hasSpectated, completedPlayerMatches };
+  const row = {
+    identity,
+    hasPlayed,
+    hasSpectated,
+    completedPlayerMatches,
+    hasActed: 0,
+  };
   ctx.db.metricsIdentity.insert(row);
   return row;
 };
@@ -513,6 +534,9 @@ const applyMetricDelta = (ctx: any, delta: MelaMetricDelta) => {
     spectatorToPlayerConversions:
       metrics.spectatorToPlayerConversions +
       BigInt(delta.spectatorToPlayerConversions),
+    abandonedMatches: metrics.abandonedMatches + BigInt(delta.abandonedMatches),
+    spectatorsWhoActed:
+      metrics.spectatorsWhoActed + BigInt(delta.spectatorsWhoActed),
     updatedAt: ctx.timestamp,
   });
 };
@@ -582,6 +606,24 @@ const player = (ctx: any) => {
   return row;
 };
 const nextMatchId = (ctx: any) => nextId(ctx.db.match.iter());
+/**
+ * Starting a new match retires the caller's own unfinished one. Mela runs many
+ * concurrent matches, so this is scoped to the sender rather than the world:
+ * nobody else's live match is ever touched.
+ */
+const abandonOwnActiveMatches = (ctx: any) => {
+  for (const existing of ctx.db.match.iter()) {
+    if (existing.status !== "active") continue;
+    if (!existing.playerIdentity.isEqual(ctx.sender)) continue;
+    ctx.db.match.id.update({
+      ...existing,
+      status: "abandoned",
+      endedAt: ctx.timestamp,
+    });
+    applyMetricDelta(ctx, abandonedMatchDelta());
+    emit(ctx, existing.id, "This match was left for a new one.");
+  }
+};
 const nowMicros = (ctx: any) => ctx.timestamp.microsSinceUnixEpoch;
 const spectatorFor = (ctx: any, matchId: bigint, identity: any) => {
   for (const row of ctx.db.matchSpectator.iter())
@@ -743,6 +785,14 @@ function completeMatch(ctx: any, match: any, state: any, winner: string) {
       crowdActivity.actions,
       crowdActivity.lastActor,
       crowdActivity.lastPower,
+      {
+        crowdSwing: state.lastCrowdSwing || undefined,
+        winner,
+        humanName: human.displayName,
+        humanScore: state.humanScore,
+        botScore: state.botScore,
+        humanWickets: state.humanWickets,
+      },
     ),
     completedAt: ctx.timestamp,
   });
@@ -768,24 +818,28 @@ function resolveDelivery(
     chaos: effects.some((effect) => effect.power === "chaos"),
     shield: effects.some((effect) => effect.power === "shield"),
   };
-  const result = applyCrowdDeliveryEffects(
-    resolveBookCricketOutcome(state.seed, style, effectState.chaos),
-    effectState,
+  const rawOutcome = resolveBookCricketOutcome(
+    state.seed,
+    style,
+    effectState.chaos,
   );
+  const result = applyCrowdDeliveryEffects(rawOutcome, effectState);
+  // The crowd's swing is computed from the same transaction that applies it, so
+  // every surface can name the person instead of showing an anonymous delta.
+  const crowdSwing = describeCrowdSwing(rawOutcome, result, effects);
   for (const effect of effects) ctx.db.crowdEffect.id.delete(effect.id);
-  if (effects.length)
-    emit(
-      ctx,
-      match.id,
-      `Crowd effects resolved for ${target}: ${effects.map((effect) => effect.power.toUpperCase()).join(", ")}`,
-    );
+  if (crowdSwing) emit(ctx, match.id, crowdSwing);
   const balls = (human ? state.humanBalls : state.botBalls) + 1;
   const wickets =
     (human ? state.humanWickets : state.botWickets) + (result.wicket ? 1 : 0);
   const score = (human ? state.humanScore : state.botScore) + result.runs;
+  const token = result.wicket ? "W" : String(result.runs);
+  const appendBall = (timeline: string) =>
+    timeline ? `${timeline},${token}` : token;
   let next = {
     ...state,
     seed: result.seed,
+    lastCrowdSwing: crowdSwing ?? "",
     lastOutcome: result.wicket
       ? "OUT"
       : `${result.runs} RUN${result.runs === 1 ? "" : "S"}`,
@@ -796,9 +850,16 @@ function resolveDelivery(
       humanBalls: balls,
       humanWickets: wickets,
       humanScore: score,
+      humanTimeline: appendBall(state.humanTimeline),
     };
   else
-    next = { ...next, botBalls: balls, botWickets: wickets, botScore: score };
+    next = {
+      ...next,
+      botBalls: balls,
+      botWickets: wickets,
+      botScore: score,
+      botTimeline: appendBall(state.botTimeline),
+    };
   const chaseWon = !human && score >= state.target;
   const inningsFinished = isInningsComplete(balls, wickets);
   const chaseLost =
@@ -1039,10 +1100,12 @@ function resolvePenFlick(
     actorOut ||
     next.turnsInRound >= PEN_FIGHT_RULES.maxTurnsPerRound
   ) {
-    const winner: PenSide = targetOut
-      ? actor
-      : actorOut
-        ? target
+    // Your own pen leaving the desk is checked first: flicking so hard that you
+    // follow the opponent off the edge must lose, or force carries no downside.
+    const winner: PenSide = actorOut
+      ? target
+      : targetOut
+        ? actor
         : penFightRoundWinner({
             humanX: next.humanX,
             humanY: next.humanY,
@@ -1161,14 +1224,9 @@ export const onboard = spacetimedb.reducer(
 );
 export const createBookCricket = spacetimedb.reducer((ctx: any) => {
   const p = player(ctx);
-  for (const existingMatch of ctx.db.match.iter())
-    if (
-      existingMatch.gameKind === "book_cricket" &&
-      existingMatch.status === "active"
-    )
-      throw new Error(
-        "A Book Cricket match is already live. Join the crowd or finish it first.",
-      );
+  // Mela hosts many concurrent matches; only one live match per identity keeps
+  // ownership unambiguous without blocking every other person in the world.
+  abandonOwnActiveMatches(ctx);
   const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
   applyMetricDelta(
     ctx,
@@ -1223,6 +1281,9 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     botWickets: 0,
     target: 0,
     lastOutcome: "START",
+    humanTimeline: "",
+    botTimeline: "",
+    lastCrowdSwing: "",
     seed: matchId + 17n,
   });
   ctx.db.matchCrowd.insert({
@@ -1248,9 +1309,7 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
 });
 export const createPenFight = spacetimedb.reducer((ctx: any) => {
   const p = player(ctx);
-  for (const existing of ctx.db.match.iter())
-    if (existing.status === "active")
-      throw new Error("A live Mela match is already on the desk.");
+  abandonOwnActiveMatches(ctx);
   const metricIdentity = penMetricIdentity(ctx, ctx.sender);
   updatePenMetrics(ctx, {
     matchesStarted: 1,
@@ -1415,7 +1474,10 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
         lastPower: power,
       });
     updatePenMetrics(ctx, { crowdActions: 1 });
-    applyMetricDelta(ctx, crowdActionDelta());
+    const actorMetrics = metricsIdentityFor(ctx, ctx.sender);
+    applyMetricDelta(ctx, crowdActionDelta(actorMetrics.hasActed !== 1));
+    if (actorMetrics.hasActed !== 1)
+      ctx.db.metricsIdentity.identity.update({ ...actorMetrics, hasActed: 1 });
     const influence = power === "tilt" ? 3 : power === "cheer" ? 1 : 2;
     const melaProfile = ensureMelaProfile(ctx, ctx.sender);
     ctx.db.melaProfile.identity.update({
@@ -1438,6 +1500,7 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
       matchId,
       power,
       target,
+      actorName: profile.displayName,
       expiresAtMicros,
     });
     scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);
@@ -1574,7 +1637,10 @@ export const useCrowdPower = spacetimedb.reducer(
       });
 
     const profile = player(ctx);
-    applyMetricDelta(ctx, crowdActionDelta());
+    const actorMetrics = metricsIdentityFor(ctx, ctx.sender);
+    applyMetricDelta(ctx, crowdActionDelta(actorMetrics.hasActed !== 1));
+    if (actorMetrics.hasActed !== 1)
+      ctx.db.metricsIdentity.identity.update({ ...actorMetrics, hasActed: 1 });
     const melaProfile = ensureMelaProfile(ctx, ctx.sender);
     ctx.db.melaProfile.identity.update({
       ...melaProfile,
@@ -1608,6 +1674,7 @@ export const useCrowdPower = spacetimedb.reducer(
       matchId,
       power,
       target,
+      actorName: profile.displayName,
       expiresAtMicros,
     });
     scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);

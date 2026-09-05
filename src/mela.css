@@ -261,44 +261,144 @@ button:disabled {
   padding-top: 5px;
   pointer-events: none;
 }
+/* Margin rule down the left, like a real notebook page. */
 .notebook-line {
+  position: absolute;
+  pointer-events: none;
+}
+.notebook-line.l1 {
+  left: 8%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(214, 96, 96, 0.42);
+}
+.notebook-line.l2,
+.notebook-line.l3 {
   display: none;
 }
+/* A pen, not a capsule: tapered barrel, real nib, cap band and clip, with a
+   contact shadow so it sits ON the paper rather than floating above it. */
 .pen-token {
   position: absolute;
-  width: 62px;
-  height: 19px;
-  border-radius: 99px;
-  transform: translate(-50%, -50%) rotate(-12deg);
-  box-shadow: 0 5px 8px rgba(0, 0, 0, 0.35);
+  width: 132px;
+  height: 20px;
+  transform: translate(-50%, -50%) rotate(var(--pen-spin, -8deg));
+  /* Launch fast, then bleed off speed like a pen sliding on paper. */
   transition:
-    left 0.4s ease,
-    top 0.4s ease;
+    left 0.62s cubic-bezier(0.11, 0.78, 0.2, 1),
+    top 0.62s cubic-bezier(0.11, 0.78, 0.2, 1),
+    transform 0.62s cubic-bezier(0.11, 0.78, 0.2, 1);
   z-index: 2;
+  will-change: left, top, transform;
 }
+/* Barrel */
+.pen-token::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 20px;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px 3px 3px 4px;
+  box-shadow:
+    inset 0 5px 7px rgba(255, 255, 255, 0.34),
+    inset 0 -5px 7px rgba(0, 0, 0, 0.34),
+    0 7px 9px -4px rgba(40, 20, 10, 0.5);
+}
+/* Nib: a real tapered point at the leading edge */
+.pen-token::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 15px;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 15px solid #2b2b33;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+/* Cap + clip at the tail, and the player initial */
 .pen-token span {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
-  width: 21px;
-  height: 21px;
-  margin: -1px 4px;
-  border-radius: 50%;
-  color: white;
-  font-size: 0.7rem;
+  width: 26px;
+  height: 22px;
+  border-radius: 4px 7px 7px 4px;
+  color: #fff;
+  font-size: 0.68rem;
   font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 4px 6px rgba(255, 255, 255, 0.3),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.34);
+}
+.pen-token span::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: -5px;
+  width: 5px;
+  height: 15px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.55);
+}
+/* Soft contact shadow on the page under the pen */
+.pen-token i.pen-shadow {
+  position: absolute;
+  left: 10px;
+  right: 12px;
+  bottom: -9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(60, 32, 14, 0.3);
+  filter: blur(4px);
 }
 .pen-token.human {
-  background: #226d8b;
+  --pen-spin: -8deg;
+}
+.pen-token.human::before {
+  background: linear-gradient(180deg, #3f9dc0 0%, #226d8b 48%, #14455c 100%);
 }
 .pen-token.human span {
-  background: #17465e;
+  background: linear-gradient(180deg, #2b7f9f, #123f54);
 }
 .pen-token.bot {
-  background: #c64b44;
-  transform: translate(-50%, -50%) rotate(14deg);
+  --pen-spin: 11deg;
+}
+.pen-token.bot::before {
+  background: linear-gradient(180deg, #e4796e 0%, #c64b44 48%, #7e2f29 100%);
 }
 .pen-token.bot span {
-  background: #83332f;
+  background: linear-gradient(180deg, #c9544c, #6f2823);
+}
+@media (max-width: 640px) {
+  .pen-token {
+    width: 96px;
+    height: 15px;
+  }
+  .pen-token span {
+    width: 20px;
+    height: 17px;
+    font-size: 0.6rem;
+  }
+  .pen-token::after {
+    width: 11px;
+    border-right-width: 11px;
+    border-top-width: 4.5px;
+    border-bottom-width: 4.5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pen-token {
+    transition: none;
+  }
 }
 .aim-line {
   position: absolute;
@@ -1011,8 +1111,11 @@ button:disabled {
 }
 .screen-score > div > strong {
   font-size: clamp(4.5rem, 12vw, 11rem);
-  line-height: 0.86;
-  letter-spacing: -0.1em;
+  /* Enough leading for the numerals' descenders to clear the line below. */
+  line-height: 1;
+  letter-spacing: -0.06em;
+  padding-bottom: 0.06em;
+  font-variant-numeric: tabular-nums;
 }
 .screen-score small,
 .screen-versus small {
@@ -1293,4 +1396,384 @@ button:disabled {
     border-radius: 16px;
     padding: 17px;
   }
+}
+
+/* ---------- Mela home: what this is, and what to play ---------- */
+.how-mela-works {
+  margin: 18px 0 0;
+  padding: 16px 18px;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.92rem;
+  color: #cfc6e6;
+}
+.how-mela-works li {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+}
+.how-mela-works li::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f6b73c;
+}
+.how-mela-works b {
+  color: #fff;
+}
+.link-back {
+  margin-left: 12px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #d9cffa;
+  background: rgba(255, 255, 255, 0.08);
+}
+.link-back:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.game-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 14px;
+}
+.game-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  text-align: left;
+  border-radius: 18px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.game-card strong {
+  font-size: 1.32rem;
+  letter-spacing: -0.02em;
+}
+.game-card em {
+  font-style: normal;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+.game-card .game-go {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffe6ab;
+}
+.game-card.cricket {
+  background: linear-gradient(140deg, #7a3fb4, #45227a);
+}
+.game-card.pen {
+  background: linear-gradient(140deg, #a4552f, #5d2f1d);
+}
+/* Small built-in art so each game reads as a game, not a text button. */
+.game-art {
+  position: relative;
+  display: block;
+  height: 62px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.22);
+}
+.game-art b {
+  position: absolute;
+  display: block;
+}
+.game-art .bat {
+  width: 12px;
+  height: 44px;
+  left: 34px;
+  top: 9px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #f0d7a8, #c99b55);
+  transform: rotate(24deg);
+}
+.game-art .ball {
+  width: 15px;
+  height: 15px;
+  left: 66px;
+  top: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #ff8f7a, #b52d20);
+}
+.game-art .pen-a,
+.game-art .pen-b {
+  height: 11px;
+  border-radius: 99px;
+  top: 26px;
+}
+.game-art .pen-a {
+  width: 58px;
+  left: 20px;
+  background: linear-gradient(90deg, #2f7f9f, #1b4f66);
+  transform: rotate(-9deg);
+}
+.game-art .pen-b {
+  width: 58px;
+  left: 84px;
+  background: linear-gradient(90deg, #d9635a, #8d332c);
+  transform: rotate(13deg);
+}
+
+.watch-live {
+  margin-top: 20px;
+}
+.watch-live ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.watch-live li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.watch-live li span {
+  display: grid;
+  font-size: 0.94rem;
+}
+.watch-live li em {
+  font-style: normal;
+  font-size: 0.8rem;
+  color: #a99fc4;
+}
+.watch-live li button {
+  padding: 8px 16px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 0.85rem;
+}
+.watch-live li button:hover:not(:disabled) {
+  background: #f6b73c;
+  color: #241533;
+}
+
+/* ---------- Delivery suspense and reveal ---------- */
+.delivery-result.waiting strong {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+}
+.delivery-result.waiting i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbbdf0;
+  animation: ball-pulse 0.9s ease-in-out infinite;
+}
+.delivery-result.waiting i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.delivery-result.waiting i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes ball-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+.delivery-result.reveal {
+  animation: reveal-pop 0.34s cubic-bezier(0.18, 0.9, 0.28, 1.3);
+}
+.delivery-result.reveal.big strong {
+  font-size: 2.1rem;
+  letter-spacing: -0.02em;
+}
+.delivery-result.reveal.big {
+  border-color: #f6b73c;
+  box-shadow: 0 0 0 1px rgba(246, 183, 60, 0.5);
+}
+.delivery-result.reveal.out.big {
+  border-color: #ef6a5a;
+  box-shadow: 0 0 0 1px rgba(239, 106, 90, 0.55);
+}
+@keyframes reveal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .delivery-result.reveal,
+  .delivery-result.waiting i {
+    animation: none;
+  }
+}
+
+/* ---------- Ball-by-ball strip ---------- */
+.timeline-strip {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 4px;
+}
+.ball-strip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ball-strip-label {
+  min-width: 74px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a99fc4;
+}
+.ball-strip-balls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.ball-strip-balls em {
+  font-style: normal;
+  font-size: 0.8rem;
+  color: #7d7398;
+}
+.ball-strip-balls b {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.1);
+  color: #efe9ff;
+}
+.ball-strip-balls b.boundary {
+  background: #f6b73c;
+  color: #2a1a08;
+}
+.ball-strip-balls b.w {
+  background: #e04b3c;
+  color: #fff;
+}
+.ball-strip-balls b.dot {
+  color: #8d84a8;
+}
+
+/* ---------- Crowd attribution to the player ---------- */
+.crowd-incoming {
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #fff4dc;
+  background: linear-gradient(
+    100deg,
+    rgba(246, 183, 60, 0.24),
+    rgba(246, 183, 60, 0.08)
+  );
+  border: 1px solid rgba(246, 183, 60, 0.42);
+}
+.crowd-incoming b {
+  color: #ffd483;
+}
+
+/* ---------- Big screen: crowd attribution + ball-by-ball ---------- */
+.screen-outcome.crowd {
+  border-color: #f6b73c;
+  box-shadow: 0 0 0 2px rgba(246, 183, 60, 0.35);
+}
+.screen-outcome.crowd small {
+  color: #ffd483;
+  font-weight: 800;
+}
+.screen-timeline {
+  display: grid;
+  gap: 12px;
+  max-width: 1520px;
+  margin: 18px auto 0;
+  padding: 18px clamp(20px, 3vw, 40px);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.screen-timeline div {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.screen-timeline span {
+  min-width: 8ch;
+  font-size: clamp(0.9rem, 1.3vw, 1.15rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b7abd2;
+}
+.screen-timeline em {
+  display: flex;
+  gap: 9px;
+  font-style: normal;
+}
+.screen-timeline b {
+  display: grid;
+  place-items: center;
+  min-width: clamp(38px, 3.4vw, 54px);
+  height: clamp(38px, 3.4vw, 54px);
+  border-radius: 12px;
+  font-size: clamp(1.1rem, 1.7vw, 1.6rem);
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.1);
+  color: #efe9ff;
+}
+.screen-timeline b.boundary {
+  background: #f6b73c;
+  color: #2a1a08;
+}
+.screen-timeline b.w {
+  background: #e04b3c;
+  color: #fff;
+}
+
+.ai-turn.pressure {
+  border-color: #ef6a5a;
+  background: linear-gradient(
+    100deg,
+    rgba(239, 106, 90, 0.2),
+    rgba(239, 106, 90, 0.05)
+  );
+}
+.ai-turn.pressure strong {
+  color: #ffd0c8;
+}
+
+.score-row.holding strong {
+  color: #8d84a8;
+  letter-spacing: 0.06em;
 }

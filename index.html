@@ -3,10 +3,91 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mela · Live Book Cricket</title>
+    <meta
+      name="description"
+      content="Mela — play a quick game against MelaBot while the crowd changes what happens next."
+    />
+    <title>Mela · Play. Watch. Change the game.</title>
+    <style>
+      /* Painted before any JavaScript runs, so a cold load is never a black
+         screen. #boot is removed by the app as soon as React mounts. */
+      html,
+      body {
+        margin: 0;
+        background: #0d0a1a;
+        color: #f6f1ff;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 18px;
+        text-align: center;
+        background:
+          radial-gradient(
+            60% 55% at 22% 12%,
+            rgba(126, 78, 214, 0.42),
+            transparent 68%
+          ),
+          #0d0a1a;
+      }
+      #boot h1 {
+        margin: 0;
+        font-size: clamp(2.6rem, 7vw, 4rem);
+        letter-spacing: -0.04em;
+        font-weight: 800;
+      }
+      #boot p {
+        margin: 0;
+        max-width: 28ch;
+        color: #b9aed4;
+        font-size: 0.98rem;
+        line-height: 1.5;
+      }
+      #boot span {
+        display: block;
+        width: 132px;
+        height: 4px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+      }
+      #boot span::after {
+        content: "";
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #f6b73c, #e2653c);
+        animation: boot-slide 1.05s ease-in-out infinite;
+      }
+      @keyframes boot-slide {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(330%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot span::after {
+          animation: none;
+          width: 100%;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot">
+      <h1>Mela</h1>
+      <p>Waking up the live world…</p>
+      <span></span>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

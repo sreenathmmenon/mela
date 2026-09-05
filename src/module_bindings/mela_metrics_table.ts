@@ -20,8 +20,8 @@ export default __t.row({
   crowdActions: __t.u64().name("crowd_actions"),
   completedPlayerMatches: __t.u64().name("completed_player_matches"),
   replayedMatches: __t.u64().name("replayed_matches"),
-  spectatorToPlayerConversions: __t
-    .u64()
-    .name("spectator_to_player_conversions"),
+  spectatorToPlayerConversions: __t.u64().name("spectator_to_player_conversions"),
+  abandonedMatches: __t.u64().name("abandoned_matches"),
+  spectatorsWhoActed: __t.u64().name("spectators_who_acted"),
   updatedAt: __t.timestamp().name("updated_at"),
 });

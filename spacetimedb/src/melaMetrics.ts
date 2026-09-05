@@ -14,6 +14,8 @@ export interface MelaMetricDelta {
   completedPlayerMatches: number;
   replayedMatches: number;
   spectatorToPlayerConversions: number;
+  abandonedMatches: number;
+  spectatorsWhoActed: number;
 }
 
 export const EMPTY_MELA_METRIC_DELTA: MelaMetricDelta = {
@@ -26,6 +28,8 @@ export const EMPTY_MELA_METRIC_DELTA: MelaMetricDelta = {
   completedPlayerMatches: 0,
   replayedMatches: 0,
   spectatorToPlayerConversions: 0,
+  abandonedMatches: 0,
+  spectatorsWhoActed: 0,
 };
 
 export function playerMatchStartDelta(input: {
@@ -60,6 +64,16 @@ export function completedMatchDelta(): MelaMetricDelta {
   };
 }
 
-export function crowdActionDelta(): MelaMetricDelta {
-  return { ...EMPTY_MELA_METRIC_DELTA, crowdActions: 1 };
+/** A spectator counts once, the first time they actually spend Crowd Energy. */
+export function crowdActionDelta(firstActionForIdentity = false): MelaMetricDelta {
+  return {
+    ...EMPTY_MELA_METRIC_DELTA,
+    crowdActions: 1,
+    spectatorsWhoActed: firstActionForIdentity ? 1 : 0,
+  };
+}
+
+/** A player left an unfinished match to start another one. */
+export function abandonedMatchDelta(): MelaMetricDelta {
+  return { ...EMPTY_MELA_METRIC_DELTA, abandonedMatches: 1 };
 }

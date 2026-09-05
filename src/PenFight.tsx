@@ -9,10 +9,24 @@ const powers = [
   ["guard", "GUARD", 16, "Save a chosen pen from one edge exit."],
   ["cheer", "CHEER", 4, "Return 8 shared Energy for the crowd."],
 ] as const;
+/**
+ * A stable, position-derived tilt. Deterministic per position so every client
+ * shows the same pen orientation without the server storing a rotation.
+ */
+function spinFor(matchId: bigint, x: number, y: number, base: number) {
+  const mix = (Number(matchId % 7n) * 31 + x * 3 + y * 5) % 34;
+  return base + mix - 17;
+}
 const url = (id: bigint) =>
   `${(import.meta.env.VITE_PUBLIC_APP_URL || location.origin).replace(/\/$/, "")}/?join=${id}`;
 
-export function PenFight({ onBack }: { onBack: () => void }) {
+export function PenFight({
+  matchId,
+  onBack,
+}: {
+  matchId?: bigint;
+  onBack: () => void;
+}) {
   const conn = useSpacetimeDB();
   const identity = conn.identity;
   const [matches] = useTable(tables.match);
@@ -31,9 +45,13 @@ export function PenFight({ onBack }: { onBack: () => void }) {
   const [note, setNote] = useState("");
   const [aiming, setAiming] = useState(false);
   const match =
+    (matchId !== undefined
+      ? matches.find((row) => row.id === matchId)
+      : undefined) ??
     matches.find(
       (row) => row.status === "active" && row.gameKind === "pen_fight",
-    ) ?? matches.filter((row) => row.gameKind === "pen_fight").slice(-1)[0];
+    ) ??
+    matches.filter((row) => row.gameKind === "pen_fight").slice(-1)[0];
   const state = match
     ? states.find((row) => row.matchId === match.id)
     : undefined;
@@ -85,6 +103,10 @@ export function PenFight({ onBack }: { onBack: () => void }) {
       </section>
     );
   const actor = state.turn === "human" ? human : "MelaBot";
+  // Pens rotate toward where they last travelled, so a slide reads as a real
+  // object with momentum rather than a token teleporting between points.
+  const humanSpin = spinFor(state.matchId, state.humanX, state.humanY, -8);
+  const botSpin = spinFor(state.matchId, state.botX, state.botY, 11);
   const memory = memories.find((row) => row.matchId === match.id);
   const record = identity
     ? records.find((row) => row.identity.isEqual(identity))
@@ -146,14 +168,21 @@ export function PenFight({ onBack }: { onBack: () => void }) {
             style={{
               left: `${state.humanX / 10}%`,
               top: `${state.humanY / 10}%`,
+              ["--pen-spin" as string]: `${humanSpin}deg`,
             }}
           >
-            <span>{human.slice(0, 1)}</span>
+            <i className="pen-shadow" />
+            <span>{human.slice(0, 1).toUpperCase()}</span>
           </div>
           <div
             className="pen-token bot"
-            style={{ left: `${state.botX / 10}%`, top: `${state.botY / 10}%` }}
+            style={{
+              left: `${state.botX / 10}%`,
+              top: `${state.botY / 10}%`,
+              ["--pen-spin" as string]: `${botSpin}deg`,
+            }}
           >
+            <i className="pen-shadow" />
             <span>M</span>
           </div>
           {owns && state.turn === "human" && (

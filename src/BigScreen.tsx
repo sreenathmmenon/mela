@@ -296,14 +296,70 @@ export default function BigScreen() {
 
       {state.lastOutcome !== "START" && (
         <section
-          className={`screen-outcome ${state.lastOutcome.includes("OUT") ? "out" : ""}`}
+          className={`screen-outcome ${state.lastOutcome.includes("OUT") ? "out" : ""} ${state.lastCrowdSwing ? "crowd" : ""}`}
           aria-label="Latest authoritative match outcome"
         >
           <span>LATEST MOMENT</span>
-          <strong>{state.lastOutcome}</strong>
+          <strong>
+            {state.lastOutcome.startsWith("6")
+              ? "SIX!"
+              : state.lastOutcome.startsWith("4")
+                ? "FOUR!"
+                : state.lastOutcome}
+          </strong>
+          {/* The crowd's swing is named here so the room sees who changed it. */}
           <small>
-            {tense ? "Pressure is on." : "The whole world just updated."}
+            {state.lastCrowdSwing
+              ? state.lastCrowdSwing
+              : tense
+                ? "Pressure is on."
+                : "The whole world just updated."}
           </small>
+        </section>
+      )}
+
+      {(state.humanTimeline || state.botTimeline) && (
+        <section className="screen-timeline" aria-label="Ball by ball">
+          <div>
+            <span>{humanName}</span>
+            <em>
+              {(state.humanTimeline || "—").split(",").map((ball, index) => (
+                <b
+                  key={index}
+                  className={
+                    ball === "W"
+                      ? "w"
+                      : ball === "6" || ball === "4"
+                        ? "boundary"
+                        : ""
+                  }
+                >
+                  {ball}
+                </b>
+              ))}
+            </em>
+          </div>
+          {state.botTimeline && (
+            <div>
+              <span>{aiName}</span>
+              <em>
+                {state.botTimeline.split(",").map((ball, index) => (
+                  <b
+                    key={index}
+                    className={
+                      ball === "W"
+                        ? "w"
+                        : ball === "6" || ball === "4"
+                          ? "boundary"
+                          : ""
+                    }
+                  >
+                    {ball}
+                  </b>
+                ))}
+              </em>
+            </div>
+          )}
         </section>
       )}
 

@@ -1,14 +1,44 @@
 export const PEN_FIGHT_RULES = {
   arenaSize: 1000,
+  /** Drawing size of a pen. Not used for collision — see `contactRadius`. */
   penRadius: 58,
-  openingForceMax: 65,
-  minForce: 24,
+  /** Two pens touch when the flick path passes within this of the target. */
+  contactRadius: 66,
+  openingForceMax: 66,
+  minForce: 20,
   maxForce: 100,
   maxTurnsPerRound: 8,
   roundsToWin: 2,
   crowdEnergyStart: 42,
   crowdEnergyMax: 60,
   aiWakeDelayMicros: 1_100_000n,
+} as const;
+
+/**
+ * Flick model.
+ *
+ * A pen travels `travelBase + travelPerForce * force`, so a full-strength flick
+ * crosses the desk and a soft one falls short — force is the core risk dial.
+ * Whatever travel is left after contact is transferred to the struck pen, which
+ * is why hitting hard near an edge knocks the opponent off but can carry you
+ * off too. `spinMax` is how much the contact point can bend the struck pen away
+ * from head-on. The two jitter terms keep outcomes bounded but not perfectly
+ * predictable, without ever making a well-aimed flick unfair.
+ */
+const PHYSICS = {
+  travelBase: 30,
+  travelPerForce: 8.2,
+  transferBase: 0.92,
+  transferPerForce: 0.0042,
+  actorRetain: 0.12,
+  followThrough: 0.4,
+  actorDeflect: 0.85,
+  spinMax: 0.85,
+  varPct: 0.045,
+  driftPct: 0.055,
+  nudgeBonus: 10,
+  nudgeCap: 112,
+  tiltDrift: 0.06,
 } as const;
 
 export type PenFightPower = "nudge" | "tilt" | "guard" | "cheer";
@@ -31,8 +61,9 @@ export const PEN_FIGHT_POWERS = {
       "Adds a bounded sideways drift to the chosen side's next flick.",
   },
   guard: {
+    // Guard now also saves a pen from its own follow-through, so it costs more.
     label: "GUARD",
-    cost: 16,
+    cost: 20,
     cooldownMicros: 25_000_000n,
     durationMicros: 22_000_000n,
     description:
@@ -71,7 +102,13 @@ const outside = (x: number, y: number) =>
   y < 0 ||
   x > PEN_FIGHT_RULES.arenaSize ||
   y > PEN_FIGHT_RULES.arenaSize;
-const distance = (x: number, y: number) => Math.hypot(x - 500, y - 500);
+/**
+ * How much desk a pen still has under it: the distance to the nearest edge.
+ * This is what "safer position" means on a real desk — a pen teetering on the
+ * rim is losing even if it sits dead centre on one axis.
+ */
+const edgeMargin = (x: number, y: number) =>
+  Math.min(x, y, PEN_FIGHT_RULES.arenaSize - x, PEN_FIGHT_RULES.arenaSize - y);
 
 export function isPenFightPower(value: string): value is PenFightPower {
   return value in PEN_FIGHT_POWERS;
@@ -93,12 +130,21 @@ export function penFightRoundWinner(input: {
   botY: number;
   seed: bigint;
 }): PenSide {
-  const humanSafety = distance(input.humanX, input.humanY);
-  const botSafety = distance(input.botX, input.botY);
+  // The pen with more desk under it survives the round.
+  const humanSafety = edgeMargin(input.humanX, input.humanY);
+  const botSafety = edgeMargin(input.botX, input.botY);
   if (humanSafety !== botSafety)
-    return humanSafety < botSafety ? "human" : "melabot";
+    return humanSafety > botSafety ? "human" : "melabot";
   return input.seed % 2n === 0n ? "human" : "melabot";
 }
+
+const lcg = (seed: bigint) => (seed * 1664525n + 1013904223n) % 4294967291n;
+
+/** How far a flick of this strength carries, before jitter. */
+export function penTravelForForce(force: number) {
+  return PHYSICS.travelBase + PHYSICS.travelPerForce * force;
+}
+
 export function resolvePenFlick(input: {
   seed: bigint;
   actorX: number;
@@ -111,29 +157,109 @@ export function resolvePenFlick(input: {
   contact: number;
   effects: PenFightEffects;
 }): PenFightResolution {
-  const nextSeed = (input.seed * 1664525n + 1013904223n) % 4294967291n;
-  const dx = input.aimX - input.actorX;
-  const dy = input.aimY - input.actorY;
-  const length = Math.max(1, Math.hypot(dx, dy));
-  const ux = dx / length;
-  const uy = dy / length;
-  const variation = Number(nextSeed % 9n) - 4;
-  const contactOffset = (input.contact - 50) / 50;
-  const power = input.force + (input.effects.nudge ? 12 : 0);
-  const tilt = input.effects.tilt ? contactOffset * 20 : 0;
-  const travel = power * 1.42;
-  let actorX = input.actorX + ux * travel - ux * power * 0.13;
-  let actorY =
-    input.actorY + uy * travel - uy * power * 0.13 + tilt + variation * 0.35;
-  const hit =
-    Math.hypot(actorX - input.targetX, actorY - input.targetY) <=
-    PEN_FIGHT_RULES.penRadius * 2;
+  const s1 = lcg(input.seed);
+  const s2 = lcg(s1);
+
+  // Aim direction, with a guard: a zero-length aim would otherwise produce NaN
+  // and silently clamp to a corner.
+  let dx = input.aimX - input.actorX;
+  let dy = input.aimY - input.actorY;
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < 1) {
+    dx = input.targetX - input.actorX;
+    dy = input.targetY - input.actorY;
+  }
+  if (Math.hypot(dx, dy) < 1) {
+    dx = 1;
+    dy = 0;
+  }
+  const aimLen = Math.hypot(dx, dy);
+  const ux = dx / aimLen;
+  const uy = dy / aimLen;
+
+  const power = Math.min(
+    PHYSICS.nudgeCap,
+    input.force + (input.effects.nudge ? PHYSICS.nudgeBonus : 0),
+  );
+  const jitter = (Number(s1 % 2001n) / 1000 - 1) * PHYSICS.varPct;
+  const drift =
+    (Number(s2 % 2001n) / 1000 - 1) * PHYSICS.driftPct +
+    (input.effects.tilt ? ((input.contact - 50) / 50) * PHYSICS.tiltDrift : 0);
+
+  // Lateral drift bends the actual line of travel away from the aim.
+  let vx = ux - uy * drift;
+  let vy = uy + ux * drift;
+  const vLen = Math.max(1e-6, Math.hypot(vx, vy));
+  vx /= vLen;
+  vy /= vLen;
+
+  const travel = penTravelForForce(power) * (1 + jitter);
+
+  // Swept collision: closest approach of the travel segment to the target pen.
+  const toTargetX = input.targetX - input.actorX;
+  const toTargetY = input.targetY - input.actorY;
+  const along = Math.max(
+    0,
+    Math.min(travel, toTargetX * vx + toTargetY * vy),
+  );
+  const missX = input.actorX + vx * along - input.targetX;
+  const missY = input.actorY + vy * along - input.targetY;
+  const miss = Math.hypot(missX, missY);
+  const hit = miss <= PEN_FIGHT_RULES.contactRadius;
+
+  let actorX = input.actorX + vx * travel;
+  let actorY = input.actorY + vy * travel;
   let targetX = input.targetX;
   let targetY = input.targetY;
+
   if (hit) {
-    targetX += ux * (power * 1.58) - uy * contactOffset * 35;
-    targetY += uy * (power * 1.58) + ux * contactOffset * 35 + variation;
+    const back = Math.sqrt(
+      Math.max(0, PEN_FIGHT_RULES.contactRadius ** 2 - miss * miss),
+    );
+    const contactT = Math.max(0, along - back);
+    const hitX = input.actorX + vx * contactT;
+    const hitY = input.actorY + vy * contactT;
+    const remaining = Math.max(0, travel - contactT);
+
+    // Normal points from the touch point into the struck pen.
+    let nx = input.targetX - hitX;
+    let ny = input.targetY - hitY;
+    const nLen = Math.max(1e-6, Math.hypot(nx, ny));
+    nx /= nLen;
+    ny /= nLen;
+    const tanX = -ny;
+    const tanY = nx;
+
+    const spin = Math.max(
+      -1,
+      Math.min(
+        1,
+        vx * tanX +
+          vy * tanY +
+          ((input.contact - 50) / 50) * PHYSICS.spinMax,
+      ),
+    );
+    const straight = Math.sqrt(Math.max(0, 1 - spin * spin));
+    const transfer =
+      PHYSICS.transferBase + PHYSICS.transferPerForce * power;
+
+    targetX += (nx * straight + tanX * spin) * remaining * transfer;
+    targetY += (ny * straight + tanY * spin) * remaining * transfer;
+
+    // A square hit stops you dead behind the target; a glancing one carries you
+    // on past it. This is what makes a hard hit near an edge genuinely risky.
+    const squareness = Math.abs(straight);
+    const deflect = (1 - squareness) * PHYSICS.actorDeflect;
+    let awayX = vx - nx * deflect - tanX * spin * deflect;
+    let awayY = vy - ny * deflect - tanY * spin * deflect;
+    const awayLen = Math.max(1e-6, Math.hypot(awayX, awayY));
+    awayX /= awayLen;
+    awayY /= awayLen;
+    const carry = remaining * (PHYSICS.actorRetain + PHYSICS.followThrough * squareness);
+    actorX = hitX + awayX * carry;
+    actorY = hitY + awayY * carry;
   }
+
+  // Out is decided on raw floats: clamping first would erase the condition.
   let actorOut = outside(actorX, actorY);
   let targetOut = outside(targetX, targetY);
   if (input.effects.guard) {
@@ -152,7 +278,7 @@ export function resolvePenFlick(input: {
     (value) => value < 120 || value > 880,
   );
   return {
-    seed: nextSeed,
+    seed: s2,
     actorX: clamp(actorX),
     actorY: clamp(actorY),
     targetX: clamp(targetX),
@@ -163,6 +289,7 @@ export function resolvePenFlick(input: {
     nearEdge,
   };
 }
+
 export function validatePenFlick(input: {
   aimX: number;
   aimY: number;

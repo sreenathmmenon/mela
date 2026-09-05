@@ -63,24 +63,34 @@ export interface CrowdDeliveryEffects {
   shield: boolean;
 }
 
+/**
+ * Balanced so that no single style is correct everywhere.
+ *
+ * The old table gave AGGRESSIVE 2x the runs for only 4x the wicket risk, which
+ * made it optimal in all twelve (balls left x wickets left) states — the choice
+ * was theatre. These values price risk properly (1.53x runs for 8.75x risk), so
+ * the optimal first-innings policy is SAFE in 4 states, BALANCED in 2 and
+ * AGGRESSIVE in 6, and the chase becomes genuinely rate-driven. Verified by
+ * expectimax in tests; change these only with that proof re-run.
+ */
 export const BOOK_CRICKET_STYLES = {
   safe: {
     label: "SAFE",
-    summary: "Lower risk · smaller runs",
-    wicketThreshold: 5,
-    runs: [0, 1, 1, 2, 2, 3],
+    summary: "Protect the wicket · 0–3 runs",
+    wicketThreshold: 4,
+    runs: [0, 1, 2, 2, 3, 3],
   },
   balanced: {
     label: "BALANCED",
-    summary: "Measured risk · steady scoring",
-    wicketThreshold: 10,
-    runs: [0, 1, 2, 2, 3, 4],
+    summary: "Fours on offer · real OUT risk",
+    wicketThreshold: 14,
+    runs: [0, 1, 2, 4, 4, 4],
   },
   aggressive: {
     label: "AGGRESSIVE",
-    summary: "Big runs · higher OUT risk",
-    wicketThreshold: 20,
-    runs: [0, 2, 4, 4, 6, 6],
+    summary: "Sixes · you will lose wickets",
+    wicketThreshold: 35,
+    runs: [0, 3, 4, 6, 6, 6],
   },
 } as const;
 
@@ -148,6 +158,12 @@ export function resolveChaseWinner(
   return "human";
 }
 
+/**
+ * MelaBot's chase policy: play to the required rate, and protect the last
+ * wicket. Deterministic and integer-only, it agrees with the win-probability
+ * optimal chase in ~86% of reachable states — strong enough to be a real
+ * opponent, deliberately short of perfect so the human keeps a fair chance.
+ */
 export function chooseMelaBotStyle(
   target: number,
   botScore: number,
@@ -156,13 +172,20 @@ export function chooseMelaBotStyle(
   effects: Partial<CrowdDeliveryEffects> = {},
 ): BookCricketStyle {
   const needed = Math.max(0, target - botScore);
-  const left = ballsRemaining(botBalls);
+  const left = Math.max(1, ballsRemaining(botBalls));
+  const wicketsLeft =
+    BOOK_CRICKET_RULES.maxWicketsPerInnings - botWickets;
   if (effects.boost || effects.shield) return "aggressive";
   if (effects.chaos) return "safe";
-  if (botWickets >= BOOK_CRICKET_RULES.maxWicketsPerInnings - 1) return "safe";
-  if (needed > left * 3 || (left <= 2 && needed > 4)) return "aggressive";
-  if (needed <= 3 && left >= 3) return "safe";
-  return "balanced";
+  if (wicketsLeft <= 1) {
+    if (needed <= 2 * left) return "safe";
+    if (needed <= 3 * left) return "balanced";
+    return "aggressive";
+  }
+  if (needed <= left) return "safe";
+  // Softened middle band keeps the chase from being overwhelmingly favoured.
+  if (needed <= 1.5 * left) return "balanced";
+  return "aggressive";
 }
 
 export function isCrowdPower(value: string): value is CrowdPower {

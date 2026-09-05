@@ -18,12 +18,9 @@ import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
 export type FlickPenParams = __Infer<typeof FlickPenReducer>;
-export type JoinMatchAsSpectatorParams = __Infer<
-  typeof JoinMatchAsSpectatorReducer
->;
+export type JoinMatchAsSpectatorParams = __Infer<typeof JoinMatchAsSpectatorReducer>;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;
-export type UsePenFightCrowdPowerParams = __Infer<
-  typeof UsePenFightCrowdPowerReducer
->;
+export type UsePenFightCrowdPowerParams = __Infer<typeof UsePenFightCrowdPowerReducer>;
+

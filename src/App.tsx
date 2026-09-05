@@ -36,26 +36,57 @@ const POWER_CARDS = [
   },
 ] as const;
 
+// Percentages mirror the authoritative table in bookCricketRules.ts. Showing
+// the real OUT chance is what makes the choice a decision instead of a guess.
 const PLAY_CHOICES = [
   {
     style: "safe",
     title: "SAFE",
-    risk: "Lower OUT risk · 0–3 runs",
-    copy: "Protect your wicket when every ball matters.",
+    risk: "4% OUT · 0–3 runs",
+    copy: "Best when you are one wicket from the end.",
   },
   {
     style: "balanced",
     title: "BALANCED",
-    risk: "Measured risk · 0–4 runs",
-    copy: "The all-round choice for building a total.",
+    risk: "14% OUT · fours on offer",
+    copy: "Steady scoring without betting the innings.",
   },
   {
     style: "aggressive",
     title: "AGGRESSIVE",
-    risk: "Higher OUT risk · up to 6 runs",
-    copy: "Chase a boundary when you need a swing.",
+    risk: "35% OUT · sixes",
+    copy: "Worth it early, or when you need runs fast.",
   },
 ] as const;
+
+/** Renders "4,1,W,6" as a readable run of ball chips. */
+function BallStrip({ label, timeline }: { label: string; timeline: string }) {
+  const balls = timeline ? timeline.split(",") : [];
+  return (
+    <div className="ball-strip">
+      <span className="ball-strip-label">{label}</span>
+      <span className="ball-strip-balls">
+        {balls.length === 0 && <em>yet to bat</em>}
+        {balls.map((ball, index) => (
+          <b
+            key={index}
+            className={
+              ball === "W"
+                ? "w"
+                : ball === "6" || ball === "4"
+                  ? "boundary"
+                  : ball === "0"
+                    ? "dot"
+                    : ""
+            }
+          >
+            {ball}
+          </b>
+        ))}
+      </span>
+    </div>
+  );
+}
 
 function plural(value: number, singular: string, pluralWord = `${singular}s`) {
   return `${value} ${value === 1 ? singular : pluralWord}`;
@@ -83,11 +114,20 @@ function App() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingStyle, setPendingStyle] = useState<string | null>(null);
   const [creatingMatch, setCreatingMatch] = useState(false);
+  const [showHome, setShowHome] = useState(false);
   const [pendingPower, setPendingPower] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<"human" | "melabot">(
     "human",
   );
   const [now, setNow] = useState(Date.now());
+  // Suspense is presentation-only: the server has already committed the ball.
+  // Holding the reveal for a beat is what turns a number change into a moment.
+  const [suspense, setSuspense] = useState(false);
+  const [revealed, setRevealed] = useState<{
+    outcome: string;
+    swing: string;
+    ball: number;
+  } | null>(null);
   const [matchEvents, setMatchEvents] = useState<
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
@@ -114,7 +154,6 @@ function App() {
 
   const conn = useSpacetimeDB();
   const { isActive: connected } = conn;
-  const [worlds] = useTable(tables.world);
   const [profiles] = useTable(tables.playerProfile);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [presence] = useTable(tables.worldPresence);
@@ -150,13 +189,36 @@ function App() {
       ? records.find((record) => record.identity.isEqual(identity))
       : undefined;
   }, [records, conn.identity]);
-  const activeMatch = matches.find((match) => match.status === "active");
-  const displayedMatch =
-    activeMatch ??
-    matches.reduce<(typeof matches)[number] | undefined>(
+  // Mela runs many concurrent matches. A person only ever lands in a match they
+  // own or joined — never in a stranger's, and never in a finished one they had
+  // no part in. `showHome` lets them step back out at any time.
+  const myIdentity = conn.identity;
+  const isMine = useCallback(
+    (match: (typeof matches)[number]) =>
+      Boolean(
+        myIdentity &&
+        (match.playerIdentity.isEqual(myIdentity) ||
+          spectators.some(
+            (row) =>
+              row.matchId === match.id && row.identity.isEqual(myIdentity),
+          )),
+      ),
+    [myIdentity, spectators],
+  );
+  const newest = (rows: typeof matches) =>
+    rows.reduce<(typeof matches)[number] | undefined>(
       (latest, match) => (!latest || match.id > latest.id ? match : latest),
       undefined,
     );
+  const myLiveMatch = newest(
+    matches.filter((match) => match.status === "active" && isMine(match)),
+  );
+  const myLastMatch = newest(matches.filter(isMine));
+  const activeMatch = myLiveMatch;
+  const displayedMatch = showHome ? undefined : (myLiveMatch ?? myLastMatch);
+  const liveMatchesToWatch = matches.filter(
+    (match) => match.status === "active" && !isMine(match),
+  );
   const matchState = displayedMatch
     ? states.find((state) => state.matchId === displayedMatch.id)
     : undefined;
@@ -235,6 +297,65 @@ function App() {
         ? `MelaBot needs ${plural(botRunsNeeded, "run")} from ${plural(botBallsLeft, "ball")}.`
         : "This match is now part of Mela memory.";
   const currentMetrics = melaMetrics[0];
+  // The crowd's own game: is this the moment, or should they hold energy? The
+  // advice is derived from live match state, never a fixed string.
+  const crowdAdvice = !matchState
+    ? ""
+    : matchState.turn === "complete"
+      ? "Energy resets with the next match."
+      : crowd && crowd.energy < 15
+        ? "Energy is low — CHEER builds it back for a bigger move later."
+        : matchState.innings === 1
+          ? humanBallsLeft <= 2
+            ? "Last balls of the innings: every run now sets the target."
+            : "Early runs are cheap. Many crowds save energy for the chase."
+          : botRunsNeeded <= botBallsLeft * 2 && botWicketsLeft > 1
+            ? "MelaBot is comfortable — a wicket is worth more than runs now."
+            : botBallsLeft <= 2
+              ? "This is the moment. After this there are no balls left to change."
+              : "The chase is live. Spending now shapes whether it stays close.";
+  // Effects already committed against the batter's next ball. Showing these to
+  // the player before they choose is what lets the crowd change their decision.
+  const pendingOnMe = matchEffects.filter(
+    (effect) =>
+      effect.target === (matchState?.turn === "bot" ? "melabot" : "human"),
+  );
+
+  // Stage every new ball: hold a short suspense beat, then reveal. Big moments
+  // (SIX, OUT, a crowd swing, the last ball) get a longer beat and more weight.
+  const ballsBowled = matchState
+    ? matchState.humanBalls + matchState.botBalls
+    : 0;
+  const liveOutcome = matchState?.lastOutcome ?? "";
+  const liveSwing = matchState?.lastCrowdSwing ?? "";
+  useEffect(() => {
+    if (!matchState || liveOutcome === "START" || ballsBowled === 0) return;
+    if (revealed?.ball === ballsBowled) return;
+    setSuspense(true);
+    const dramatic =
+      liveOutcome.includes("OUT") ||
+      liveOutcome.startsWith("6") ||
+      Boolean(liveSwing);
+    const timer = window.setTimeout(
+      () => {
+        setSuspense(false);
+        setRevealed({
+          outcome: liveOutcome,
+          swing: liveSwing,
+          ball: ballsBowled,
+        });
+      },
+      dramatic ? 950 : 550,
+    );
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ballsBowled, liveOutcome, liveSwing]);
+  const bigMoment = Boolean(
+    revealed &&
+      (revealed.outcome.includes("OUT") ||
+        revealed.outcome.startsWith("6") ||
+        revealed.swing),
+  );
 
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
@@ -273,6 +394,7 @@ function App() {
 
   const startMatch = async () => {
     setCreatingMatch(true);
+    setShowHome(false);
     try {
       await createMatch();
       setError(null);
@@ -289,6 +411,7 @@ function App() {
   };
   const startPenFight = async () => {
     setCreatingMatch(true);
+    setShowHome(false);
     try {
       await createPenFight();
       setError(null);
@@ -351,7 +474,11 @@ function App() {
   if (me && displayedMatch?.gameKind === "pen_fight")
     return (
       <PenFight
-        onBack={() => window.location.assign(window.location.pathname)}
+        matchId={displayedMatch.id}
+        onBack={() => {
+          setShowHome(true);
+          setFeedback(null);
+        }}
       />
     );
 
@@ -361,9 +488,10 @@ function App() {
         <p className="eyebrow">MELA · LIVE PLAYGROUND</p>
         <div className="hero-row">
           <div>
-            <h1>{worlds[0]?.name ?? "Mela Commons"}</h1>
+            <h1>Mela</h1>
             <p className="subtitle">
-              One match. One crowd. Every move matters.
+              Play a quick game against MelaBot — and whoever is watching can
+              change what happens next.
             </p>
           </div>
           <span className={`status ${connected ? "online" : "offline"}`}>
@@ -384,7 +512,11 @@ function App() {
               ? "Name yourself and join live."
               : "Enter the matchday crowd"}
           </h2>
-          <p>Pick a name to play, watch, and influence the live world.</p>
+          <p>
+            {requestedJoinMatchId
+              ? "You’ll join as part of the crowd — you get to change what happens on the next move."
+              : "No account, no password. Just a name."}
+          </p>
           <label htmlFor="name">Your display name</label>
           <div className="join-row">
             <input
@@ -393,9 +525,27 @@ function App() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={!connected}
+              autoComplete="off"
+              maxLength={24}
             />
-            <button disabled={!connected}>Join Mela</button>
+            <button disabled={!connected || name.trim().length < 2}>
+              {connected ? "Join Mela" : "Connecting…"}
+            </button>
           </div>
+          {!requestedJoinMatchId && (
+            <ul className="how-mela-works">
+              <li>
+                <b>Play</b> a two-minute game against MelaBot.
+              </li>
+              <li>
+                <b>Share a QR</b> so friends can watch live.
+              </li>
+              <li>
+                <b>They change your game</b> — the crowd spends shared energy on
+                your next move.
+              </li>
+            </ul>
+          )}
         </form>
       )}
       {error && (
@@ -413,6 +563,18 @@ function App() {
         <section className="identity">
           <span>
             Signed in as <strong>{me.displayName}</strong>
+            {displayedMatch && (
+              <button
+                className="link-back"
+                onClick={() => {
+                  setShowHome(true);
+                  setFeedback(null);
+                  setError(null);
+                }}
+              >
+                ← Mela home
+              </button>
+            )}
           </span>
           <span>
             {presence.filter((row) => row.state === "online").length} people in
@@ -420,27 +582,93 @@ function App() {
           </span>
         </section>
       )}
-      {me && !activeMatch && (
+      {me && !displayedMatch && (
         <section className="game-picker">
-          <p className="eyebrow">CHOOSE YOUR GAME</p>
-          <div>
+          <p className="eyebrow">PICK A GAME · PLAY MELABOT</p>
+          <div className="game-cards">
             <button
-              className="primary"
+              className="game-card cricket"
               onClick={startMatch}
               disabled={creatingMatch}
             >
-              <strong>BOOK CRICKET</strong>
-              <span>Fast strategy + uncertainty</span>
+              <span className="game-art" aria-hidden="true">
+                <b className="bat" />
+                <b className="ball" />
+              </span>
+              <strong>Book Cricket</strong>
+              <em>6 balls. 2 wickets. Beat MelaBot’s score.</em>
+              <span className="game-go">
+                {creatingMatch ? "Starting…" : "Play →"}
+              </span>
             </button>
             <button
-              className="pen-start"
+              className="game-card pen"
               onClick={startPenFight}
               disabled={creatingMatch}
             >
-              <strong>PEN FIGHT</strong>
-              <span>Flick. Hit. Survive.</span>
+              <span className="game-art" aria-hidden="true">
+                <b className="pen-a" />
+                <b className="pen-b" />
+              </span>
+              <strong>Pen Fight</strong>
+              <em>Flick your pen. Knock MelaBot’s off the desk.</em>
+              <span className="game-go">
+                {creatingMatch ? "Setting up…" : "Play →"}
+              </span>
             </button>
           </div>
+          {liveMatchesToWatch.length > 0 && (
+            <div className="watch-live">
+              <p className="eyebrow">OR JOIN A LIVE CROWD</p>
+              <ul>
+                {liveMatchesToWatch.slice(0, 4).map((match) => {
+                  const host =
+                    participants.find(
+                      (row) =>
+                        row.matchId === match.id && row.actorKind === "human",
+                    )?.displayName ?? "Someone";
+                  const watching = spectators.filter(
+                    (row) => row.matchId === match.id,
+                  ).length;
+                  return (
+                    <li key={match.id.toString()}>
+                      <span>
+                        <strong>{host}</strong> ·{" "}
+                        {match.gameKind === "pen_fight"
+                          ? "Pen Fight"
+                          : "Book Cricket"}
+                        <em>
+                          {watching === 0
+                            ? "no one watching yet"
+                            : plural(watching, "person", "people") + " watching"}
+                        </em>
+                      </span>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await joinSpectator({ matchId: match.id });
+                            setShowHome(false);
+                            setError(null);
+                            setFeedback(
+                              `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
+                            );
+                          } catch (reason) {
+                            setError(
+                              reason instanceof Error
+                                ? reason.message
+                                : "Could not join that crowd.",
+                            );
+                          }
+                        }}
+                      >
+                        Watch
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
@@ -451,11 +679,13 @@ function App() {
               <span>BOOK CRICKET · FIRST TO THE TARGET</span>
               <span>{matchSpectators.length} in the crowd</span>
             </div>
-            <div className="score-row">
+            <div className={`score-row ${suspense ? "holding" : ""}`}>
               <div>
                 <span className="team">{humanName}</span>
+                {/* During the suspense beat the committed score is withheld, so
+                    the reveal below is the moment the number lands. */}
                 <strong>
-                  {matchState.humanScore}/{matchState.humanWickets}
+                  {suspense ? "…" : `${matchState.humanScore}/${matchState.humanWickets}`}
                 </strong>
                 <small>
                   Ball {matchState.humanBalls}/6 · {humanWicketsLeft} wickets
@@ -466,7 +696,7 @@ function App() {
               <div>
                 <span className="team">MelaBot</span>
                 <strong>
-                  {matchState.botScore}/{matchState.botWickets}
+                  {suspense ? "…" : `${matchState.botScore}/${matchState.botWickets}`}
                 </strong>
                 <small>
                   Ball {matchState.botBalls}/6 · {botWicketsLeft} wickets left
@@ -480,17 +710,51 @@ function App() {
                   ? `MelaBot needs ${botRunsNeeded} run${botRunsNeeded === 1 ? "" : "s"} from ${botBallsLeft} ball${botBallsLeft === 1 ? "" : "s"}.`
                   : `Target ${matchState.target} · match complete.`}
             </p>
-            {matchState.lastOutcome !== "START" && (
+            {suspense && (
+              <div className="delivery-result waiting" role="status">
+                <strong>
+                  <i />
+                  <i />
+                  <i />
+                </strong>
+                <span>The ball is on its way…</span>
+              </div>
+            )}
+            {!suspense && revealed && (
               <div
-                className={`delivery-result ${matchState.lastOutcome.includes("OUT") ? "out" : ""}`}
+                className={`delivery-result reveal ${
+                  revealed.outcome.includes("OUT") ? "out" : ""
+                } ${bigMoment ? "big" : ""}`}
+                key={revealed.ball}
                 role="status"
               >
-                <strong>{matchState.lastOutcome}</strong>
+                <strong>
+                  {revealed.outcome.startsWith("6")
+                    ? "SIX!"
+                    : revealed.outcome.startsWith("4")
+                      ? "FOUR!"
+                      : revealed.outcome}
+                </strong>
                 <span>
-                  {matchState.lastOutcome.includes("OUT")
-                    ? `${wicketsLeftForCurrentInnings ? "The innings continues while wickets remain." : "No wickets remain."}`
-                    : "The score, target, and next decision have updated for everyone."}
+                  {revealed.swing
+                    ? revealed.swing
+                    : revealed.outcome.includes("OUT")
+                      ? wicketsLeftForCurrentInnings
+                        ? `${plural(wicketsLeftForCurrentInnings, "wicket")} left.`
+                        : "That was the last wicket."
+                      : "Everyone watching saw that."}
                 </span>
+              </div>
+            )}
+            {(matchState.humanTimeline || matchState.botTimeline) && (
+              <div className="timeline-strip" aria-label="Ball by ball">
+                <BallStrip
+                  label={humanName}
+                  timeline={matchState.humanTimeline}
+                />
+                {matchState.botTimeline && (
+                  <BallStrip label="MelaBot" timeline={matchState.botTimeline} />
+                )}
               </div>
             )}
             {displayedMatch.status === "complete" && (
@@ -503,8 +767,20 @@ function App() {
               <div className="player-actions">
                 {matchState.humanBalls === 0 && (
                   <p className="how-to-play">
-                    Score more than MelaBot. You have 6 balls and 2 wickets:
-                    every ball is your choice plus controlled uncertainty.
+                    Score more than MelaBot in 6 balls. You have 2 wickets — get
+                    out twice and your innings ends early.
+                  </p>
+                )}
+                {pendingOnMe.length > 0 && (
+                  <p className="crowd-incoming" role="status">
+                    <b>The crowd is with you.</b>{" "}
+                    {pendingOnMe
+                      .map(
+                        (effect) =>
+                          `${effect.actorName} played ${effect.power.toUpperCase()}`,
+                      )
+                      .join(" · ")}{" "}
+                    — it lands on this ball.
                   </p>
                 )}
                 <p className="eyebrow">
@@ -531,15 +807,29 @@ function App() {
               </div>
             )}
             {matchState.turn === "bot" && (
-              <div className="ai-turn" role="status">
+              <div
+                className={`ai-turn ${botBallsLeft <= 2 || botWicketsLeft <= 1 ? "pressure" : ""}`}
+                role="status"
+              >
                 <span className="ai-pulse" aria-hidden="true" />
                 <div>
                   <strong>
-                    {melaBot?.displayName ?? "MelaBot"} is making its move
+                    {melaBot?.displayName ?? "MelaBot"} needs{" "}
+                    {plural(botRunsNeeded, "run")} from{" "}
+                    {plural(botBallsLeft, "ball")}
                   </strong>
+                  {/* The chase is the tense half of the match — say out loud what
+                      MelaBot has to do, so watching it is worth the time. */}
                   <p>
-                    {melaBot?.persona ??
-                      "Cool under pressure. Reckless when behind."}
+                    {botBallsLeft > 0 && botRunsNeeded > botBallsLeft * 6
+                      ? "It cannot get there. You have this."
+                      : botRunsNeeded <= botBallsLeft
+                        ? "It only needs to tick the strike over — you need wickets."
+                        : `That's ${(botRunsNeeded / Math.max(1, botBallsLeft)).toFixed(1)} a ball. ${
+                            botWicketsLeft <= 1
+                              ? "One wicket left — one mistake ends it."
+                              : "Every wicket now matters."
+                          }`}
                   </p>
                 </div>
               </div>
@@ -636,14 +926,14 @@ function App() {
                 </div>
               </div>
               <p className="crowd-note">
-                {spectatorSituation} The crowd changes the next delivery—not the
-                final result. Spend together when the situation calls for it.
+                {spectatorSituation} {crowdAdvice}
               </p>
               {matchEffects.length > 0 && (
                 <div className="active-effects">
                   {matchEffects.map((effect) => (
                     <span key={effect.id.toString()}>
-                      {effect.power.toUpperCase()} → {effect.target}
+                      <b>{effect.actorName}</b>&nbsp;· {effect.power.toUpperCase()}{" "}
+                      → {effect.target === "human" ? humanName : "MelaBot"}
                     </span>
                   ))}
                 </div>
