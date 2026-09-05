@@ -1530,11 +1530,11 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
       expiresAtMicros,
     });
     scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);
-    emit(
-      ctx,
-      matchId,
-      `${profile.displayName} used ${rule.label} for ${target}`,
-    );
+    // Deliberately NOT announced here. The event feed is visible to the player,
+    // and naming the power at purchase time would let them aim off to cancel a
+    // tilt they can see coming. resolvePenFlick names the spectator once the
+    // effect has actually changed the flick.
+    emit(ctx, matchId, `${profile.displayName} is working the desk…`);
   },
 );
 export const playBall = spacetimedb.reducer(
@@ -1780,10 +1780,14 @@ export const processCrowdSchedule = spacetimedb.reducer(
       const effect = ctx.db.crowdEffect.id.find(arg.effectId);
       if (effect && effect.expiresAtMicros <= nowMicros(ctx)) {
         ctx.db.crowdEffect.id.delete(effect.id);
+        // Naming the spectator is the point — their Energy was spent and the
+        // flick never came, which is a real outcome worth seeing. The power
+        // itself is safe to name now: it has expired and cannot be played
+        // around.
         emit(
           ctx,
           arg.matchId,
-          `${effect.power.toUpperCase()} expired for ${effect.target}`,
+          `${effect.actorName}'s ${effect.power.toUpperCase()} ran out before the flick.`,
         );
       }
       return;

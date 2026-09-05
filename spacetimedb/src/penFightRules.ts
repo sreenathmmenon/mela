@@ -49,7 +49,10 @@ export const PEN_FIGHT_POWERS = {
     label: "NUDGE",
     cost: 14,
     cooldownMicros: 18_000_000n,
-    durationMicros: 0n,
+    // A zero duration meant the expiry sweep was scheduled for the moment the
+    // power was bought, so a NUDGE could be deleted before the player ever
+    // flicked — 14 Energy spent on nothing. It waits like the others now.
+    durationMicros: 20_000_000n,
     description: "Adds a small push to your side's next flick.",
   },
   tilt: {

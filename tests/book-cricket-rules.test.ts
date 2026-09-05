@@ -694,3 +694,18 @@ test("the page number always agrees with the runs scored", () => {
         );
     }
 });
+
+test("no Pen Fight power expires the instant it is bought", () => {
+  // A zero duration schedules the expiry sweep for the current moment, so the
+  // effect could be deleted before the player ever flicked and the spectator's
+  // Energy bought nothing. Powers that place a standing effect must outlast a
+  // turn; only CHEER, which resolves immediately and stores no effect, may
+  // have no duration.
+  for (const [key, rule] of Object.entries(PEN_FIGHT_POWERS)) {
+    if (key === "cheer") continue;
+    assert.ok(
+      rule.durationMicros > 0n,
+      `${key} would expire before it could apply`,
+    );
+  }
+});
