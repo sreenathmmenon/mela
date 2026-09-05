@@ -35,6 +35,7 @@ jobs:
           VITE_SPACETIMEDB_HOST: https://maincloud.spacetimedb.com
           VITE_SPACETIMEDB_DB_NAME: mela-cah23
           VITE_PUBLIC_APP_URL: https://sreenathmenon.com/mela
+          VITE_GOATCOUNTER_CODE: mela
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
