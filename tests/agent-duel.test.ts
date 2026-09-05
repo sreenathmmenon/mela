@@ -112,11 +112,27 @@ test("overlapping subscriptions deliver each public event once and omit motion i
     },
   };
   const bridge = new AgentBridge(connection);
-  const row = { id: 1n, matchId: 5n, message: "Nila changed the flick" };
+  const row = {
+    id: 1n,
+    matchId: 5n,
+    message: "Nila changed the flick",
+    occurredAt: { microsSinceUnixEpoch: 10n },
+  };
   listener({}, row);
   listener({}, row);
   listener({}, { ...row, id: 2n, message: "@pen-motion/1:hidden" });
+  listener(
+    {},
+    {
+      ...row,
+      message: "Next committed shot",
+      occurredAt: { microsSinceUnixEpoch: 11n },
+    },
+  );
   const desk = await bridge.execute("mela_get_desk", { matchId: "5" });
-  assert.deepEqual(desk.events, ["Nila changed the flick"]);
+  assert.deepEqual(desk.events, [
+    "Nila changed the flick",
+    "Next committed shot",
+  ]);
   bridge.dispose();
 });

@@ -69,17 +69,23 @@ export class AgentBridge {
   private events: { id: string; matchId: string; message: string }[] = [];
   private onEvent = (
     _ctx: unknown,
-    row: { id: bigint; matchId: bigint; message: string },
+    row: {
+      id: bigint;
+      matchId: bigint;
+      message: string;
+      occurredAt: { microsSinceUnixEpoch: bigint };
+    },
   ) => {
+    const key = `${row.occurredAt.microsSinceUnixEpoch}:${row.id}`;
     if (
       !row.message.startsWith("@") &&
       !row.message.startsWith("Crowd Energy +") &&
-      !this.events.some((event) => event.id === row.id.toString())
+      !this.events.some((event) => event.id === key)
     )
       this.events = [
         ...this.events,
         {
-          id: row.id.toString(),
+          id: key,
           matchId: row.matchId.toString(),
           message: row.message,
         },
