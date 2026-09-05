@@ -6,6 +6,7 @@ import { SpacetimeDBProvider } from "spacetimedb/react";
 import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
 import BigScreen from "./BigScreen.tsx";
 import { AUTH_TOKEN_KEY } from "./identity.ts";
+import { initAnalytics } from "./analytics.ts";
 
 const HOST =
   import.meta.env.VITE_SPACETIMEDB_HOST ??
@@ -60,6 +61,8 @@ function MelaRoot() {
   }, []);
   return onScreen ? <BigScreen /> : <App />;
 }
+
+initAnalytics();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
