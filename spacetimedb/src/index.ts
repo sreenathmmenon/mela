@@ -1,13 +1,30 @@
-import { schema, table, t } from "spacetimedb/server";
+import { ScheduleAt, schema, table, t } from "spacetimedb/server";
 import {
+  BOOK_CRICKET_RULES,
+  CROWD_POWERS,
   type BookCricketStyle,
+  type CrowdPower,
+  applyCrowdDeliveryEffects,
   chooseMelaBotStyle,
+  crowdPowerResult,
   isInningsComplete,
+  isCrowdPower,
   resolveBookCricketOutcome,
   resolveChaseWinner,
 } from "./bookCricketRules";
 
 const WORLD_ID = 1n;
+
+const crowdSchedule = table(
+  { public: false },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    kind: t.string(),
+    matchId: t.u64(),
+    effectId: t.u64(),
+  },
+);
 
 const spacetimedb = schema({
   world: table(
@@ -119,6 +136,45 @@ const spacetimedb = schema({
       occurredAt: t.timestamp(),
     },
   ),
+  matchCrowd: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      energy: t.u32(),
+      maxEnergy: t.u32(),
+    },
+  ),
+  matchSpectator: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey().autoInc(),
+      matchId: t.u64(),
+      identity: t.identity(),
+      displayName: t.string(),
+      joinedAt: t.timestamp(),
+    },
+  ),
+  spectatorCooldown: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey().autoInc(),
+      matchId: t.u64(),
+      identity: t.identity(),
+      power: t.string(),
+      readyAtMicros: t.u64(),
+    },
+  ),
+  crowdEffect: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey().autoInc(),
+      matchId: t.u64(),
+      power: t.string(),
+      target: t.string(),
+      expiresAtMicros: t.u64(),
+    },
+  ),
+  crowdSchedule,
 });
 export default spacetimedb;
 
@@ -149,6 +205,55 @@ const player = (ctx: any) => {
   return row;
 };
 const nextMatchId = (ctx: any) => nextId(ctx.db.match.iter());
+const nowMicros = (ctx: any) => ctx.timestamp.microsSinceUnixEpoch;
+const spectatorFor = (ctx: any, matchId: bigint, identity: any) => {
+  for (const row of ctx.db.matchSpectator.iter())
+    if (row.matchId === matchId && row.identity.isEqual(identity)) return row;
+  return undefined;
+};
+const cooldownFor = (
+  ctx: any,
+  matchId: bigint,
+  identity: any,
+  power: string,
+) => {
+  for (const row of ctx.db.spectatorCooldown.iter())
+    if (
+      row.matchId === matchId &&
+      row.power === power &&
+      row.identity.isEqual(identity)
+    )
+      return row;
+  return undefined;
+};
+const effectsFor = (ctx: any, matchId: bigint, target: string) => {
+  const now = nowMicros(ctx);
+  const effects: any[] = [];
+  for (const effect of ctx.db.crowdEffect.iter()) {
+    if (
+      effect.matchId === matchId &&
+      effect.target === target &&
+      effect.expiresAtMicros > now
+    )
+      effects.push(effect);
+  }
+  return effects;
+};
+const scheduleCrowdTask = (
+  ctx: any,
+  kind: string,
+  matchId: bigint,
+  effectId: bigint,
+  atMicros: bigint,
+) => {
+  ctx.db.crowdSchedule.insert({
+    id: nextId(ctx.db.crowdSchedule.iter()),
+    scheduledAt: ScheduleAt.time(atMicros),
+    kind,
+    matchId,
+    effectId,
+  });
+};
 
 function resolveDelivery(
   ctx: any,
@@ -157,8 +262,25 @@ function resolveDelivery(
   side: "human" | "bot",
   style: BookCricketStyle,
 ) {
-  const result = resolveBookCricketOutcome(state.seed, style);
   const human = side === "human";
+  const target = human ? "human" : "melabot";
+  const effects = effectsFor(ctx, match.id, target);
+  const effectState = {
+    boost: effects.some((effect) => effect.power === "boost"),
+    chaos: effects.some((effect) => effect.power === "chaos"),
+    shield: effects.some((effect) => effect.power === "shield"),
+  };
+  const result = applyCrowdDeliveryEffects(
+    resolveBookCricketOutcome(state.seed, style, effectState.chaos),
+    effectState,
+  );
+  for (const effect of effects) ctx.db.crowdEffect.id.delete(effect.id);
+  if (effects.length)
+    emit(
+      ctx,
+      match.id,
+      `Crowd effects resolved for ${target}: ${effects.map((effect) => effect.power.toUpperCase()).join(", ")}`,
+    );
   const balls = (human ? state.humanBalls : state.botBalls) + 1;
   const wickets =
     (human ? state.humanWickets : state.botWickets) + (result.wicket ? 1 : 0);
@@ -313,6 +435,18 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     lastOutcome: "START",
     seed: matchId + 17n,
   });
+  ctx.db.matchCrowd.insert({
+    matchId,
+    energy: BOOK_CRICKET_RULES.crowdEnergyStart,
+    maxEnergy: BOOK_CRICKET_RULES.crowdEnergyMax,
+  });
+  scheduleCrowdTask(
+    ctx,
+    "regen",
+    matchId,
+    0n,
+    nowMicros(ctx) + BOOK_CRICKET_RULES.crowdEnergyRegenMicros,
+  );
   emit(ctx, matchId, `${p.displayName} started batting`);
 });
 export const playBall = spacetimedb.reducer(
@@ -346,5 +480,160 @@ export const runMelaBotTurn = spacetimedb.reducer(
       "bot",
       chooseMelaBotStyle(state.target, state.botScore),
     );
+  },
+);
+
+export const joinMatchAsSpectator = spacetimedb.reducer(
+  { matchId: t.u64() },
+  (ctx: any, { matchId }: any) => {
+    const match = ctx.db.match.id.find(matchId);
+    const profile = player(ctx);
+    if (!match || match.status !== "active")
+      throw new Error("That match is not live.");
+    if (match.playerIdentity.isEqual(ctx.sender))
+      throw new Error("The player is already in this match.");
+    if (spectatorFor(ctx, matchId, ctx.sender)) return;
+    ctx.db.matchSpectator.insert({
+      id: nextId(ctx.db.matchSpectator.iter()),
+      matchId,
+      identity: ctx.sender,
+      displayName: profile.displayName,
+      joinedAt: ctx.timestamp,
+    });
+    emit(ctx, matchId, `${profile.displayName} joined the crowd`);
+  },
+);
+
+const rejectCrowdPower = (
+  ctx: any,
+  matchId: bigint,
+  power: string,
+  reason: string,
+) => {
+  const profile = player(ctx);
+  emit(
+    ctx,
+    matchId,
+    `${profile.displayName}'s ${power.toUpperCase()} was rejected: ${reason}`,
+  );
+};
+
+export const useCrowdPower = spacetimedb.reducer(
+  { matchId: t.u64(), power: t.string(), target: t.string() },
+  (ctx: any, { matchId, power, target }: any) => {
+    const match = ctx.db.match.id.find(matchId);
+    if (!match || match.status !== "active")
+      return rejectCrowdPower(ctx, matchId, power, "match is not live");
+    if (!spectatorFor(ctx, matchId, ctx.sender))
+      return rejectCrowdPower(ctx, matchId, power, "join the crowd first");
+    if (!isCrowdPower(power))
+      return rejectCrowdPower(ctx, matchId, power, "unknown power");
+    if (target !== "human" && target !== "melabot")
+      return rejectCrowdPower(ctx, matchId, power, "invalid target");
+    const now = nowMicros(ctx);
+    const existingCooldown = cooldownFor(ctx, matchId, ctx.sender, power);
+    if (existingCooldown && existingCooldown.readyAtMicros > now)
+      return rejectCrowdPower(ctx, matchId, power, "cooling down");
+    const crowd = ctx.db.matchCrowd.matchId.find(matchId);
+    if (!crowd)
+      return rejectCrowdPower(ctx, matchId, power, "crowd is unavailable");
+    const nextEnergy = crowdPowerResult(crowd.energy, power);
+    if (nextEnergy === undefined)
+      return rejectCrowdPower(ctx, matchId, power, "not enough Crowd Energy");
+    const config = CROWD_POWERS[power as CrowdPower];
+    if (
+      power !== "cheer" &&
+      effectsFor(ctx, matchId, target).some((effect) => effect.power === power)
+    )
+      return rejectCrowdPower(
+        ctx,
+        matchId,
+        power,
+        "already active for that side",
+      );
+
+    ctx.db.matchCrowd.matchId.update({ ...crowd, energy: nextEnergy });
+    const readyAtMicros = now + config.cooldownMicros;
+    if (existingCooldown)
+      ctx.db.spectatorCooldown.id.update({
+        ...existingCooldown,
+        readyAtMicros,
+      });
+    else
+      ctx.db.spectatorCooldown.insert({
+        id: nextId(ctx.db.spectatorCooldown.iter()),
+        matchId,
+        identity: ctx.sender,
+        power,
+        readyAtMicros,
+      });
+
+    const profile = player(ctx);
+    if (power === "cheer") {
+      emit(
+        ctx,
+        matchId,
+        `${profile.displayName} CHEERED — Crowd Energy ${nextEnergy}/${crowd.maxEnergy}`,
+      );
+      return;
+    }
+    const effectId = nextId(ctx.db.crowdEffect.iter());
+    const expiresAtMicros = now + config.durationMicros;
+    ctx.db.crowdEffect.insert({
+      id: effectId,
+      matchId,
+      power,
+      target,
+      expiresAtMicros,
+    });
+    scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);
+    emit(
+      ctx,
+      matchId,
+      `${profile.displayName} activated ${config.label} for ${target}`,
+    );
+  },
+);
+
+export const processCrowdSchedule = spacetimedb.reducer(
+  { onSchedule: crowdSchedule },
+  { arg: crowdSchedule.rowType },
+  (ctx: any, { arg }: any) => {
+    const match = ctx.db.match.id.find(arg.matchId);
+    if (!match || match.status !== "active") return;
+    if (arg.kind === "effect_expiry") {
+      const effect = ctx.db.crowdEffect.id.find(arg.effectId);
+      if (effect && effect.expiresAtMicros <= nowMicros(ctx)) {
+        ctx.db.crowdEffect.id.delete(effect.id);
+        emit(
+          ctx,
+          arg.matchId,
+          `${effect.power.toUpperCase()} expired for ${effect.target}`,
+        );
+      }
+      return;
+    }
+    if (arg.kind === "regen") {
+      const crowd = ctx.db.matchCrowd.matchId.find(arg.matchId);
+      if (crowd && crowd.energy < crowd.maxEnergy) {
+        const energy = Math.min(
+          crowd.maxEnergy,
+          crowd.energy + BOOK_CRICKET_RULES.crowdEnergyRegenAmount,
+        );
+        ctx.db.matchCrowd.matchId.update({ ...crowd, energy });
+        emit(
+          ctx,
+          arg.matchId,
+          `Crowd Energy +${BOOK_CRICKET_RULES.crowdEnergyRegenAmount} (${energy}/${crowd.maxEnergy})`,
+        );
+      }
+      scheduleCrowdTask(
+        ctx,
+        "regen",
+        arg.matchId,
+        0n,
+        nowMicros(ctx) + BOOK_CRICKET_RULES.crowdEnergyRegenMicros,
+      );
+    }
   },
 );

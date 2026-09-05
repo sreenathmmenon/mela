@@ -5,59 +5,62 @@
 - Date/time: 2026-09-05, Asia/Kolkata
 - Agent/provider: Codex (GPT-5)
 - Branch: `main`
-- Git commit/push: the containing Phase 3 commit is on `main` and pushed to `origin/main`; use `git log -1` for its immutable hash.
+- Git commit/push: the containing Phase 4 commit is on `main` and pushed to `origin/main`; use `git log -1` for its immutable hash.
 
 ## Current product state
 
-Phases 0–3 are complete locally. Mela is a gaming-first persistent shared playground: players play, spectators influence, AI participates, and the world remembers. SpacetimeDB is the sole P0 authoritative world runtime; reducers are the mutation boundary and clients are projections.
+Phases 0–4 are complete locally. Mela remains a gaming-first persistent shared playground: players play, spectators influence, AI participates, and the world remembers. One SpacetimeDB database remains authoritative; reducers are the mutation boundary and browser clients are projections.
 
-The first vertical slice is Book Cricket, not the Mela product boundary. The reusable world layer is game-agnostic and game records retain `gameKind` and participant boundaries. The playable P0 match is Human vs deterministic MelaBot: human bats first, then MelaBot chases over six deliveries or two wickets per innings. Scores, wickets, innings, target, winner, events, and results are server-authoritative.
+Book Cricket is the first game, not the Mela product boundary. It now has a coherent live crowd loop: a non-player joins an active match as a spectator, sees shared Crowd Energy and their individual cooldowns, chooses a target side, uses a power, and immediately sees authoritative state/events update for every connected player and spectator.
 
-Phase 4 scope is intentionally absent: no Crowd Energy, spectator powers, external LLM, Pen Fight, advanced progression, synthetic load, or Maincloud deployment.
+## Phase 4 delivered
 
-## Completed
+- [x] Match-scoped spectator membership (`matchSpectator`) linked to durable SpacetimeDB identity and existing name onboarding; no OAuth/account system.
+- [x] Shared authoritative Crowd Energy (`matchCrowd`): starts at 42, caps at 60, and regenerates +2 every 12 seconds through a private SpacetimeDB schedule table.
+- [x] Individual match/power cooldowns (`spectatorCooldown`) with server-issued ready timestamps.
+- [x] Locked powers in one central rules module:
+  - BOOST: cost 18, 20-second cooldown, +2 to next non-wicket delivery capped at 6.
+  - CHAOS: cost 20, 25-second cooldown, deterministic high-variance next delivery.
+  - SHIELD: cost 15, 25-second cooldown, converts the target side's next wicket into a dot ball.
+  - CHEER: cost 4, 10-second cooldown, adds 8 to the shared pool capped at 60.
+- [x] One active effect per power/target; effects coexist across kinds, resolve in CHAOS → SHIELD → BOOST order, consume on the target delivery, or expire through the private discrete scheduler. No high-frequency tick.
+- [x] Reducers: `joinMatchAsSpectator`, `useCrowdPower`, private scheduled `processCrowdSchedule`; normal human/MelaBot delivery resolution consumes crowd effects atomically.
+- [x] Concise live event feed for joins, activations, authoritative rejections, effect resolution/expiry, regeneration, normal deliveries, innings, and results. Events remain transient; `matchHistory` remains durable result memory.
+- [x] Mobile-first spectator UX: clear join-to-crowd step, live score, shared energy meter, target switcher, labelled power cards with cost/cooldown/explanation, disabled/loading affordances, cooldown feedback, active effects, and authoritative moment feed.
 
-- [x] Phase 0: SpacetimeDB-first architecture and P0 Book Cricket rules locked.
-- [x] Phase 1: React/TypeScript and TypeScript SpacetimeDB local foundation.
-- [x] Phase 2: authoritative world, durable identity/profile, identity-based presence, private connection sessions, and generated bindings.
-- [x] Phase 3: match creation; generic human/AI participants; two innings; server-owned score/wickets/target/result; shared delivery resolution; deterministic MelaBot; realtime score/state; transient live events; durable completed-match history; player match UI.
+## Authoritative schema
 
-## Authoritative SpacetimeDB state
+- Reusable world: `world`, `playerProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
+- Match/game: `match`, `matchParticipant`, `bookCricketState`, `matchHistory`, event `liveEvent`.
+- Crowd: `matchCrowd`, `matchSpectator`, `spectatorCooldown`, `crowdEffect`, private `crowdSchedule` schedule table.
+- Public reducers: `onboard`, `createBookCricket`, `playBall`, `runMelaBotTurn`, `joinMatchAsSpectator`, `useCrowdPower`.
+- Private scheduled reducer: `processCrowdSchedule` for effect expiry and Crowd Energy regeneration.
 
-- Local database: `mela-cah23` at `http://127.0.0.1:3000`; module: `spacetimedb/`.
-- Reusable tables: `world`, `playerProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
-- Book Cricket tables: `match`, `matchParticipant`, `bookCricketState`, event table `liveEvent`, durable `matchHistory`.
-- Public reducers: `onboard`, `createBookCricket`, `playBall`, `runMelaBotTurn`.
-- Human and MelaBot use common internal rule functions; reducers do not call reducers.
-- `liveEvent` is transient delivery, not durable state. `matchHistory` is durable product history.
-- Schedules remain deferred: no artificial tick exists.
+## Test and validation evidence
 
-## Frontend state
-
-`src/App.tsx` provides onboarding, world/presence projection, match start, steady/attack delivery controls, deterministic MelaBot progression, shared score/innings/target projection, transient event feed, and completed-result visibility. Generated bindings are in `src/module_bindings/`.
-
-## Test evidence
-
-| Check                    | Status  | Evidence                                                                                                                                                                                                                                       |
-| ------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deterministic rules      | Pass    | `pnpm test`: 6/6 tests covering scoring, wicket zero-run behavior, innings boundaries, target/winner result, deterministic/valid MelaBot choice, and shared resolution path.                                                                   |
-| Module build             | Pass    | `pnpm run spacetime:build` on 2026-09-05.                                                                                                                                                                                                      |
-| Frontend typecheck       | Pass    | `pnpm run typecheck` on 2026-09-05.                                                                                                                                                                                                            |
-| Frontend build           | Pass    | `pnpm run build` on 2026-09-05.                                                                                                                                                                                                                |
-| Two-browser realtime     | Pass    | Independent Ravi (in-app browser) and Nila (Chrome) saw the identical match, human delivery and event, innings break at `12/0 (6)` / target `13`, MelaBot chase, and final durable `MelaBot 15/1 (6)` / `melabot wins` result without polling. |
-| Invalid action rejection | Pass    | Anonymous `play_ball` against the completed match was rejected by the reducer with `Not your active match.`; no state was committed.                                                                                                           |
-| Maincloud                | Not run | Outside Phase 3 scope.                                                                                                                                                                                                                         |
+| Check                      | Status  | Evidence                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Deterministic rules suite  | Pass    | `pnpm test`: 11/11 passing. Covers base Book Cricket, explicit power legality/cost/cooldown/duration configuration, energy charges and no-negative sequential race model, CHEER cap, effect order/cap, and deterministic CHAOS.                                                                                                                                                            |
+| Module build               | Pass    | `pnpm run spacetime:build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                  |
+| Frontend typecheck         | Pass    | `pnpm run typecheck` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                        |
+| Frontend production build  | Pass    | `pnpm run build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                            |
+| Private schedules          | Pass    | Real local match emitted `Crowd Energy +2` events and expired unconsumed BOOST/CHAOS through `processCrowdSchedule`; no polling/tick used.                                                                                                                                                                                                                                                 |
+| Three-client realtime      | Pass    | Independent Ravi player (in-app `127.0.0.1`), Asha spectator (in-app `localhost`), and Nila spectator (Chrome) saw identical match state. Both joined the crowd, Asha activated CHAOS/BOOST, all clients saw energy/effects/events, and the player saw effect resolution on MelaBot's next delivery. Final state converged: Ravi `9/0 (6)`, MelaBot `11/0 (4)`, target `10`, MelaBot wins. |
+| Concurrent pool protection | Pass    | With shared energy 26, concurrent Asha BOOST (18) and Nila CHAOS (20) attempts resulted in only the first committed power; pool converged at 10 and never went negative/double-spent.                                                                                                                                                                                                      |
+| Cooldown/eligibility       | Pass    | Nila's SHIELD immediately displayed `Ready in 25s`; insufficient-energy powers were disabled. Server reducer independently checks membership, live match, target, known power, duplicate active effect, cooldown, and shared balance and emits a rejection event without spending state.                                                                                                   |
+| Mobile UX                  | Pass    | Tested spectator A at 390×844. Score, shared meter, target buttons, one-column power cards, cost/cooldown status, CHEER primary available action, and live feed remained visible and understandable. Player-only MelaBot advance control is hidden from spectators; completed matches hide power controls.                                                                                 |
+| Maincloud                  | Not run | Explicitly outside Phase 4.                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Known limitations
 
-- The deterministic MelaBot reducer can be triggered publicly only when the authoritative state is in MelaBot's turn; the client cannot choose an outcome. The approved private scheduled AI wake remains deferred to the scheduling phase.
-- Event feed contents are intentionally live/transient; result memory is the durable `matchHistory` row.
-- QR, big-screen, spectator, and Crowd Energy UX are not Phase 3 work.
+- P0 MelaBot advancement remains a public but strictly turn-validated reducer trigger; its private scheduled wake is a later discrete-scheduling improvement.
+- Power rejection is emitted as a transient authoritative event rather than a durable audit record; completed match result/history remains durable.
+- QR onboarding, a dedicated big-screen route, reconnect/load harnesses, external LLM, Pen Fight, rankings, and Maincloud deployment remain out of scope.
 
 ## Next task
 
-Phase 4 after a new scoped instruction: shared Crowd Energy, per-spectator cooldowns, bounded spectator powers, and discrete effect-expiry scheduling. Keep the one-world/reducer-authority model. Do not introduce Redis, Socket.IO, a separate backend, polling, LLM, Pen Fight, or Maincloud deployment without a new decision.
+No Phase 5 work is authorized. The next scoped decision should choose between the already-approved QR/big-screen experience, private scheduled MelaBot wake/turn timeout, or synthetic end-to-end load/reconnect harness. Preserve SpacetimeDB-first authority and do not add Redis, Socket.IO, a separate backend, chat, accounts/OAuth, external LLM, Pen Fight, advanced leaderboard, or deployment without explicit approval.
 
 ## Handoff notes
 
-Before another phase, read `AGENTS.md`, this file, `docs/MELA_SpacetimeDB_Architecture_Gate.md`, and `docs/MELA_P0_Game_Rules.md`; inspect Git status; and do not treat Phase 3 completion as authorization for Phase 4.
+Read `AGENTS.md`, this file, `docs/MELA_SpacetimeDB_Architecture_Gate.md`, and `docs/MELA_P0_Game_Rules.md` before another phase. Do not treat Phase 4 completion as authorization for Phase 5+.

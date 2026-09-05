@@ -35,19 +35,25 @@ import {
 
 // Import all reducer arg schemas
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
+import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import OnboardReducer from "./onboard_reducer";
 import PlayBallReducer from "./play_ball_reducer";
 import RunMelaBotTurnReducer from "./run_mela_bot_turn_reducer";
+import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
 import BookCricketStateRow from "./book_cricket_state_table";
+import CrowdEffectRow from "./crowd_effect_table";
 import LiveEventRow from "./live_event_table";
 import MatchRow from "./match_table";
+import MatchCrowdRow from "./match_crowd_table";
 import MatchHistoryRow from "./match_history_table";
 import MatchParticipantRow from "./match_participant_table";
+import MatchSpectatorRow from "./match_spectator_table";
 import PlayerProfileRow from "./player_profile_table";
+import SpectatorCooldownRow from "./spectator_cooldown_table";
 import WorldRow from "./world_table";
 import WorldActivityRow from "./world_activity_table";
 import WorldPresenceRow from "./world_presence_table";
@@ -76,6 +82,23 @@ const tablesSchema = __schema({
       ],
     },
     BookCricketStateRow,
+  ),
+  crowdEffect: __table(
+    {
+      name: "crowd_effect",
+      indexes: [
+        {
+          accessor: "id",
+          name: "crowd_effect_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "crowd_effect_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    CrowdEffectRow,
   ),
   liveEvent: __table(
     {
@@ -111,6 +134,27 @@ const tablesSchema = __schema({
       ],
     },
     MatchRow,
+  ),
+  matchCrowd: __table(
+    {
+      name: "match_crowd",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "match_crowd_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "match_crowd_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    MatchCrowdRow,
   ),
   matchHistory: __table(
     {
@@ -150,6 +194,27 @@ const tablesSchema = __schema({
     },
     MatchParticipantRow,
   ),
+  matchSpectator: __table(
+    {
+      name: "match_spectator",
+      indexes: [
+        {
+          accessor: "id",
+          name: "match_spectator_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        {
+          name: "match_spectator_id_key",
+          constraint: "unique",
+          columns: ["id"],
+        },
+      ],
+    },
+    MatchSpectatorRow,
+  ),
   playerProfile: __table(
     {
       name: "player_profile",
@@ -170,6 +235,27 @@ const tablesSchema = __schema({
       ],
     },
     PlayerProfileRow,
+  ),
+  spectatorCooldown: __table(
+    {
+      name: "spectator_cooldown",
+      indexes: [
+        {
+          accessor: "id",
+          name: "spectator_cooldown_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        {
+          name: "spectator_cooldown_id_key",
+          constraint: "unique",
+          columns: ["id"],
+        },
+      ],
+    },
+    SpectatorCooldownRow,
   ),
   world: __table(
     {
@@ -235,9 +321,11 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
+  __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("play_ball", PlayBallReducer),
   __reducerSchema("run_mela_bot_turn", RunMelaBotTurnReducer),
+  __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

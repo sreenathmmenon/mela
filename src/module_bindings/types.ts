@@ -33,6 +33,24 @@ export const ConnectionSession = __t.object("ConnectionSession", {
 });
 export type ConnectionSession = __Infer<typeof ConnectionSession>;
 
+export const CrowdEffect = __t.object("CrowdEffect", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  power: __t.string(),
+  target: __t.string(),
+  expiresAtMicros: __t.u64(),
+});
+export type CrowdEffect = __Infer<typeof CrowdEffect>;
+
+export const CrowdSchedule = __t.object("CrowdSchedule", {
+  id: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  kind: __t.string(),
+  matchId: __t.u64(),
+  effectId: __t.u64(),
+});
+export type CrowdSchedule = __Infer<typeof CrowdSchedule>;
+
 export const LiveEvent = __t.object("LiveEvent", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -52,6 +70,13 @@ export const Match = __t.object("Match", {
   endedAt: __t.option(__t.timestamp()),
 });
 export type Match = __Infer<typeof Match>;
+
+export const MatchCrowd = __t.object("MatchCrowd", {
+  matchId: __t.u64(),
+  energy: __t.u32(),
+  maxEnergy: __t.u32(),
+});
+export type MatchCrowd = __Infer<typeof MatchCrowd>;
 
 export const MatchHistory = __t.object("MatchHistory", {
   id: __t.u64(),
@@ -73,6 +98,15 @@ export const MatchParticipant = __t.object("MatchParticipant", {
 });
 export type MatchParticipant = __Infer<typeof MatchParticipant>;
 
+export const MatchSpectator = __t.object("MatchSpectator", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  identity: __t.identity(),
+  displayName: __t.string(),
+  joinedAt: __t.timestamp(),
+});
+export type MatchSpectator = __Infer<typeof MatchSpectator>;
+
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),
   displayName: __t.string(),
@@ -82,6 +116,15 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   crowdInfluence: __t.u32(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const SpectatorCooldown = __t.object("SpectatorCooldown", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  identity: __t.identity(),
+  power: __t.string(),
+  readyAtMicros: __t.u64(),
+});
+export type SpectatorCooldown = __Infer<typeof SpectatorCooldown>;
 
 export const World = __t.object("World", {
   id: __t.u64(),
