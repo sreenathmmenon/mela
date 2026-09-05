@@ -5,9 +5,8 @@
 - Date/time: 2026-09-05 (evening), Asia/Kolkata
 - Agent/provider: ZCode (GLM-5.3)
 - Branch: `main`
-- Delivery state: Design pass complete and verified locally (all roles, 1440px
-  and 390px). Not yet committed or deployed — the frontend-only changes are
-  safe to push against the currently published schema.
+- Delivery state: Design pass committed (`3cae643`), deployed to production by
+  GitHub Pages, and smoke-tested live against Maincloud.
 
 ## Design pass: the fairground identity
 
@@ -159,6 +158,7 @@ as no longer describing the current build.
 | Deterministic suite | Pass | `pnpm test`: **34/34** (was 25). New coverage: expectimax proof that no Book Cricket style is optimal in every state; MelaBot required-rate chase; a pen can reach and knock out the opponent from the start; force carries overshoot risk near an edge; no legal opening flick can end a round; contact point steers the struck pen; degenerate aim cannot produce an invalid position; desk-margin tiebreak; crowd swings are attributed. |
 | Design pass checks | Pass | After the design pass: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build`, `pnpm run build:pages`, and `prettier --check` on every touched file. |
 | Design pass browser loop | Pass | Local module republished (`--delete-data`, dev database only) and driven with three real clients (player Sreenath, spectator Nila on a second origin, fresh stranger Arjun on a third): cold-load splash, onboarding, game picker, Book Cricket played to completion twice with suspense/reveal, crowd BOOST attributed before and after the ball (gold banner), pen desk with legal flick + contact + MelaBot response, stage for Book Cricket and Pen Fight, and 390x844 passes for player, spectator and Pen Fight. No functional regressions observed: reducers, subscriptions, QR join, stage route, memory and metrics all behaved as before. |
+| Design pass production deploy | Pass | Pushed `3cae643` to `main`; GitHub Pages built and deployed it (deployed CSS/JS fingerprinted: tokens + desk-shake/teeter/qr-glow present, JS points at `maincloud.spacetimedb.com` / `mela-cah23`). Live smoke test on `https://sreenathmenon.com/mela/`: splash → onboarding as a fresh visitor (Priya) → picker → Book Cricket match 7 started, one BALANCED ball committed through Maincloud (1/0, ball strip and reveal rendered), stage route showed the match with QR beacon, latest-moment banner and ball chip. |
 | Module build | Pass | `pnpm run spacetime:build`. |
 | Frontend checks | Pass | `pnpm run typecheck`, `pnpm run build`, `pnpm run build:pages` (production host/database/origin). |
 | Book Cricket balance | Pass | Independent expectimax over the exact 100-roll joint distribution, cross-checked against a 200k-delivery LCG chain (avg 1.760 / 2.160 / 2.690; OUT 4.0% / 14.0% / 35.0%). Optimal policy: SAFE 4 states, BALANCED 2, AGGRESSIVE 6. Chase policy varies with required rate and wickets. |
@@ -190,16 +190,12 @@ rows as evidence for the current build.
 - Maincloud database: `mela-cah23`
 - Frontend target: `https://sreenathmenon.com/mela`
 - GitHub Pages deploys from `.github/workflows/deploy-pages.yml` on push to `main`.
-- **The live site currently serves the previous build.** The frontend in this
-  commit expects the new schema, so it must not be pushed until the module has
-  been published — otherwise the site will break on missing columns. Publish the
-  module first, regenerate bindings, then push.
+- **The live site serves the design-pass build (`3cae643`).** No module publish
+  was needed: the schema and module bindings are unchanged from the currently
+  published Maincloud module.
 
 ## Known limitations
 
-- The design pass is verified locally only. Deploying it means pushing `main`
-  (GitHub Pages builds the frontend); no module publish is needed because the
-  schema and bindings are unchanged.
 - The display font loads from Google Fonts; offline, Mela falls back to the
   system stack (Avenir Next/Trebuchet/system-ui), which is legible but less
   distinctive. No font is bundled locally.
@@ -227,13 +223,12 @@ rows as evidence for the current build.
 
 ## Next task
 
-Deploy the design pass (push `main`; no module publish required), then run the
-planned multi-device production session — a real phone scanning the QR into a
-live match — to confirm crowd attribution and concurrent matches with genuine
-separate devices. After that, the highest-value remaining work is sound on the
-six moments that carry the games (Pen Fight: flick, contact, edge teeter, fall;
-Book Cricket: SIX, OUT) and a shared crowd-level goal so multiple spectators
-feel like one crowd.
+Run the planned multi-device production session — a real phone scanning the QR
+into a live match — to confirm crowd attribution and concurrent matches with
+genuine separate devices on the deployed design. After that, the
+highest-value remaining work is sound on the six moments that carry the games
+(Pen Fight: flick, contact, edge teeter, fall; Book Cricket: SIX, OUT) and a
+shared crowd-level goal so multiple spectators feel like one crowd.
 
 ## Handoff notes
 
