@@ -87,6 +87,14 @@ export interface PenFightEffects {
   guard: boolean;
 }
 export interface PenFightResolution {
+  motion: {
+    contactX: number;
+    contactY: number;
+    actorX: number;
+    actorY: number;
+    targetX: number;
+    targetY: number;
+  };
   seed: bigint;
   actorX: number;
   actorY: number;
@@ -212,6 +220,8 @@ export function resolvePenFlick(input: {
   let actorY = input.actorY + vy * travel;
   let targetX = input.targetX;
   let targetY = input.targetY;
+  let contactX = actorX;
+  let contactY = actorY;
 
   if (hit) {
     const back = Math.sqrt(
@@ -220,6 +230,8 @@ export function resolvePenFlick(input: {
     const contactT = Math.max(0, along - back);
     const hitX = input.actorX + vx * contactT;
     const hitY = input.actorY + vy * contactT;
+    contactX = hitX;
+    contactY = hitY;
     const remaining = Math.max(0, travel - contactT);
 
     // Normal points from the touch point into the struck pen.
@@ -278,6 +290,7 @@ export function resolvePenFlick(input: {
     (value) => value < 120 || value > 880,
   );
   return {
+    motion: { contactX, contactY, actorX, actorY, targetX, targetY },
     seed: s2,
     actorX: clamp(actorX),
     actorY: clamp(actorY),

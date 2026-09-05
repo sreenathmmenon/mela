@@ -3,6 +3,22 @@ import {
   type PenFightPower,
 } from "../spacetimedb/src/penFightRules";
 
+/** Direction hint only, not an outcome/trajectory prediction. SVG uses the
+ * same square coordinate system for pens, arrow, finger tether and physics. */
+export function aimGuide(
+  from: { x: number; y: number },
+  aim: { x: number; y: number },
+  power: number,
+) {
+  const distance = Math.hypot(aim.x - from.x, aim.y - from.y);
+  if (distance < 1) return { ...from };
+  const length = 95 + Math.max(0, Math.min(100, power)) * 1.9;
+  return {
+    x: from.x + ((aim.x - from.x) / distance) * length,
+    y: from.y + ((aim.y - from.y) / distance) * length,
+  };
+}
+
 /** Presentation only. The reducer independently checks all eligibility. */
 export function powerAvailability(input: {
   power: PenFightPower;

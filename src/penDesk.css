@@ -1,0 +1,148 @@
+.pen-shell .pen-arena-wrap {
+  max-width: 640px;
+  margin: 18px auto 30px;
+  padding: 12px 12px 19px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #805734, #4c2c1e);
+  box-shadow:
+    0 9px 0 #432c21,
+    0 14px 0 #2c201b,
+    0 24px 30px #22140b30;
+}
+.pen-shell .pen-arena {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 9px;
+  background: #bf844a;
+  box-shadow:
+    0 2px 2px #fff0cd70,
+    inset 0 0 8px #301c17;
+  overflow: visible;
+  isolation: isolate;
+}
+.physical-desk {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  border-radius: 9px;
+}
+.screen-pen-arena.physical-stage {
+  aspect-ratio: 1;
+  width: min(62vh, 640px);
+  margin: 24px auto;
+  overflow: visible;
+  border: 12px solid #533622;
+  border-radius: 16px;
+  box-shadow:
+    0 10px 0 #2b201b,
+    0 24px 32px #22150a30;
+}
+.pen-shell .pen-turn {
+  min-height: 58px;
+  align-items: center;
+}
+.pen-shell .pen-turn span {
+  max-width: 330px;
+}
+.pen-shell .pen-arena .notebook-line,
+.pen-shell .pen-arena .danger-zone {
+  display: none;
+}
+.desk-aim {
+  opacity: 0.78;
+}
+.desk-aim.is-pulling {
+  opacity: 1;
+}
+.desk-gesture-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fdf6dc;
+  background: #3a2921de;
+  border: 1px solid #ffefc040;
+  border-radius: 30px;
+  padding: 9px 16px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 3px 10px #36220e30;
+}
+.pen-shell .flick-controls {
+  max-width: 640px;
+  margin: 12px auto;
+}
+.pen-shell .pen-picker {
+  max-width: 640px;
+  margin: 10px auto;
+}
+.pen-shell .power-readout {
+  height: 8px;
+}
+.pen-shell .pen-top h1 {
+  font-size: clamp(1.7rem, 3.5vw, 2.6rem);
+}
+.pen-shell .pen-top {
+  padding-bottom: 14px;
+}
+.pen-shell .pen-rivalry {
+  font-size: 0.9rem;
+  margin: 10px 0;
+}
+.pen-shell .pen-score {
+  max-width: 640px;
+  margin: 14px auto 0;
+  padding: 10px 16px;
+}
+.pen-shell .pen-score strong {
+  font-size: 2rem;
+}
+@media (min-width: 900px) {
+  .pen-shell .pen-arena-wrap {
+    max-width: 560px;
+  }
+}
+@media (max-width: 640px) {
+  .pen-shell .pen-top > div {
+    flex-basis: 100%;
+  }
+  .pen-shell .pen-top p:not(.eyebrow) {
+    font-size: 0.85rem;
+  }
+  .pen-shell .pen-top button {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  .pen-shell .pen-arena-wrap {
+    padding: 7px 7px 13px;
+    margin-top: 10px;
+  }
+  .pen-shell .pen-turn {
+    padding: 4px 7px 10px;
+    min-height: 52px;
+  }
+  .pen-shell .pen-turn strong {
+    font-size: 0.86rem;
+  }
+  .pen-shell .pen-turn span {
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+  .desk-gesture-hint {
+    font-size: 0.65rem;
+    bottom: 12px;
+    padding: 6px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .physical-desk * {
+    animation: none !important;
+  }
+}

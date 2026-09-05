@@ -1,6 +1,36 @@
 # MELA STATUS
 
-## Current handoff — 6 September 2026, Asia/Kolkata
+## Current pass — physical Pen Fight desk and shot feel
+
+- 6 September 2026, Codex. Baseline: `300bfe6`. Sreenath explicitly redirected the work to pens, aiming arrows, game actions and desk appearance rather than surrounding identity/share UX.
+- Implemented a square-coordinate 2.5D wooden desk: grain, lighting, bevel, thickness, contact shadows, detailed metallic/gel/ink pen rendering, and the player's name on the barrel. Uses SVG/CSS/Web Animations, not a new WebGL/game-engine dependency.
+- Replaced the old line with a direction arrow, force colour, pull tether, finger marker and on-desk force feedback. Pull distance is relative to where the gesture starts; it must begin on the player's pen ring. Escape cancels, taps do not fire, stale-board gestures are rejected locally, and keyboard/button controls remain available.
+- A committed flick now travels to the **actual server-resolved contact point**, then slides/rotates/settles. The struck pen waits for contact. Real edge exits tumble/fade before round reset. Impact effects/sounds fire on a hit, not every position update. The turn label stays with the moving pen and controls wait for settling.
+- Server rule resolution exposes movement metadata only. A versioned `@pen-motion/1:` payload uses the existing transient liveEvent transport: match/sequence/actor, starts, contact, ends, hit/out/guard flags. No table/schema/reducer signature changes; scoring, physics constants, AI decisions and winner logic are unchanged. Durable history remains separate.
+- App feeds filter the transport payload. Pen Fight and the dedicated big screen share `PenDesk`; the stage rejects other-match motion and deduplicates readable events using timestamp/ID/message rather than reused transient IDs.
+- Reconnect/initial subscription shows current authoritative positions rather than replaying old shots. Reduced-motion skips movement animation. Clients never run collision or winner resolution.
+
+### Verification for the physical desk pass
+
+- Deterministic suite: **60/60 passed**. Five additional tests cover exact collision metadata, raw edge exits versus clamped durable state, honest misses/stationary targets, deterministic mirrored actor metadata, malformed/versioned payload handling, and bounded arrow direction.
+- Frontend typecheck, normal build, Pages build, SpacetimeDB build, changed-file formatting and Git whitespace checks: passed.
+- In-place local publish to `mela-pen-feel-0906`: passed, empty migration plan, no deletion.
+- Real player Asha and independent spectator Nila received **identical animation keyframes** for human sequence `1:2:3502304826` and AI sequence `1:3:3963487223`. Browser animation sampling compared both pens' transforms and offsets, not just endpoint text.
+- Full local Pen Fight: Asha **2–1 MelaBot**, identical player/crowd result and durable memory. Additional fresh match verified human and bot contact and live animation objects; a contact screenshot captured the collision flash.
+- Reduced-motion emulation: zero pen animations after a real flick; controls unlocked correctly afterward.
+- Desktop 1440px and mobile 390×844 inspected. Square desk keeps arrow/finger/physics coordinates aligned; physical pens and directional pull shown in screenshots. Big-screen route rendered the same desk.
+- Book Cricket regression completed through the UI and scheduled AI: **Asha 15–18 MelaBot**, confirmed in durable memory. Existing rule tests pass.
+- Artifacts (local, ignored): `output/playwright/pen-desk-aim.png`, `pen-desk-motion.png`, `pen-physical-contact.png`, `pen-physical-desk.png`.
+- Release order: frontend first, then in-place Maincloud module publish, to avoid exposing the new transport payload in an older frontend. Delivery confirmation is recorded after release.
+
+### Limits and next task for this pass
+
+- This is 2.5D rendering of the existing authoritative game, **not a full 3D rigid-body simulation**. Rotation and timing are presentation; collision/winner rules stay on the server.
+- Transient shot motion is not historical replay. On reconnect the durable board is authoritative; a missed animation is not reconstructed or fabricated.
+- Native sound quality, actual phone touch feel, low-end-device frame rate and real-person play balance still need hands-on validation. Desktop/mobile browser emulation is not a claim of physical-device testing.
+- Next task: play this specific desk on a real phone with a spectator and judge aim clarity, contact timing, force feel and readability. Tune those from observed play, without unrelated identity/economy changes.
+
+## Previous release handoff — emotional-connection pass
 
 - Provider: Codex. Branch: main. Starting baseline: `11cd12a`.
 - This pass implements the approved Pen Fight emotional-connection brief.

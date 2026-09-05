@@ -1,7 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTable } from "spacetimedb/react";
 import { tables } from "./module_bindings";
+import {
+  PEN_MOTION_PREFIX,
+  readPenMotion,
+  type PenMotion,
+} from "../spacetimedb/src/penFightMotion";
+import { PenDesk } from "./PenDesk";
+const ignoreMoving = () => {};
 
 function publicJoinUrl(matchId: bigint) {
   const base = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
@@ -12,10 +19,6 @@ function publicJoinUrl(matchId: bigint) {
  * A stable, position-derived tilt. Deterministic per position so every client
  * shows the same pen orientation without the server storing a rotation.
  */
-function spinFor(matchId: bigint, x: number, y: number, base: number) {
-  const mix = (Number(matchId % 7n) * 31 + x * 3 + y * 5) % 34;
-  return base + mix - 17;
-}
 
 /** Crowd moves get the gold treatment on the stage: they are the point. */
 function isCrowdLine(message: string) {
@@ -35,16 +38,36 @@ function requestedMatchId() {
 }
 
 export default function BigScreen() {
+  const [motion, setMotion] = useState<PenMotion>();
+  const shownMatch = useRef<bigint>();
   const [events, setEvents] = useState<
-    Array<{ id: bigint; matchId: bigint; message: string }>
+    Array<{ id: bigint; matchId: bigint; message: string; key: string }>
   >([]);
   const onEvent = useCallback(
-    (event: { id: bigint; matchId: bigint; message: string }) =>
+    (event: {
+      id: bigint;
+      matchId: bigint;
+      message: string;
+      occurredAt: { microsSinceUnixEpoch: bigint };
+    }) => {
+      if (event.message.startsWith(PEN_MOTION_PREFIX)) {
+        const action = readPenMotion(event.message);
+        if (action && event.matchId === shownMatch.current)
+          setMotion((previous) =>
+            previous?.sequence === action.sequence &&
+            previous.matchId === action.matchId
+              ? previous
+              : action,
+          );
+        return;
+      }
+      const key = `${event.occurredAt.microsSinceUnixEpoch}:${event.id}:${event.message}`;
       setEvents((feed) =>
-        feed.some((existing) => existing.id === event.id)
+        feed.some((existing) => existing.key === key)
           ? feed
-          : [...feed, event].slice(-12),
-      ),
+          : [...feed, { ...event, key }].slice(-12),
+      );
+    },
     [],
   );
   const [matches] = useTable(tables.match);
@@ -70,6 +93,7 @@ export default function BigScreen() {
       : undefined) ??
     activeMatch ??
     latestBookMatch;
+  shownMatch.current = displayedMatch?.id;
   const state = displayedMatch
     ? states.find((row) => row.matchId === displayedMatch.id)
     : undefined;
@@ -177,41 +201,29 @@ export default function BigScreen() {
           </h2>
           <p>{penState.lastOutcome}</p>
         </section>
-        <section className="screen-pen-arena" aria-label="Live Pen Fight desk">
-          <span className="screen-edge">EDGE</span>
-          {(() => {
-            const nearEdge = (v: number) => v < 130 || v > 870;
-            const humanTeeter =
-              nearEdge(penState.humanX) || nearEdge(penState.humanY);
-            const botTeeter =
-              nearEdge(penState.botX) || nearEdge(penState.botY);
-            return (
-              <>
-                <div
-                  className={`screen-pen-token human ${humanTeeter ? "teeter" : ""}`}
-                  style={{
-                    left: `${penState.humanX / 10}%`,
-                    top: `${penState.humanY / 10}%`,
-                    ["--pen-spin" as string]: `${spinFor(penState.matchId, penState.humanX, penState.humanY, -8)}deg`,
-                  }}
-                >
-                  <i className="pen-shadow" />
-                  <span>{humanName.slice(0, 1)}</span>
-                </div>
-                <div
-                  className={`screen-pen-token bot ${botTeeter ? "teeter" : ""}`}
-                  style={{
-                    left: `${penState.botX / 10}%`,
-                    top: `${penState.botY / 10}%`,
-                    ["--pen-spin" as string]: `${spinFor(penState.matchId, penState.botX, penState.botY, 11)}deg`,
-                  }}
-                >
-                  <i className="pen-shadow" />
-                  <span>M</span>
-                </div>
-              </>
-            );
-          })()}
+        <section
+          className="screen-pen-arena physical-stage"
+          aria-label="Live Pen Fight desk"
+        >
+          <PenDesk
+            key={penState.matchId.toString()}
+            human={{ x: penState.humanX, y: penState.humanY }}
+            bot={{ x: penState.botX, y: penState.botY }}
+            motion={
+              motion?.matchId === penState.matchId.toString()
+                ? motion
+                : undefined
+            }
+            aim={{ x: 0, y: 0 }}
+            pull={null}
+            power={0}
+            interactive={false}
+            aiming={false}
+            pen="pen-reynolds"
+            humanName={humanName}
+            completed={displayedMatch.status === "complete"}
+            onMoving={ignoreMoving}
+          />
         </section>
         <section className="screen-lower">
           <article className="screen-crowd">
@@ -229,7 +241,7 @@ export default function BigScreen() {
             <ul>
               {moments.map((event) => (
                 <li
-                  key={event.id.toString()}
+                  key={event.key}
                   className={isCrowdLine(event.message) ? "crowd" : ""}
                 >
                   {event.message}
@@ -435,7 +447,7 @@ export default function BigScreen() {
             {moments.length ? (
               moments.map((event) => (
                 <li
-                  key={event.id.toString()}
+                  key={event.key}
                   className={isCrowdLine(event.message) ? "crowd" : ""}
                 >
                   {event.message}

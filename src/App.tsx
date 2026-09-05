@@ -10,6 +10,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
+import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
 import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
@@ -186,6 +187,7 @@ function App() {
   }, []);
   const onMatchEvent = useCallback(
     (event: { id: bigint; matchId: bigint; message: string }) =>
+      !event.message.startsWith(PEN_MOTION_PREFIX) &&
       setMatchEvents((feed) =>
         feed.some((existing) => existing.id === event.id)
           ? feed

@@ -1,4 +1,5 @@
 import { ScheduleAt, schema, table, t } from "spacetimedb/server";
+import { PEN_MOTION_PREFIX, type PenMotion } from "./penFightMotion";
 import {
   BOOK_CRICKET_RULES,
   CROWD_POWERS,
@@ -1097,11 +1098,40 @@ function resolvePenFlick(
       `${targetGuard.actorName}'s GUARD kept ${target} on the desk.`,
     );
   }
+  const motion: PenMotion = {
+    matchId: match.id.toString(),
+    sequence: `${state.round}:${state.turnsInRound}:${resolution.seed}`,
+    actor,
+    from: {
+      x: human ? state.humanX : state.botX,
+      y: human ? state.humanY : state.botY,
+    },
+    targetFrom: {
+      x: human ? state.botX : state.humanX,
+      y: human ? state.botY : state.humanY,
+    },
+    contact: { x: resolution.motion.contactX, y: resolution.motion.contactY },
+    end: {
+      x: actorOut ? resolution.motion.actorX : resolution.actorX,
+      y: actorOut ? resolution.motion.actorY : resolution.actorY,
+    },
+    targetEnd: {
+      x: targetOut ? resolution.motion.targetX : resolution.targetX,
+      y: targetOut ? resolution.motion.targetY : resolution.targetY,
+    },
+    hit: resolution.hit,
+    actorOut,
+    targetOut,
+    guarded:
+      (resolution.actorOut && !actorOut) ||
+      (resolution.targetOut && !targetOut),
+  };
+  emit(ctx, match.id, PEN_MOTION_PREFIX + JSON.stringify(motion));
   let next: any = {
     ...state,
     seed: resolution.seed,
     turnsInRound: state.turnsInRound + 1,
-    lastOutcome: resolution.hit ? "CONTACT!" : "NEAR MISS",
+    lastOutcome: resolution.hit ? "CONTACT!" : "NO CONTACT",
   };
   if (human)
     Object.assign(next, {

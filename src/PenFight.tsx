@@ -23,6 +23,12 @@ import {
 } from "./penFightExperience";
 import "./pens.css";
 import "./penFightExperience.css";
+import { PenDesk, SHOT_DURATION } from "./PenDesk";
+import {
+  PEN_MOTION_PREFIX,
+  readPenMotion,
+  type PenMotion,
+} from "../spacetimedb/src/penFightMotion";
 
 /**
  * Four pens off a school desk. They are purely cosmetic — every pen has exactly
@@ -59,10 +65,6 @@ const powers = Object.entries(PEN_FIGHT_POWERS) as [
  * A stable, position-derived tilt. Deterministic per position so every client
  * shows the same pen orientation without the server storing a rotation.
  */
-function spinFor(matchId: bigint, x: number, y: number, base: number) {
-  const mix = (Number(matchId % 7n) * 31 + x * 3 + y * 5) % 34;
-  return base + mix - 17;
-}
 // Mirrors penFightRules.ts. The server validates every flick regardless, so a
 // drift here can only ever cost the player a rejected shot, never an illegal one.
 const MIN_FORCE = PEN_FIGHT_RULES.minForce;
@@ -94,6 +96,8 @@ export function PenFight({
   const [records] = useTable(tables.penFightRecord);
   const [cooldowns] = useTable(tables.spectatorCooldown);
   const [melaProfiles] = useTable(tables.melaProfile);
+  const [motion, setMotion] = useState<PenMotion>();
+  const [moving, setMoving] = useState(false);
   const [feed, setFeed] = useState<
     { key: string; matchId: bigint; message: string }[]
   >([]);
@@ -104,6 +108,17 @@ export function PenFight({
       message: string;
       occurredAt: { microsSinceUnixEpoch: bigint };
     }) => {
+      if (event.message.startsWith(PEN_MOTION_PREFIX)) {
+        const action = readPenMotion(event.message);
+        if (action && event.matchId === matchId)
+          setMotion((previous) =>
+            previous?.sequence === action.sequence &&
+            previous.matchId === action.matchId
+              ? previous
+              : action,
+          );
+        return;
+      }
       if (event.message.startsWith("Crowd Energy +")) return;
       const key = `${event.occurredAt.microsSinceUnixEpoch}:${event.id}:${event.message}`;
       setFeed((rows) =>
@@ -115,7 +130,7 @@ export function PenFight({
             ].slice(-24),
       );
     },
-    [],
+    [matchId],
   );
   useTable(tables.liveEvent, { onInsert: onEvent });
   const [now, setNow] = useState(Date.now);
@@ -123,6 +138,7 @@ export function PenFight({
   const busy = useRef(false);
   const [muted, setMuted] = useState(isMuted);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const dragRevision = useRef<string>();
   const shot = useRef<{ x: number; y: number; force: number } | null>(null);
   const memoryCard = useRef<HTMLElement>(null);
   const lastAnimatedRevision = useRef<string>();
@@ -202,8 +218,16 @@ export function PenFight({
     : "Player";
   const completed = match?.status === "complete";
   useEffect(() => {
-    if (completed)
-      memoryCard.current?.scrollIntoView({ block: "center", behavior: "auto" });
+    if (!completed) return;
+    const timer = window.setTimeout(
+      () =>
+        memoryCard.current?.scrollIntoView({
+          block: "center",
+          behavior: "auto",
+        }),
+      SHOT_DURATION + 180,
+    );
+    return () => window.clearTimeout(timer);
   }, [completed]);
   /**
    * One gesture sets the whole flick. Drag back from your pen like a
@@ -218,8 +242,9 @@ export function PenFight({
     const px = ((event.clientX - rect.left) / rect.width) * 1000;
     const py = ((event.clientY - rect.top) / rect.height) * 1000;
     // Vector from the drag point back to the pen = the launch direction.
-    const dx = state.humanX - px;
-    const dy = state.humanY - py;
+    if (!dragStart.current) return;
+    const dx = ((dragStart.current.x - event.clientX) / rect.width) * 1000;
+    const dy = ((dragStart.current.y - event.clientY) / rect.height) * 1000;
     const len = Math.hypot(dx, dy);
     if (len < 1) return;
     const ux = dx / len;
@@ -260,9 +285,7 @@ export function PenFight({
     const round =
       lastOutcome.includes("TAKES ROUND") || lastOutcome.includes("WINS");
     // A knocked-off pen is the round ending; anything else that moved is a hit.
-    if (round) playSound("fall");
-    else if (lastOutcome.includes("CONTACT")) playSound("contact");
-    setDeskFx({ impact: true, round });
+    setDeskFx({ impact: false, round });
     const timer = window.setTimeout(
       () => setDeskFx({ impact: false, round: false }),
       round ? 850 : 480,
@@ -331,6 +354,7 @@ export function PenFight({
   }) => {
     if (
       busy.current ||
+      moving ||
       !conn.isActive ||
       !owns ||
       completed ||
@@ -339,7 +363,6 @@ export function PenFight({
       return;
     busy.current = true;
     setPending(true);
-    playSound("flick");
     try {
       await flick({
         matchId: match.id,
@@ -390,8 +413,6 @@ export function PenFight({
   const actor = state.turn === "human" ? human : "MelaBot";
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
-  const humanSpin = spinFor(state.matchId, state.humanX, state.humanY, -8);
-  const botSpin = spinFor(state.matchId, state.botX, state.botY, 11);
   const memory = memories.find((row) => row.matchId === match.id);
   const record = identity
     ? records.find((row) => row.identity.isEqual(identity))
@@ -490,29 +511,63 @@ export function PenFight({
       <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
         <div className="pen-turn">
           <strong>
-            {completed ? "DUEL REMEMBERED" : `${actor.toUpperCase()}’S TURN`}
+            {moving
+              ? `${motion?.actor === "human" ? human.toUpperCase() : "MELABOT"}’S FLICK`
+              : completed
+                ? "DUEL REMEMBERED"
+                : `${actor.toUpperCase()}’S TURN`}
           </strong>
           <span>
-            {completed
-              ? state.lastOutcome
-              : state.turn === "human"
-                ? owns
-                  ? myPlan
-                  : `${human} is aiming. Choose a crowd move below, or save your Energy.`
-                : botPlan}
+            {moving
+              ? "Watch the contact. Let the pens settle."
+              : completed
+                ? state.lastOutcome
+                : state.turn === "human"
+                  ? owns
+                    ? myPlan
+                    : `${human} is aiming. Choose a crowd move below, or save your Energy.`
+                  : botPlan}
           </span>
         </div>
         <div
           className={`pen-arena ${deskFx.impact ? "impact" : ""} ${edgeDanger ? "danger" : ""}`}
+          tabIndex={owns && !completed ? 0 : undefined}
+          aria-label={
+            owns
+              ? "Pen Fight desk. Pull back from your pen to flick. Escape cancels aiming. Button controls follow the desk."
+              : "Live Pen Fight desk"
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setAiming(false);
+              setPullPoint(null);
+              dragStart.current = null;
+              shot.current = null;
+            }
+          }}
           onPointerDown={
             owns &&
             conn.isActive &&
             !pending &&
+            !moving &&
             state.turn === "human" &&
             !completed
               ? (event) => {
                   if (!event.isPrimary || event.button !== 0) return;
+                  event.currentTarget.focus({ preventScroll: true });
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  const x =
+                    ((event.clientX - bounds.left) / bounds.width) * 1000;
+                  const y =
+                    ((event.clientY - bounds.top) / bounds.height) * 1000;
+                  if (Math.hypot(x - state.humanX, y - state.humanY) > 110) {
+                    setNote(
+                      "Start on your pen's ring. Pull back, then release.",
+                    );
+                    return;
+                  }
                   dragStart.current = { x: event.clientX, y: event.clientY };
+                  dragRevision.current = revision;
                   shot.current = null;
                   event.currentTarget.setPointerCapture(event.pointerId);
                   setAiming(true);
@@ -525,6 +580,11 @@ export function PenFight({
             if (!aiming) return;
             setAiming(false);
             setPullPoint(null);
+            if (dragRevision.current !== revision) {
+              dragStart.current = null;
+              setNote("The desk moved. Line up your next flick.");
+              return;
+            }
             if (
               dragStart.current &&
               isIntentionalDrag(dragStart.current, {
@@ -581,56 +641,37 @@ export function PenFight({
               })}
             </div>
           )}
-          <div
-            className={`pen-token human ${myPen} ${humanTeeter ? "teeter" : ""}`}
-            style={{
-              left: `${state.humanX / 10}%`,
-              top: `${state.humanY / 10}%`,
-              ["--pen-spin" as string]: `${humanSpin}deg`,
-            }}
-          >
-            <i className="pen-shadow" />
-            <span>{human.slice(0, 1).toUpperCase()}</span>
-          </div>
-          <div
-            className={`pen-token bot pen-metal ${botTeeter ? "teeter" : ""}`}
-            style={{
-              left: `${state.botX / 10}%`,
-              top: `${state.botY / 10}%`,
-              ["--pen-spin" as string]: `${botSpin}deg`,
-            }}
-          >
-            <i className="pen-shadow" />
-            <span>M</span>
-          </div>
-          {owns && state.turn === "human" && !completed && (
-            <>
-              {/* The launch line: short and power-tinted, so it hints direction
-                  without handing over a full trajectory. */}
-              <div
-                className={`aim-line ${aiming ? "live" : ""}`}
-                style={{
-                  left: `${state.humanX / 10}%`,
-                  top: `${state.humanY / 10}%`,
-                  width: `${12 + (powerPct / 100) * 22}%`,
-                  transform: `rotate(${Math.atan2(aim.y - state.humanY, aim.x - state.humanX)}rad)`,
-                  ["--power" as string]: `${powerPct}`,
-                }}
-              />
-              {/* The rubber band back to your finger — this is what makes the
-                  gesture read as a slingshot rather than a click. */}
-              {aiming && pullPoint && (
-                <div
-                  className="pull-band"
-                  style={{
-                    left: `${state.humanX / 10}%`,
-                    top: `${state.humanY / 10}%`,
-                    width: `${Math.hypot(pullPoint.x - state.humanX, pullPoint.y - state.humanY) / 10}%`,
-                    transform: `rotate(${Math.atan2(pullPoint.y - state.humanY, pullPoint.x - state.humanX)}rad)`,
-                  }}
-                />
-              )}
-            </>
+          <PenDesk
+            human={{ x: state.humanX, y: state.humanY }}
+            bot={{ x: state.botX, y: state.botY }}
+            motion={motion}
+            aim={aim}
+            pull={pullPoint}
+            power={powerPct}
+            interactive={
+              owns && !completed && !moving && state.turn === "human"
+            }
+            aiming={aiming}
+            pen={myPen}
+            humanName={human}
+            onMoving={setMoving}
+            completed={completed}
+          />
+          {owns && !completed && !moving && state.turn === "human" && (
+            <div className="desk-gesture-hint">
+              {aiming
+                ? `Release to flick · ${powerPct}% force`
+                : "Pull your pen back → release to flick"}
+            </div>
+          )}
+          {moving && (
+            <div className="desk-gesture-hint">
+              {motion?.guarded
+                ? "Crowd save!"
+                : motion?.actorOut || motion?.targetOut
+                  ? "Off the edge!"
+                  : "Watch the flick…"}
+            </div>
           )}
         </div>
       </section>
@@ -686,7 +727,7 @@ export function PenFight({
             </button>
             <button
               className="primary"
-              disabled={pending || !conn.isActive}
+              disabled={pending || moving || !conn.isActive}
               onClick={() => void commitFlick()}
             >
               {pending ? "FLICKING…" : "FLICK"}
