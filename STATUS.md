@@ -2,56 +2,62 @@
 
 ## Last updated
 
-- Date/time: 2026-09-05 (evening), Asia/Kolkata
+- Date/time: 2026-09-05 (night), Asia/Kolkata
 - Agent/provider: ZCode (GLM-5.3)
 - Branch: `main`
-- Delivery state: Design pass committed (`3cae643`), deployed to production by
-  GitHub Pages, and smoke-tested live against Maincloud.
+- Delivery state: Full redesign ("Daylight Mela") verified locally across all
+  roles and both breakpoints; committed and deployed to production, smoke-tested
+  live. Supersedes the earlier "fairground at dusk" pass (`3cae643`), which the
+  human rejected for keeping the old dark-purple world.
 
-## Design pass: the fairground identity
+## Full redesign: Daylight Mela
 
-A full UI/UX pass over the already-working product. No game rules, reducers,
-subscriptions, schema, routing, QR, memory or metrics behaviour changed — the
-diff is `src/mela.css` (rewritten as a token-based design system), presentational
-markup/motion in `src/App.tsx`, `src/PenFight.tsx`, `src/BigScreen.tsx`, the
-pre-render splash in `index.html`, and one webfont (Bricolage Grotesque via
-Google Fonts, with system fallbacks; no npm dependency added).
+After seeing the first design pass, the human asked for a ground-up redesign:
+they disliked the inherited colour system and type outright. One direction was
+chosen explicitly by the human from three (paper-ink daylight / lantern night /
+festival poster): **Daylight Mela**. No game rules, reducers, subscriptions,
+schema, routing, QR, memory or metrics behaviour changed — the diff is
+`src/mela.css` (rewritten again from scratch), the splash/fonts in `index.html`,
+and the presentational TSX edits from the prior pass (risk meters, keyed score
+pops, crowd-tagged feed lines, desk motion hooks), which carry over unchanged.
 
-- **Identity**: "the fairground at dusk" — deep indigo night lit by marigold
-  lamps; the games play on cream paper. Players read paper (Book Cricket is a
-  school scorebook with a red margin rule; Pen Fight is a notebook page on a
-  walnut desk); the crowd reads gold-on-night; the stage is night sky with a
-  glowing QR beacon.
-- **Tokens**: one `:root` system for colour (semantic: player/pitch-green,
-  AI/orchid, crowd/marigold, danger/chili, success/energy, memory/parchment),
-  type, spacing (4px scale), radii, elevation and motion easings. All existing
-  class names preserved.
-- **Typography**: Bricolage Grotesque display for headings, scores, buttons and
-  eyebrows; system stack for body; tabular numerals everywhere numbers change.
-- **Book Cricket**: scorebook page with ink numerals that pop on change, a
-  dashed "VS" stamp, choice cards as ticket stubs with the real OUT odds drawn
-  as risk meters, crowd intervention as a gold dashed ticket, the reveal as a
-  double-bordered banner (SIX/OUT emphasised, OUT shakes, crowd-attributed
-  swings render gold), ball-by-ball as ledger chips.
-- **Crowd**: gold-on-night panel, festival-lamp energy bar, power cards with
-  cost badges and dimmed blocked states; crowd-authored lines in the feed and
-  on stage are gold with a lamp dot.
-- **Pen Fight**: walnut desk frame with grain, hatched EDGE danger zone that
-  throbs when a pen is near the border, pens with barrel/nib/cap/clip/contact
-  shadow on both player and stage, desk shudder on CONTACT, gold flash when a
-  round is decided, teeter wobble for pens within 13% of an edge.
-- **Stage**: huge cream numerals, marigold "JOIN THE CROWD" QR beacon with a
-  soft glow pulse, gold latest-moment banner, large ball chips, pen rendered
-  as a pen at stage scale.
-- **Motion**: score pops, reveal pops, banner entrances, memory entrance,
-  impact/teeter/edge-throb, QR beacon — all covered by
-  `prefers-reduced-motion`.
-- **Mobile 390px**: single-column choices/powers, sticky Crowd Energy header,
-  portrait desk, memory stamp hidden where it would collide, 44px+ targets.
-
-Verification for this pass is recorded under "Validation evidence" as the
-design-pass rows. Screenshots (before and after) live in this session's
-browser evidence, not in the repo.
+- **Identity**: the fair in daylight. The whole world sits on warm bone paper
+  (#f6f1e4) with ink (#221b10) typography and confident print rules. No dark
+  surfaces, no gradients-as-decoration, no purple anywhere.
+- **Color is meaning, never decor**: teal marks the player everywhere (team
+  dot, score numeral, your pen, your leaderboard form), rust marks MelaBot
+  (team dot, AI-turn panel, its pen), honey marks the crowd (booth frame,
+  energy lamps, power buttons, crowd-authored lines). Danger red and success
+  green exist only for OUT and runs.
+- **Typography**: Fraunces (display serif, optical sizing) for the masthead,
+  scores, card titles and moments; Instrument Sans for body/UI. Confident
+  scale: body 16px/1.6, player scores clamp(3rem→4.6rem), stage numerals up to
+  10.5rem, reveal stamps up to 3.4rem. Tabular numerals wherever numbers change.
+- **Print, not glass**: static surfaces are paper sheets with 1.5–2px ink
+  rules and no shadows; interactive things (buttons, choice tickets, game
+  posters, QR beacon) carry hard offset shadows (3–5px) that collapse on
+  press. Dashed perforations separate score from decision; dotted rules lead
+  the ledgers (feed, history, leaderboard).
+- **Book Cricket**: paper scorebook with rust margin rule, teal/rust team
+  dots, Fraunces ink numerals, letterpress VS stamp; choices are ticket stubs
+  with colour-coded risk bands and the real OUT odds as meters; the reveal is
+  stamped in inverted ink with a colour edge (green runs / red OUT / honey
+  crowd swing) and the crowd swing names its author in honey.
+- **Crowd booth**: honey-framed counter with a lamp-segmented energy strip and
+  power tickets; the mobile sticky header keeps energy in view as a honey bar.
+- **Pen Fight**: walnut desk with ink frame on the bone canvas; your pen is
+  teal and MelaBot's is rust; hatched rust EDGE zone throbs when a pen is
+  within 13% of a border (teeter wobble); contact shudders the desk; a round
+  win flashes a honey ring.
+- **Stage**: the same daylight world at poster scale — masthead with a 3px
+  rule, enormous Fraunces numerals (teal you / rust bot), honey-framed QR
+  beacon with hard shadow and glow pulse, inverted-ink latest-moment stamp,
+  big ball chips.
+- **Splash**: cream pre-render with ink Fraunces wordmark and three honey
+  lamps; theme-color matches.
+- Fonts load from Google Fonts (no npm dependency); offline fallbacks are
+  Georgia/system stacks. `prefers-reduced-motion` covers all motion. 390px
+  passes for player, crowd booth and desk.
 
 ## Product excellence pass
 
@@ -159,6 +165,8 @@ as no longer describing the current build.
 | Design pass checks | Pass | After the design pass: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build`, `pnpm run build:pages`, and `prettier --check` on every touched file. |
 | Design pass browser loop | Pass | Local module republished (`--delete-data`, dev database only) and driven with three real clients (player Sreenath, spectator Nila on a second origin, fresh stranger Arjun on a third): cold-load splash, onboarding, game picker, Book Cricket played to completion twice with suspense/reveal, crowd BOOST attributed before and after the ball (gold banner), pen desk with legal flick + contact + MelaBot response, stage for Book Cricket and Pen Fight, and 390x844 passes for player, spectator and Pen Fight. No functional regressions observed: reducers, subscriptions, QR join, stage route, memory and metrics all behaved as before. |
 | Design pass production deploy | Pass | Pushed `3cae643` to `main`; GitHub Pages built and deployed it (deployed CSS/JS fingerprinted: tokens + desk-shake/teeter/qr-glow present, JS points at `maincloud.spacetimedb.com` / `mela-cah23`). Live smoke test on `https://sreenathmenon.com/mela/`: splash → onboarding as a fresh visitor (Priya) → picker → Book Cricket match 7 started, one BALANCED ball committed through Maincloud (1/0, ball strip and reveal rendered), stage route showed the match with QR beacon, latest-moment banner and ball chip. |
+| Full redesign (Daylight) checks | Pass | After the rewrite: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build:pages`, prettier-clean. |
+| Full redesign (Daylight) browser loop | Pass | Local three-identity loop re-run on the new system: player scorebook with teal/rust dots and Fraunces numerals, AGGRESSIVE ball resolving to SIX with Nila's BOOST attributed in the inverted-ink stamp, honey crowd booth with power tickets, poster stage (live match + QR beacon), Pen Fight desk with the teal player pen, fresh-visitor landing, and 390x844 passes for the crowd booth (sticky honey energy header) and the desk. No functional regressions: the same reducer/subscription/QR/stage/memory behaviours as before. |
 | Module build | Pass | `pnpm run spacetime:build`. |
 | Frontend checks | Pass | `pnpm run typecheck`, `pnpm run build`, `pnpm run build:pages` (production host/database/origin). |
 | Book Cricket balance | Pass | Independent expectimax over the exact 100-roll joint distribution, cross-checked against a 200k-delivery LCG chain (avg 1.760 / 2.160 / 2.690; OUT 4.0% / 14.0% / 35.0%). Optimal policy: SAFE 4 states, BALANCED 2, AGGRESSIVE 6. Chase policy varies with required rate and wickets. |
