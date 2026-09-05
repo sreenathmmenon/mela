@@ -44,6 +44,7 @@ export const BookCricketState = __t.object("BookCricketState", {
   humanTimeline: __t.string(),
   botTimeline: __t.string(),
   lastCrowdSwing: __t.string(),
+  lastPage: __t.u32(),
   seed: __t.u64(),
 });
 export type BookCricketState = __Infer<typeof BookCricketState>;

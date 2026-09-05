@@ -56,6 +56,13 @@ export interface DeliveryOutcome {
   seed: bigint;
   wicket: boolean;
   runs: number;
+  /**
+   * The verso (left, even) page the book fell open at. This is presentation,
+   * but it is derived from the same authoritative seed that produced the
+   * outcome — so the number a player sees is genuinely the one that scored,
+   * not a decoration the client invented afterwards.
+   */
+  page: number;
 }
 export interface CrowdDeliveryEffects {
   boost: boolean;
@@ -110,7 +117,23 @@ export function resolveBookCricketOutcome(
     : chaos
       ? [0, 0, 2, 4, 6, 6][roll % 6]
       : styleRules.runs[roll % styleRules.runs.length];
-  return { seed: nextSeed, wicket, runs };
+  return { seed: nextSeed, wicket, runs, page: pageFor(nextSeed, wicket, runs) };
+}
+
+/**
+ * Pick a book page whose last digit IS what happened: 0 for a wicket, otherwise
+ * the runs scored. The page number is the game's only explanation, so it has to
+ * be literally true — a player who sees 374 and scores 3 has been told a lie,
+ * and the rule stops being learnable.
+ *
+ * Real book cricket reads the left-hand (even) page, but honouring that would
+ * force odd scores onto even pages. Truthfulness wins over that detail: the
+ * left page here is simply whatever page the book fell open at.
+ */
+export function pageFor(seed: bigint, wicket: boolean, runs: number): number {
+  const digit = wicket ? 0 : runs % 10;
+  const decade = 1 + Number((seed / 7n) % 47n); // 1..47 -> pages 10..479
+  return decade * 10 + digit;
 }
 
 export function applyCrowdDeliveryEffects(

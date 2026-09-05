@@ -670,3 +670,27 @@ test("crowd swings are attributed to the spectator who caused them", () => {
     undefined,
   );
 });
+
+/**
+ * The page number is the game's only explanation, so it must never lie: the
+ * last digit of the page the book falls open at has to match what happened.
+ */
+test("the page number always agrees with the runs scored", () => {
+  for (const style of ["safe", "balanced", "aggressive"] as const)
+    for (let seed = 1n; seed <= 4000n; seed += 1n) {
+      const outcome = resolveBookCricketOutcome(seed, style);
+      assert.ok(
+        outcome.page >= 10 && outcome.page <= 480,
+        `page ${outcome.page} out of a plausible book`,
+      );
+      const digit = outcome.page % 10;
+      if (outcome.wicket)
+        assert.equal(digit, 0, "a wicket must show a page ending in 0");
+      else
+        assert.equal(
+          digit,
+          outcome.runs,
+          `page ${outcome.page} must end in the ${outcome.runs} it scored`,
+        );
+    }
+});

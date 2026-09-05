@@ -25,5 +25,6 @@ export default __t.row({
   humanTimeline: __t.string().name("human_timeline"),
   botTimeline: __t.string().name("bot_timeline"),
   lastCrowdSwing: __t.string().name("last_crowd_swing"),
+  lastPage: __t.u32().name("last_page"),
   seed: __t.u64(),
 });

@@ -203,6 +203,8 @@ const spacetimedb = schema({
       botTimeline: t.string(),
       /** Names the crowd's effect on the most recent ball, or "" when none. */
       lastCrowdSwing: t.string(),
+      /** The page the book fell open at for the most recent ball. */
+      lastPage: t.u32(),
       seed: t.u64(),
     },
   ),
@@ -839,6 +841,7 @@ function resolveDelivery(
   let next = {
     ...state,
     seed: result.seed,
+    lastPage: result.page,
     lastCrowdSwing: crowdSwing ?? "",
     lastOutcome: result.wicket
       ? "OUT"
@@ -1284,6 +1287,7 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     humanTimeline: "",
     botTimeline: "",
     lastCrowdSwing: "",
+    lastPage: 0,
     seed: matchId + 17n,
   });
   ctx.db.matchCrowd.insert({

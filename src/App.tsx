@@ -44,29 +44,22 @@ const POWER_CARDS = [
   },
 ] as const;
 
-// Percentages mirror the authoritative table in bookCricketRules.ts. Showing
-// the real OUT chance is what makes the choice a decision instead of a guess.
+// Two intentions, not three risk categories — and no odds on screen. A player
+// should never be shown a probability; they should be shown a decision.
+// BALANCED is not removed, it is the default "just play the ball" delivery,
+// so the only things we name are the two deviations from normal.
 const PLAY_CHOICES = [
   {
     style: "safe",
-    title: "SAFE",
-    risk: "4% OUT · 0–3 runs",
-    pct: 4,
-    copy: "Best when you are one wicket from the end.",
-  },
-  {
-    style: "balanced",
-    title: "BALANCED",
-    risk: "14% OUT · fours on offer",
-    pct: 14,
-    copy: "Steady scoring without betting the innings.",
+    title: "PLAY IT SAFE",
+    risk: "Stay in. Take the singles.",
+    copy: "",
   },
   {
     style: "aggressive",
-    title: "AGGRESSIVE",
-    risk: "35% OUT · sixes",
-    pct: 35,
-    copy: "Worth it early, or when you need runs fast.",
+    title: "GO FOR IT",
+    risk: "Big runs — or you're out.",
+    copy: "",
   },
 ] as const;
 
@@ -520,8 +513,10 @@ function App() {
     }
   };
 
+  // "balanced" is not offered as a card — it is the default ball one delivery —
+  // so the parameter is widened past what PLAY_CHOICES exposes.
   const playDelivery = async (
-    style: (typeof PLAY_CHOICES)[number]["style"],
+    style: "safe" | "balanced" | "aggressive",
   ) => {
     if (!displayedMatch) return;
     setPendingStyle(style);
@@ -833,14 +828,28 @@ function App() {
                   ? `MelaBot needs ${botRunsNeeded} run${botRunsNeeded === 1 ? "" : "s"} from ${botBallsLeft} ball${botBallsLeft === 1 ? "" : "s"}.`
                   : `Target ${matchState.target} · match complete.`}
             </p>
+            {/* The book IS the explanation. A page number in the corner, the
+                way every real book has one — nobody is told to take the last
+                digit, they see 236 then they see 6 runs and work it out. */}
+            {matchState.lastPage > 0 && (
+              <div className={`mela-book ${suspense ? "flipping" : ""}`}>
+                <div className="book-page left">
+                  <span className="page-no">
+                    {suspense ? "" : matchState.lastPage}
+                  </span>
+                </div>
+                <div className="book-spine" />
+                <div className="book-page right">
+                  <span className="page-no">
+                    {suspense ? "" : matchState.lastPage + 1}
+                  </span>
+                </div>
+                {suspense && <i className="book-leaf" aria-hidden="true" />}
+              </div>
+            )}
             {suspense && (
               <div className="delivery-result waiting" role="status">
-                <strong>
-                  <i />
-                  <i />
-                  <i />
-                </strong>
-                <span>The ball is on its way…</span>
+                <span>Opening the book…</span>
               </div>
             )}
             {!suspense && revealed && (
@@ -893,8 +902,7 @@ function App() {
               <div className="player-actions">
                 {matchState.humanBalls === 0 && (
                   <p className="how-to-play">
-                    Score more than MelaBot in 6 balls. You have 2 wickets — get
-                    out twice and your innings ends early.
+                    Open the book. The page number is your runs.
                   </p>
                 )}
                 {pendingOnMe.length > 0 && (
@@ -909,9 +917,22 @@ function App() {
                     — it lands on this ball.
                   </p>
                 )}
-                <p className="eyebrow">
-                  YOUR NEXT BALL · CHOOSE HOW TO PLAY IT
-                </p>
+                {/* Ball one asks nothing. You tap, the book opens, something
+                    happens — and now you understand the game without having
+                    read a rule. The choice only appears once it means something. */}
+                {matchState.humanBalls === 0 ? (
+                  <div className="first-ball">
+                    <button
+                      className="primary wide open-book"
+                      disabled={pendingStyle !== null}
+                      onClick={() => playDelivery("balanced")}
+                    >
+                      {pendingStyle ? "Opening…" : "OPEN THE BOOK"}
+                    </button>
+                  </div>
+                ) : (
+                <>
+                <p className="eyebrow">YOUR NEXT BALL</p>
                 <div className="choice-grid">
                   {PLAY_CHOICES.map((choice) => (
                     <button
@@ -922,18 +943,14 @@ function App() {
                     >
                       <strong>{choice.title}</strong>
                       <span>{choice.risk}</span>
-                      {/* The real odds, drawn to scale. */}
-                      <i className="risk" aria-hidden="true">
-                        <b style={{ width: `${choice.pct}%` }} />
-                      </i>
-                      <small>
-                        {pendingStyle === choice.style
-                          ? "Resolving your choice…"
-                          : choice.copy}
-                      </small>
+                      {pendingStyle === choice.style && (
+                        <small>Opening the book…</small>
+                      )}
                     </button>
                   ))}
                 </div>
+                </>
+                )}
               </div>
             )}
             {matchState.turn === "bot" && (

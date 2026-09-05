@@ -2926,3 +2926,103 @@ button:disabled {
     min-width: 42px;
   }
 }
+
+/* ---------- Book Cricket: the book ---------- */
+/* The page number in the corner is the whole explanation. Nobody is told to
+   take the last digit — they see 236, then 6 runs, and work it out on ball two.
+   Page-block thickness is stacked box-shadows, not geometry: ~1KB, no library. */
+.mela-book {
+  position: relative;
+  display: flex;
+  height: 132px;
+  max-width: 460px;
+  margin: 14px auto 6px;
+  border-radius: 5px 9px 9px 5px;
+  background: #fffdf7;
+  border: 2px solid var(--ink, #241a12);
+  box-shadow:
+    0 1px 0 #e8dcc2,
+    0 3px 0 #efe6d2,
+    0 5px 0 #e0d3b6,
+    0 7px 0 #efe6d2,
+    0 9px 0 #ddd2b8,
+    0 18px 26px -12px rgba(0, 0, 0, 0.32);
+}
+.book-page {
+  position: relative;
+  flex: 1;
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 15px,
+    rgba(80, 120, 160, 0.16) 15px 16px
+  );
+  background-position: 0 14px;
+  background-size: 100% 16px;
+  background-repeat: repeat-y;
+  margin: 12px 0;
+}
+.book-spine {
+  width: 2px;
+  background: rgba(36, 26, 18, 0.22);
+}
+.page-no {
+  position: absolute;
+  bottom: 2px;
+  font:
+    700 15px/1 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  color: #8a7a5c;
+}
+.book-page.left .page-no {
+  left: 10px;
+}
+.book-page.right .page-no {
+  right: 10px;
+}
+/* One element, rotateY, with a gradient that fakes the curl. */
+.book-leaf {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: calc(50% - 10px);
+  transform-origin: left center;
+  background: linear-gradient(
+    90deg,
+    #f3e9d2 0%,
+    #fdf6e3 12%,
+    #fffdf6 60%,
+    #f7eeda 100%
+  );
+  border-radius: 0 7px 7px 0;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.16);
+  animation: leaf-turn 0.55s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+}
+@keyframes leaf-turn {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(-178deg);
+  }
+}
+.first-ball .open-book {
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .book-leaf {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+@media (max-width: 640px) {
+  .mela-book {
+    height: 104px;
+  }
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+}
