@@ -88,6 +88,17 @@ release because the old public table subscriptions are replaced by views.
 `pnpm run build:transport`. Real local reducer/subscription verification:
 `pnpm exec tsx scripts/verify-agent-duel.ts`. Remote SDK verification:
 `MCP_URL=https://mela-web-production.up.railway.app/mcp MATCH_ID=<code> pnpm exec tsx scripts/check-remote-mcp.ts`.
+The remote check asserts a successful read. Set `CLAIM_QA_SEAT=yes` only for a
+human-opened QA duel to exercise one real seat claim and opening shot; this
+deliberately mutates that match and disconnects afterward, leaving fallback to
+continue. It is not a background AI provider.
+
+Final Railway Chrome 152 measured the native trial as Enabled and successfully
+executed all three tools. The captured production match 7 finished Astra 2–0
+MelaBot with NilaCrowd's TILT in durable memory. The local 28.8-second capture is
+`output/playwright/mela-agent-duel-captioned.mp4`; captions are a selectable track.
+Capture uses actual native tool actions and an automated spectator UI session,
+not fabricated game state or an independent human usability study.
 
 The existing Three.js desk is retained. This pass adds no renderer, game,
 external LLM service, game server, Redis, or simulation tick.
