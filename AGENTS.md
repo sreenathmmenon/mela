@@ -1,0 +1,69 @@
+# Mela Engineering Guide
+
+## 1. Project identity
+
+Team: **Flux**  
+Product: **Mela**  
+Track: **Games & Toys**  
+Problem: **Spectators are wasted**
+
+Repository owner and commit author: **Sreenath** (`sreenathmmmenon@gmail.com`). All commits in this repository must use this identity and must not include `Co-authored-by` trailers or other co-author attribution unless Sreenath explicitly requests an exception.
+
+Locked problem statement: “Today’s games are isolated sessions; there’s no shared living playground where humans and AI can play, interact, and shape the same world together in real time.”
+
+**Before making architectural or product changes, read STATUS.md.**  
+**Do not silently change the product direction.**
+
+## 2. Locked vision and principles
+
+Mela is gaming-first: multiple games are the doorway into one persistent, realtime shared playground. Humans play, spectators make meaningful moves, AI characters participate under the same rules, and the world remembers outcomes.
+
+Do not turn Mela into a generic multiplayer SaaS product, AI-agent platform, coding-agent orchestrator, chatbot, ordinary isolated game, static mini-game catalogue, social network, or voting demo. Do not remove spectators, AI participation, persistence, or SpacetimeDB authority without explicit human approval.
+
+North star: **Players play. Spectators influence. AI participates. The world remembers.**
+
+## 3. Architecture and ownership
+
+SpacetimeDB is the authoritative realtime world engine. Reducers validate and mutate every shared gameplay action; tables store presence, sessions, game state, energy/cooldowns, AI state, scores, and events. Clients subscribe to the smallest required set of tables/queries and render server state. Never trust browser values for score, energy, cooldown, role, winners, game results, AI state, or progression.
+
+The frontend owns routes, responsive presentation, optimistic *pending* UI only, local input state, accessibility, reconnect UX, and QR/big-screen experiences. It does not decide authoritative outcomes.
+
+AI decisions sit behind `AIProvider.decideAction(worldState, characterState)`. Keep a deterministic provider as the always-available fallback; providers and keys remain server-side. An LLM failure must not make a game unusable.
+
+## 4. MVP data model and reducers
+
+The first vertical slice is Book Cricket. Expected server entities: world/session, player presence/profile, participant role, Book Cricket match/turn/score, spectator energy and cooldowns, AI character state, persistent score/history, and append-only world events. Exact schema names belong in STATUS.md once implemented.
+
+Expected reducers include name onboarding, join/leave world, create/join Book Cricket, player play action, spectator powers (including CHAOS), AI action, and reconnect-safe presence/session handling. Each reducer authenticates identity, validates role and game state, checks energy/cooldowns, commits one atomic state change, and emits/records an event.
+
+## 5. Authentication, subscriptions, deployment
+
+Start with the smallest secure name-only onboarding compatible with SpacetimeDB identity. Treat identity as server-issued, validate all actions server-side, rate-limit/guard abuse where supported, and never persist secrets in the browser, repository, AGENTS.md, or STATUS.md.
+
+Use narrow subscriptions for a player’s current world/match plus relevant event feed; avoid global unbounded feeds. Plan for reconnect and idempotent-safe UI. The production target is SpacetimeDB Maincloud plus a separately deployed frontend; document actual database name, URLs, commands, and deployment results in STATUS.md. Do not claim a deployment that has not occurred.
+
+## 6. Engineering standards
+
+- Use typed contracts and clear, small modules; keep reducer validation close to state transitions.
+- Preserve backwards-compatible migrations and document every schema/reducer change.
+- Keep UI mobile-first and big-screen readable; ensure keyboard access, semantic controls, contrast, and visible focus.
+- Keep events append-only where practical; protect user inputs and avoid exposing secrets or internal errors.
+- Prefer deterministic tests for game rules; test invalid actions, concurrent actions, reconnects, and multi-client synchronization.
+- Run formatter/lint/typecheck/tests/build after meaningful increments. Verify the local product in a browser before calling a feature complete.
+- Optimize subscription scope and rendering before premature infrastructure changes; avoid hot polling and unbounded client state.
+
+## 7. Definition of done and judging
+
+A feature is done only when reducer/server validation, subscription updates, responsive UI, error/reconnect behavior, tests, and STATUS.md are complete. The MVP must demonstrate: name onboarding; a living world; Book Cricket with one player and multiple spectators; meaningful spectator powers and Crowd Energy tradeoffs; an AI participant; authoritative realtime updates; persistent events/scores; return/rejoin; big-screen mode; and QR joining.
+
+Demo judgment criteria: the gaming-first thesis is immediately visible, spectator influence is strategic rather than cosmetic, AI is a first-class participant, SpacetimeDB’s realtime authority is clear, and the persistent world feels alive. Do not build Pen Fight until this vertical slice works; it is P1.
+
+## 8. Documentation and handoff
+
+`STATUS.md` is the single source of truth for progress. Update it after every meaningful implementation, test result, deployment attempt, failure, feedback item, or material decision. Never fabricate test results, user feedback, deployment state, or credentials. Keep its required sections current, including one explicit next task.
+
+A new provider must start by reading this file and STATUS.md, inspect the repository and current Git state, run the documented checks, then continue the highest-priority accepted task. If context is missing, record the uncertainty and ask the human rather than inventing product requirements.
+
+## 9. Current constraints and risks
+
+At this initial handoff, no implementation is present in the workspace and the referenced master-plan file has not been supplied there. Treat the pasted brief as the known product direction; request the full plan before inventing details that depend on it. Current technical risks are setup/bootstrap time, realtime concurrency correctness, spectator-power abuse, reliable AI fallback, and unverified Maincloud deployment.
