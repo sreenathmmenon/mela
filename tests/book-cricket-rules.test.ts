@@ -15,6 +15,14 @@ import {
   DeterministicAIProvider,
   shouldExecuteScheduledAIWake,
 } from "../spacetimedb/src/aiProvider";
+import {
+  crowdInfluenceForPower,
+  levelForProgress,
+  nextBookCricketRecord,
+  notableCrowdMoment,
+  playerProgressAfterMatch,
+  spectatorProgressAfterMatch,
+} from "../spacetimedb/src/melaMemory";
 
 test("delivery scoring is deterministic and bounded by the selected style", () => {
   const first = resolveBookCricketOutcome(18n, "steady");
@@ -172,5 +180,44 @@ test("scheduled AI wakes only execute for the exact active bot turn", () => {
       expectedBotBalls: 2,
     }),
     false,
+  );
+});
+
+test("Mela progression rewards player participation, wins, and crowd presence separately", () => {
+  assert.deepEqual(playerProgressAfterMatch(20, false), {
+    progressPoints: 30,
+    melaLevel: 2,
+  });
+  assert.deepEqual(playerProgressAfterMatch(20, true), {
+    progressPoints: 35,
+    melaLevel: 2,
+  });
+  assert.deepEqual(spectatorProgressAfterMatch(26), {
+    progressPoints: 30,
+    melaLevel: 2,
+  });
+  assert.equal(levelForProgress(59), 2);
+  assert.equal(crowdInfluenceForPower("chaos"), 3);
+});
+
+test("Book Cricket skill remains a game-specific record", () => {
+  assert.deepEqual(
+    nextBookCricketRecord(
+      { matchesPlayed: 2, wins: 1, runsScored: 11, highestScore: 7 },
+      9,
+      true,
+    ),
+    { matchesPlayed: 3, wins: 2, runsScored: 20, highestScore: 9 },
+  );
+});
+
+test("durable memory tells a crowd story without depending on transient events", () => {
+  assert.equal(
+    notableCrowdMoment(0, "", ""),
+    "The crowd stayed close for every ball.",
+  );
+  assert.equal(
+    notableCrowdMoment(2, "Asha", "boost"),
+    "Asha made the crowd matter with BOOST.",
   );
 });

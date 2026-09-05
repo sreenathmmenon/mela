@@ -69,11 +69,14 @@ function App() {
   const { isActive: connected } = conn;
   const [worlds] = useTable(tables.world);
   const [profiles] = useTable(tables.playerProfile);
+  const [melaProfiles] = useTable(tables.melaProfile);
   const [presence] = useTable(tables.worldPresence);
   const [matches] = useTable(tables.match);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
+  const [memories] = useTable(tables.matchMemory);
+  const [records] = useTable(tables.bookCricketRecord);
   const [crowds] = useTable(tables.matchCrowd);
   const [spectators] = useTable(tables.matchSpectator);
   const [cooldowns] = useTable(tables.spectatorCooldown);
@@ -87,6 +90,18 @@ function App() {
       ? profiles.find((profile) => profile.identity.isEqual(identity))
       : undefined;
   }, [profiles, conn.identity]);
+  const myMelaProfile = useMemo(() => {
+    const identity = conn.identity;
+    return identity
+      ? melaProfiles.find((profile) => profile.identity.isEqual(identity))
+      : undefined;
+  }, [melaProfiles, conn.identity]);
+  const myBookCricketRecord = useMemo(() => {
+    const identity = conn.identity;
+    return identity
+      ? records.find((record) => record.identity.isEqual(identity))
+      : undefined;
+  }, [records, conn.identity]);
   const activeMatch = matches.find((match) => match.status === "active");
   const bookMatches = matches.filter(
     (match) => match.gameKind === "book_cricket",
@@ -121,6 +136,22 @@ function App() {
   const result = displayedMatch
     ? history.find((row) => row.matchId === displayedMatch.id)
     : undefined;
+  const memory = displayedMatch
+    ? memories.find((row) => row.matchId === displayedMatch.id)
+    : undefined;
+  const recentMemories = memories
+    .filter((row) => row.gameKind === "book_cricket")
+    .sort((a, b) => Number(b.sequence - a.sequence))
+    .slice(0, 3);
+  const leaderboard = records
+    .slice()
+    .sort(
+      (a, b) =>
+        b.wins - a.wins ||
+        b.runsScored - a.runsScored ||
+        a.displayName.localeCompare(b.displayName),
+    )
+    .slice(0, 3);
   const melaBot = aiCharacters.find(
     (character) => character.characterKey === "melabot",
   );
@@ -297,6 +328,33 @@ function App() {
             )}
           </section>
 
+          {displayedMatch.status === "complete" && memory && (
+            <section
+              className="memory-hero"
+              aria-label="Completed match memory"
+            >
+              <p className="eyebrow">NOW PART OF MELA</p>
+              <h2>
+                {memory.winner === "draw"
+                  ? "A shared finish."
+                  : `${memory.winner === "human" ? memory.humanName : memory.aiName} takes the story.`}
+              </h2>
+              <p className="memory-story">{memory.notableMoment}</p>
+              <div className="memory-facts">
+                <span>
+                  {memory.humanName} {memory.humanScore}/{memory.humanWickets}
+                </span>
+                <span>
+                  {memory.aiName} {memory.botScore}/{memory.botWickets}
+                </span>
+                <span>{memory.crowdActions} crowd moves</span>
+              </div>
+              <button className="primary wide" onClick={() => createMatch()}>
+                Play again vs MelaBot
+              </button>
+            </section>
+          )}
+
           {activeMatch && me && !ownsMatch && !isSpectator && (
             <section className="join-crowd">
               <p className="eyebrow">YOU'RE WATCHING LIVE</p>
@@ -441,6 +499,91 @@ function App() {
               ).length === 0 && <li>Waiting for the next moment…</li>}
             </ul>
           </section>
+
+          {me && myMelaProfile && (
+            <section className="profile-glance" aria-label="Your Mela profile">
+              <div>
+                <p className="eyebrow">YOUR MELA STORY</p>
+                <h2>
+                  Level {myMelaProfile.melaLevel} · {me.displayName}
+                </h2>
+                <p>
+                  {myMelaProfile.matchesPlayed} played ·{" "}
+                  {myMelaProfile.matchesWatched} watched ·{" "}
+                  {myMelaProfile.crowdInfluence} Crowd Influence
+                </p>
+              </div>
+              <div
+                className="progress-orbit"
+                aria-label={`${myMelaProfile.progressPoints} progress points`}
+              >
+                <strong>{myMelaProfile.progressPoints}</strong>
+                <span>progress</span>
+              </div>
+            </section>
+          )}
+
+          {me && (
+            <section className="memory-grid" aria-label="Mela memory">
+              <article className="recent-history">
+                <div className="feed-header">
+                  <h2>Recent memories</h2>
+                  <span>Remembered</span>
+                </div>
+                {recentMemories.length === 0 ? (
+                  <p>Your next match will start a story worth returning to.</p>
+                ) : (
+                  <ul>
+                    {recentMemories.map((entry) => (
+                      <li key={entry.matchId.toString()}>
+                        <strong>
+                          {entry.humanName} {entry.humanScore}/
+                          {entry.humanWickets} · {entry.aiName} {entry.botScore}
+                          /{entry.botWickets}
+                        </strong>
+                        <span>
+                          {entry.winner === "draw"
+                            ? "Draw"
+                            : `${entry.winner === "human" ? entry.humanName : entry.aiName} won`}
+                          {entry.crowdActions > 0
+                            ? ` · ${entry.crowdActions} crowd moves`
+                            : " · crowd present"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+              <article className="leaderboard-card">
+                <div className="feed-header">
+                  <h2>Book Cricket form</h2>
+                  <span>Game skill</span>
+                </div>
+                {leaderboard.length === 0 ? (
+                  <p>The first completed innings writes the board.</p>
+                ) : (
+                  <ol>
+                    {leaderboard.map((entry, index) => (
+                      <li key={entry.identity.toHexString()}>
+                        <span>{index + 1}</span>
+                        <strong>{entry.displayName}</strong>
+                        <small>
+                          {entry.wins} wins · {entry.runsScored} runs
+                        </small>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {myBookCricketRecord && (
+                  <p className="personal-form">
+                    Your form: {myBookCricketRecord.wins} wins from{" "}
+                    {myBookCricketRecord.matchesPlayed} matches · best{" "}
+                    {myBookCricketRecord.highestScore}
+                  </p>
+                )}
+              </article>
+            </section>
+          )}
         </>
       )}
     </main>

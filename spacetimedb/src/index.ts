@@ -15,6 +15,13 @@ import {
   DeterministicAIProvider,
   shouldExecuteScheduledAIWake,
 } from "./aiProvider";
+import {
+  crowdInfluenceForPower,
+  nextBookCricketRecord,
+  notableCrowdMoment,
+  playerProgressAfterMatch,
+  spectatorProgressAfterMatch,
+} from "./melaMemory";
 
 const WORLD_ID = 1n;
 
@@ -57,6 +64,20 @@ const spacetimedb = schema({
       lastSeenAt: t.timestamp(),
       melaLevel: t.u32(),
       crowdInfluence: t.u32(),
+    },
+  ),
+  melaProfile: table(
+    { public: true },
+    {
+      identity: t.identity().primaryKey(),
+      melaLevel: t.u32(),
+      progressPoints: t.u32(),
+      matchesPlayed: t.u32(),
+      matchesWon: t.u32(),
+      matchesWatched: t.u32(),
+      crowdActions: t.u32(),
+      crowdInfluence: t.u32(),
+      updatedAt: t.timestamp(),
     },
   ),
   worldPresence: table(
@@ -139,6 +160,38 @@ const spacetimedb = schema({
       occurredAt: t.timestamp(),
     },
   ),
+  matchMemory: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      sequence: t.u64(),
+      gameKind: t.string(),
+      humanName: t.string(),
+      aiName: t.string(),
+      winner: t.string(),
+      humanScore: t.u32(),
+      humanWickets: t.u32(),
+      botScore: t.u32(),
+      botWickets: t.u32(),
+      crowdParticipants: t.u32(),
+      crowdActions: t.u32(),
+      crowdEnergySpent: t.u32(),
+      notableMoment: t.string(),
+      completedAt: t.timestamp(),
+    },
+  ),
+  bookCricketRecord: table(
+    { public: true },
+    {
+      identity: t.identity().primaryKey(),
+      displayName: t.string(),
+      matchesPlayed: t.u32(),
+      wins: t.u32(),
+      runsScored: t.u32(),
+      highestScore: t.u32(),
+      updatedAt: t.timestamp(),
+    },
+  ),
   liveEvent: table(
     { public: true, event: true },
     {
@@ -154,6 +207,16 @@ const spacetimedb = schema({
       matchId: t.u64().primaryKey(),
       energy: t.u32(),
       maxEnergy: t.u32(),
+    },
+  ),
+  matchCrowdActivity: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      actions: t.u32(),
+      energySpent: t.u32(),
+      lastActor: t.string(),
+      lastPower: t.string(),
     },
   ),
   matchSpectator: table(
@@ -220,9 +283,27 @@ const ensureMelaBot = (ctx: any) => {
       persona: "Cool under pressure. Reckless when behind.",
     });
 };
+const ensureMelaProfile = (ctx: any, identity: any) => {
+  const existing = ctx.db.melaProfile.identity.find(identity);
+  if (existing) return existing;
+  const profile = {
+    identity,
+    melaLevel: 1,
+    progressPoints: 0,
+    matchesPlayed: 0,
+    matchesWon: 0,
+    matchesWatched: 0,
+    crowdActions: 0,
+    crowdInfluence: 0,
+    updatedAt: ctx.timestamp,
+  };
+  ctx.db.melaProfile.insert(profile);
+  return profile;
+};
 const player = (ctx: any) => {
   const row = ctx.db.playerProfile.identity.find(ctx.sender);
   if (!row) throw new Error("Choose a display name first.");
+  ensureMelaProfile(ctx, ctx.sender);
   return row;
 };
 const nextMatchId = (ctx: any) => nextId(ctx.db.match.iter());
@@ -297,6 +378,100 @@ const scheduleMelaBotWake = (
   );
 };
 
+function completeMatch(ctx: any, match: any, state: any, winner: string) {
+  if (ctx.db.matchMemory.matchId.find(match.id)) return;
+  const human = ctx.db.playerProfile.identity.find(match.playerIdentity);
+  if (!human) throw new Error("Match player profile is unavailable.");
+  const humanProgress = ensureMelaProfile(ctx, match.playerIdentity);
+  const playerUpdate = playerProgressAfterMatch(
+    humanProgress.progressPoints,
+    winner === "human",
+  );
+  ctx.db.melaProfile.identity.update({
+    ...humanProgress,
+    ...playerUpdate,
+    matchesPlayed: humanProgress.matchesPlayed + 1,
+    matchesWon: humanProgress.matchesWon + (winner === "human" ? 1 : 0),
+    updatedAt: ctx.timestamp,
+  });
+  const record = ctx.db.bookCricketRecord.identity.find(match.playerIdentity);
+  const nextRecord = nextBookCricketRecord(
+    record ?? { matchesPlayed: 0, wins: 0, runsScored: 0, highestScore: 0 },
+    state.humanScore,
+    winner === "human",
+  );
+  if (record)
+    ctx.db.bookCricketRecord.identity.update({
+      ...record,
+      ...nextRecord,
+      displayName: human.displayName,
+      updatedAt: ctx.timestamp,
+    });
+  else
+    ctx.db.bookCricketRecord.insert({
+      identity: match.playerIdentity,
+      displayName: human.displayName,
+      ...nextRecord,
+      updatedAt: ctx.timestamp,
+    });
+
+  let crowdParticipants = 0;
+  for (const spectator of ctx.db.matchSpectator.iter()) {
+    if (spectator.matchId !== match.id) continue;
+    crowdParticipants += 1;
+    const spectatorProfile = ensureMelaProfile(ctx, spectator.identity);
+    const spectatorUpdate = spectatorProgressAfterMatch(
+      spectatorProfile.progressPoints,
+    );
+    ctx.db.melaProfile.identity.update({
+      ...spectatorProfile,
+      ...spectatorUpdate,
+      matchesWatched: spectatorProfile.matchesWatched + 1,
+      updatedAt: ctx.timestamp,
+    });
+  }
+  const crowdActivity = ctx.db.matchCrowdActivity.matchId.find(match.id) ?? {
+    actions: 0,
+    energySpent: 0,
+    lastActor: "The crowd",
+    lastPower: "support",
+  };
+  const aiName =
+    (Array.from(ctx.db.matchParticipant.iter()) as any[]).find(
+      (participant: any) =>
+        participant.matchId === match.id && participant.actorKind === "ai",
+    )?.displayName ?? "MelaBot";
+  ctx.db.matchHistory.insert({
+    id: nextId(ctx.db.matchHistory.iter()),
+    matchId: match.id,
+    winner,
+    humanScore: state.humanScore,
+    botScore: state.botScore,
+    occurredAt: ctx.timestamp,
+  });
+  ctx.db.matchMemory.insert({
+    matchId: match.id,
+    sequence: match.id,
+    gameKind: match.gameKind,
+    humanName: human.displayName,
+    aiName,
+    winner,
+    humanScore: state.humanScore,
+    humanWickets: state.humanWickets,
+    botScore: state.botScore,
+    botWickets: state.botWickets,
+    crowdParticipants,
+    crowdActions: crowdActivity.actions,
+    crowdEnergySpent: crowdActivity.energySpent,
+    notableMoment: notableCrowdMoment(
+      crowdActivity.actions,
+      crowdActivity.lastActor,
+      crowdActivity.lastPower,
+    ),
+    completedAt: ctx.timestamp,
+  });
+}
+
 function resolveDelivery(
   ctx: any,
   match: any,
@@ -362,14 +537,7 @@ function resolveDelivery(
       winner,
       endedAt: ctx.timestamp,
     });
-    ctx.db.matchHistory.insert({
-      id: nextId(ctx.db.matchHistory.iter()),
-      matchId: match.id,
-      winner,
-      humanScore: next.humanScore,
-      botScore: next.botScore,
-      occurredAt: ctx.timestamp,
-    });
+    completeMatch(ctx, match, next, winner);
     next = {
       ...next,
       turn: "complete",
@@ -393,6 +561,8 @@ export const init = spacetimedb.init((ctx: any) => {
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   ensureWorld(ctx);
   ensureMelaBot(ctx);
+  if (ctx.db.playerProfile.identity.find(ctx.sender))
+    ensureMelaProfile(ctx, ctx.sender);
   if (ctx.connectionId)
     ctx.db.connectionSession.insert({
       connectionId: ctx.connectionId,
@@ -427,6 +597,7 @@ export const onboard = spacetimedb.reducer(
         melaLevel: 1,
         crowdInfluence: 0,
       });
+    ensureMelaProfile(ctx, ctx.sender);
     const presence = ctx.db.worldPresence.identity.find(ctx.sender);
     if (presence)
       ctx.db.worldPresence.identity.update({
@@ -493,6 +664,13 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     matchId,
     energy: BOOK_CRICKET_RULES.crowdEnergyStart,
     maxEnergy: BOOK_CRICKET_RULES.crowdEnergyMax,
+  });
+  ctx.db.matchCrowdActivity.insert({
+    matchId,
+    actions: 0,
+    energySpent: 0,
+    lastActor: "The crowd",
+    lastPower: "support",
   });
   scheduleCrowdTask(
     ctx,
@@ -606,6 +784,24 @@ export const useCrowdPower = spacetimedb.reducer(
       });
 
     const profile = player(ctx);
+    const melaProfile = ensureMelaProfile(ctx, ctx.sender);
+    ctx.db.melaProfile.identity.update({
+      ...melaProfile,
+      crowdActions: melaProfile.crowdActions + 1,
+      crowdInfluence:
+        melaProfile.crowdInfluence +
+        crowdInfluenceForPower(power as CrowdPower),
+      updatedAt: ctx.timestamp,
+    });
+    const activity = ctx.db.matchCrowdActivity.matchId.find(matchId);
+    if (activity)
+      ctx.db.matchCrowdActivity.matchId.update({
+        ...activity,
+        actions: activity.actions + 1,
+        energySpent: activity.energySpent + config.cost,
+        lastActor: profile.displayName,
+        lastPower: power,
+      });
     if (power === "cheer") {
       emit(
         ctx,

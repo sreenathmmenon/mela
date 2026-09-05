@@ -44,14 +44,18 @@ import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 
 // Import all table schema definitions
 import AiCharacterRow from "./ai_character_table";
+import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
 import CrowdEffectRow from "./crowd_effect_table";
 import LiveEventRow from "./live_event_table";
 import MatchRow from "./match_table";
 import MatchCrowdRow from "./match_crowd_table";
+import MatchCrowdActivityRow from "./match_crowd_activity_table";
 import MatchHistoryRow from "./match_history_table";
+import MatchMemoryRow from "./match_memory_table";
 import MatchParticipantRow from "./match_participant_table";
 import MatchSpectatorRow from "./match_spectator_table";
+import MelaProfileRow from "./mela_profile_table";
 import PlayerProfileRow from "./player_profile_table";
 import SpectatorCooldownRow from "./spectator_cooldown_table";
 import WorldRow from "./world_table";
@@ -78,6 +82,27 @@ const tablesSchema = __schema({
       ],
     },
     AiCharacterRow,
+  ),
+  bookCricketRecord: __table(
+    {
+      name: "book_cricket_record",
+      indexes: [
+        {
+          accessor: "identity",
+          name: "book_cricket_record_identity_idx_btree",
+          algorithm: "btree",
+          columns: ["identity"],
+        },
+      ],
+      constraints: [
+        {
+          name: "book_cricket_record_identity_key",
+          constraint: "unique",
+          columns: ["identity"],
+        },
+      ],
+    },
+    BookCricketRecordRow,
   ),
   bookCricketState: __table(
     {
@@ -173,6 +198,27 @@ const tablesSchema = __schema({
     },
     MatchCrowdRow,
   ),
+  matchCrowdActivity: __table(
+    {
+      name: "match_crowd_activity",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "match_crowd_activity_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "match_crowd_activity_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    MatchCrowdActivityRow,
+  ),
   matchHistory: __table(
     {
       name: "match_history",
@@ -189,6 +235,27 @@ const tablesSchema = __schema({
       ],
     },
     MatchHistoryRow,
+  ),
+  matchMemory: __table(
+    {
+      name: "match_memory",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "match_memory_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "match_memory_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    MatchMemoryRow,
   ),
   matchParticipant: __table(
     {
@@ -231,6 +298,27 @@ const tablesSchema = __schema({
       ],
     },
     MatchSpectatorRow,
+  ),
+  melaProfile: __table(
+    {
+      name: "mela_profile",
+      indexes: [
+        {
+          accessor: "identity",
+          name: "mela_profile_identity_idx_btree",
+          algorithm: "btree",
+          columns: ["identity"],
+        },
+      ],
+      constraints: [
+        {
+          name: "mela_profile_identity_key",
+          constraint: "unique",
+          columns: ["identity"],
+        },
+      ],
+    },
+    MelaProfileRow,
   ),
   playerProfile: __table(
     {

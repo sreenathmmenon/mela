@@ -18,6 +18,17 @@ export const AiCharacter = __t.object("AiCharacter", {
 });
 export type AiCharacter = __Infer<typeof AiCharacter>;
 
+export const BookCricketRecord = __t.object("BookCricketRecord", {
+  identity: __t.identity(),
+  displayName: __t.string(),
+  matchesPlayed: __t.u32(),
+  wins: __t.u32(),
+  runsScored: __t.u32(),
+  highestScore: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type BookCricketRecord = __Infer<typeof BookCricketRecord>;
+
 export const BookCricketState = __t.object("BookCricketState", {
   matchId: __t.u64(),
   innings: __t.u32(),
@@ -86,6 +97,15 @@ export const MatchCrowd = __t.object("MatchCrowd", {
 });
 export type MatchCrowd = __Infer<typeof MatchCrowd>;
 
+export const MatchCrowdActivity = __t.object("MatchCrowdActivity", {
+  matchId: __t.u64(),
+  actions: __t.u32(),
+  energySpent: __t.u32(),
+  lastActor: __t.string(),
+  lastPower: __t.string(),
+});
+export type MatchCrowdActivity = __Infer<typeof MatchCrowdActivity>;
+
 export const MatchHistory = __t.object("MatchHistory", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -95,6 +115,25 @@ export const MatchHistory = __t.object("MatchHistory", {
   occurredAt: __t.timestamp(),
 });
 export type MatchHistory = __Infer<typeof MatchHistory>;
+
+export const MatchMemory = __t.object("MatchMemory", {
+  matchId: __t.u64(),
+  sequence: __t.u64(),
+  gameKind: __t.string(),
+  humanName: __t.string(),
+  aiName: __t.string(),
+  winner: __t.string(),
+  humanScore: __t.u32(),
+  humanWickets: __t.u32(),
+  botScore: __t.u32(),
+  botWickets: __t.u32(),
+  crowdParticipants: __t.u32(),
+  crowdActions: __t.u32(),
+  crowdEnergySpent: __t.u32(),
+  notableMoment: __t.string(),
+  completedAt: __t.timestamp(),
+});
+export type MatchMemory = __Infer<typeof MatchMemory>;
 
 export const MatchParticipant = __t.object("MatchParticipant", {
   id: __t.u64(),
@@ -114,6 +153,19 @@ export const MatchSpectator = __t.object("MatchSpectator", {
   joinedAt: __t.timestamp(),
 });
 export type MatchSpectator = __Infer<typeof MatchSpectator>;
+
+export const MelaProfile = __t.object("MelaProfile", {
+  identity: __t.identity(),
+  melaLevel: __t.u32(),
+  progressPoints: __t.u32(),
+  matchesPlayed: __t.u32(),
+  matchesWon: __t.u32(),
+  matchesWatched: __t.u32(),
+  crowdActions: __t.u32(),
+  crowdInfluence: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type MelaProfile = __Infer<typeof MelaProfile>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),

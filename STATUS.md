@@ -5,53 +5,55 @@
 - Date/time: 2026-09-05, Asia/Kolkata
 - Agent/provider: Codex (GPT-5)
 - Branch: `main`
-- Phase: Phase 5 complete and committed; push follows this evidence update.
+- Phase: Phase 6 complete and committed; the containing commit is pushed to `origin/main`.
 
 ## Current product state
 
-Phases 0–5 are complete locally. Mela remains a gaming-first persistent shared playground: players play, spectators influence, AI participates, and the world remembers. One SpacetimeDB database is authoritative; reducers are the mutation boundary and browser clients are projections.
+Phases 0–6 are complete locally. Mela remains a gaming-first persistent shared playground: players play, spectators influence, AI participates, and the world remembers. One SpacetimeDB database is authoritative; reducers are the mutation boundary and browser clients are projections.
 
-Book Cricket is the first vertical slice, not the Mela product boundary. Phase 5 makes MelaBot a visible autonomous participant: after the human innings, a private discrete SpacetimeDB scheduled wake advances only the matching active bot turn through the same authoritative Book Cricket resolution path as a human action.
+Book Cricket is the first vertical slice, not the Mela product boundary. Phase 6 makes completed matches durable shared memories and gives people a small persistent Mela identity: progression rewards participation, Book Cricket form measures only Book Cricket performance, and Crowd Influence is independently earned by meaningful spectator actions.
 
-## Phase 5 delivered
+## Phase 6 delivered
 
-- [x] Replaced the public/manual `runMelaBotTurn` gameplay control with an internal `ai_wake` entry in the existing private `crowdSchedule` table and the private scheduled `processCrowdSchedule` reducer.
-- [x] Scheduled wakes use a short discrete delay (1.2 seconds), are deduplicated for a match/expected bot-ball pair, and are ignored without mutation when the match is complete, the turn is no longer MelaBot's, or the expected bot ball is stale.
-- [x] Added `AIProvider` and `DeterministicAIProvider`. The provider observes an authoritative state snapshot and returns a legal style proposal plus player-facing rationale; it never mutates database state.
-- [x] MelaBot proposals pass into the existing shared `resolveDelivery` internal domain function. Human and AI scoring, wickets, effects, innings transitions, targets, winners, events, and durable result history remain one authoritative path.
-- [x] Added one lightweight public `aiCharacter` record for MelaBot (`MelaBot`, “Cool under pressure. Reckless when behind.”), ready for future characters without a character framework.
-- [x] Added visible player/spectator AI-turn status and concise events: reasoning, chosen style, delivery result, and next-move feedback. The manual bot trigger is absent from the UI.
-- [x] Stabilised the client’s transient event-feed callback with event-id de-duplication so replayed event-table subscriptions do not duplicate displayed moments.
+- [x] Added identity-keyed `melaProfile`: level, progress points, matches played/won, matches watched, Crowd Actions, Crowd Influence, and update time. It is created on onboarding and lazily backfilled for an existing identity without OAuth/accounts.
+- [x] Added immutable `matchMemory` per completed match. It stores game kind, sequence, human and AI participants, winner, final scores/wickets, crowd participants, crowd actions, Crowd Energy spent, a notable crowd moment, and completion time. `liveEvent` remains transient delivery; `matchHistory` remains the existing concise durable result record.
+- [x] Added `matchCrowdActivity` to accumulate authoritative successful crowd actions and energy spent during a live match; the completed match memory consumes that summary once.
+- [x] Added `bookCricketRecord`: a deliberately game-specific record with matches, wins, total runs, and high score. It is not used as universal Mela progression or Crowd Influence.
+- [x] Completion stays in the shared Book Cricket resolution path. It atomically writes the match result/history/memory, player progression and record, and spectator match participation progression. The `matchMemory` primary key and completion guard prevent duplicate finalization.
+- [x] Successful crowd powers now add an intentionally small, tunable amount of Crowd Influence (BOOST 2, CHAOS 3, SHIELD 2, CHEER 1) and record the meaningful last crowd moment.
+- [x] Added a completed-match experience: result story, notable crowd contribution, final-score chips, immediate rematch CTA, identity/progression glance, useful recent memories, and a small Book Cricket-only form board.
 
 ## Authoritative schema and reducers
 
-- Reusable world: `world`, `playerProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
-- Match/game: `match`, `matchParticipant`, `bookCricketState`, `matchHistory`, event `liveEvent`, `aiCharacter`.
-- Crowd: `matchCrowd`, `matchSpectator`, `spectatorCooldown`, `crowdEffect`, private `crowdSchedule` schedule table.
+- Reusable world: `world`, `playerProfile`, `melaProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
+- Match/game: `match`, `matchParticipant`, `bookCricketState`, `matchHistory`, `matchMemory`, `bookCricketRecord`, event `liveEvent`, `aiCharacter`.
+- Crowd: `matchCrowd`, `matchCrowdActivity`, `matchSpectator`, `spectatorCooldown`, `crowdEffect`, private `crowdSchedule`.
 - Public reducers: `onboard`, `createBookCricket`, `playBall`, `joinMatchAsSpectator`, `useCrowdPower`.
-- Private scheduled reducer: `processCrowdSchedule` for effect expiry, Crowd Energy regeneration, and `ai_wake`. There is no public MelaBot wake reducer.
+- Private scheduled reducer: `processCrowdSchedule` for effect expiry, Crowd Energy regeneration, and autonomous `ai_wake`.
 
 ## Test and validation evidence
 
-| Check                          | Status | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deterministic rules suite      | Pass   | `pnpm test`: 13/13 passing. Includes scoring, wicket/innings/target resolution, shared human/AI resolution, Crowd Energy/effects, deterministic legal AI proposals, and exact scheduled-wake validity (active bot turn and expected bot ball only).                                                                                                                                                                                                     |
-| Module build                   | Pass   | `pnpm run spacetime:build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Frontend typecheck             | Pass   | `pnpm run typecheck` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Frontend production build      | Pass   | `pnpm run build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Two-client scheduled realtime  | Pass   | Independent player (`127.0.0.1`) and mobile spectator (`localhost`) joined the same local world/match. The human set 8 from 6 balls; spectator BOOST targeting MelaBot was committed before the bot innings. Both clients saw the same AI-thinking status, target 9, `Crowd effects resolved for melabot: BOOST`, automated MelaBot deliveries, and final result: player 8/0 (6), MelaBot 9/0 (5), MelaBot wins. No client clicked a manual bot action. |
-| Latest-state crowd interaction | Pass   | The same realtime run showed MelaBot act after the committed spectator BOOST; both clients converged on Crowd Energy 30/60 and the spectator’s BOOST cooldown.                                                                                                                                                                                                                                                                                          |
-| Mobile spectator UX            | Pass   | At 390×844, the active-match view showed score, target, MelaBot thinking state/persona, shared energy, target controls, labelled power cards, disabled cooldown state, and live moments without a dead/manual AI control.                                                                                                                                                                                                                               |
+| Check                          | Status | Evidence                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deterministic test suite       | Pass   | `pnpm test`: 16/16 passing. Includes core Book Cricket, Crowd Energy/effects, deterministic AI scheduling, progression/level calculation, crowd influence, Book Cricket record aggregation, and durable crowd-story construction.                                                                                                                               |
+| Module build                   | Pass   | `pnpm run spacetime:build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                       |
+| Local schema migration         | Pass   | `pnpm run spacetime:publish:local` applied four additive public tables: `mela_profile`, `match_memory`, `match_crowd_activity`, and `book_cricket_record`; no existing Phase 5 table was altered.                                                                                                                                                               |
+| Frontend typecheck             | Pass   | `pnpm run typecheck` on 2026-09-05.                                                                                                                                                                                                                                                                                                                             |
+| Frontend production build      | Pass   | `pnpm run build` on 2026-09-05.                                                                                                                                                                                                                                                                                                                                 |
+| Two-client realtime completion | Pass   | Independent Memory Player (`127.0.0.1`) and Memory Spectator (`localhost`) completed the same local Book Cricket match. Spectator used BOOST; completion converged on both clients as Player 12/1 (6), MelaBot 11/0 (6), Human wins. Both immediately showed one crowd move and the durable notable moment “Memory Spectator made the crowd matter with BOOST.” |
+| Realtime identity/progression  | Pass   | Without page reload, the player showed 1 match played, 15 progress, Book Cricket record 1 win/12 runs/best 12. The mobile spectator showed 1 watched, 4 progress, and 2 Crowd Influence. Both saw the same recent memory and Book Cricket form board.                                                                                                           |
+| UX validation                  | Pass   | Desktop player flow validated: finish → narrated result → notable crowd contribution → rematch CTA → profile/history/form. Mobile spectator flow validated at 390×844: finished story, score, crowd contribution, own watched/influence progress, recent memory, and game-specific form remain readable and avoid raw-table presentation.                       |
 
 ## Known limitations
 
-- P0 has one deterministic MelaBot character and a short fixed scheduled-wake delay. There is no external LLM, persistent AI memory/rivalry system, or configurable character roster.
-- Wake rows are safely invalidated rather than physically cancelled; stale or duplicate executions perform no state mutation.
-- QR onboarding, dedicated big-screen route, synthetic load harness, Maincloud deployment, Pen Fight, rankings, chat, and accounts/OAuth remain out of scope.
+- P0 has a compact progression model with fixed tunable values; it is not a large XP/economy or badge system.
+- Recent memory currently shows the latest Book Cricket entries in the shared world; filters, pagination, and a dedicated profile route are deliberately deferred.
+- Existing completed matches from before Phase 6 retain their concise `matchHistory` row but do not receive retroactive rich `matchMemory` or progression records.
+- QR, dedicated big-screen route, synthetic load/reconnect harness, external LLM, configurable AI roster, Pen Fight, social graph, accounts/OAuth, Maincloud deployment, and WebMCP remain out of scope.
 
 ## Next task
 
-Phase 5 is complete pending the push of its focused commit. Do not start Phase 6+ without explicit approval. Preserve SpacetimeDB-first authority; do not add Redis, Socket.IO, a separate backend, polling, high-frequency ticks, external LLM, Pen Fight, QR/big-screen work, synthetic load, or Maincloud deployment.
+Phase 6 is complete. Do not start Phase 7+ without explicit approval. Preserve SpacetimeDB-first authority; do not add Redis, Socket.IO, a separate backend, polling, high-frequency ticks, external LLM, QR/big-screen work, synthetic load, Pen Fight, social graph, OAuth/accounts, WebMCP, or Maincloud deployment.
 
 ## Handoff notes
 
