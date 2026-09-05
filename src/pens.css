@@ -227,7 +227,7 @@
       )
       no-repeat,
     /* the plastic itself: bright top edge, warm ivory middle, shaded belly */
-      linear-gradient(
+    linear-gradient(
         180deg,
         #ffffff 0%,
         #fbf7ec 16%,
@@ -238,10 +238,10 @@
   box-shadow:
     /* crisp highlight riding the top curve = hard plastic, not matte */
     inset 0 6cqh 6cqh -4cqh rgba(255, 255, 255, 0.95),
-    /* the barrel's own thickness read at the bottom edge */ inset 0 -7cqh 8cqh
-      -4cqh rgba(90, 72, 45, 0.5),
-    /* faint rim so the silhouette stays crisp on cream paper */
-      inset 0 0 0 1cqh rgba(120, 100, 70, 0.18);
+    /* the barrel's own thickness read at the bottom edge */ inset 0 -7cqh
+      8cqh -4cqh rgba(90, 72, 45, 0.5),
+    /* faint rim so the silhouette stays crisp on cream paper */ inset 0 0 0
+      1cqh rgba(120, 100, 70, 0.18);
 }
 
 /* Nib: a fine dark cone. Reynolds nibs are slim and metal-tipped, so this is
@@ -350,7 +350,7 @@
       )
       no-repeat,
     /* body colour, darkening under the belly */
-      linear-gradient(
+    linear-gradient(
         180deg,
         var(--body-hi) 0%,
         var(--body) 42%,
@@ -381,7 +381,7 @@
       )
       no-repeat,
     /* matte rubber body: flat mid, gentle shading, no bright top line */
-      linear-gradient(
+    linear-gradient(
         180deg,
         var(--grip-hi) 0%,
         var(--grip) 45%,
@@ -513,10 +513,10 @@
       )
       no-repeat,
     /* the anodised tint, kept translucent so the metal reads through it */
-      linear-gradient(180deg, var(--tint) 0%, var(--tint-lo) 100%) no-repeat,
+    linear-gradient(180deg, var(--tint) 0%, var(--tint-lo) 100%) no-repeat,
     /* the metal itself: note the hard stops — highlight, then a sharp drop to
        a dark reflection band, then a bounce. That's the specular signature. */
-      linear-gradient(
+    linear-gradient(
         180deg,
         #6e747e 0%,
         #aeb6c1 12%,
@@ -538,8 +538,11 @@
 .pen-token.pen-metal::after,
 .screen-pen-token.pen-metal::after {
   left: 0;
-  width: 11%;
-  height: 52cqh;
+  /* Longer and slimmer than the ballpoint cones: a machined metal pen tapers
+     over a visible distance, and that long point is what separates its
+     silhouette from the gel pen's blunt grip at small sizes. */
+  width: 15%;
+  height: 46cqh;
   clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
   background: linear-gradient(
     180deg,
@@ -688,7 +691,7 @@
         rgba(255, 255, 255, 0.1) 27%,
         rgba(255, 255, 255, 0) 34%,
         /* secondary bounce off the desk, much weaker */
-          rgba(255, 255, 255, 0.14) 74%,
+        rgba(255, 255, 255, 0.14) 74%,
         rgba(255, 255, 255, 0) 84%
       )
       no-repeat,
@@ -725,14 +728,10 @@
   );
   background:
     /* breather hole */
-    radial-gradient(
-        circle at 72% 50%,
-        var(--nib-dark) 0 9cqh,
-        transparent 9cqh
-      )
+    radial-gradient(circle at 72% 50%, var(--nib-dark) 0 9cqh, transparent 9cqh)
       no-repeat,
     /* the slit, dead centre, hairline */
-      linear-gradient(
+    linear-gradient(
         180deg,
         transparent 46%,
         var(--nib-dark) 48%,
@@ -741,14 +740,10 @@
       )
       no-repeat,
     /* two-tone plating: darker mask over the back half of the nib */
-      linear-gradient(
-        90deg,
-        transparent 0 46%,
-        var(--nib-plate) 52% 100%
-      )
+    linear-gradient(90deg, transparent 0 46%, var(--nib-plate) 52% 100%)
       no-repeat,
     /* the metal underneath */
-      linear-gradient(
+    linear-gradient(
         180deg,
         var(--nib-hi) 0%,
         var(--nib) 40%,
