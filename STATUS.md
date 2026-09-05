@@ -22,6 +22,8 @@
 - Book Cricket regression completed through the UI and scheduled AI: **Asha 15–18 MelaBot**, confirmed in durable memory. Existing rule tests pass.
 - Artifacts (local, ignored): `output/playwright/pen-desk-aim.png`, `pen-desk-motion.png`, `pen-physical-contact.png`, `pen-physical-desk.png`.
 - Release order: frontend first, then in-place Maincloud module publish, to avoid exposing the new transport payload in an older frontend. Delivery confirmation is recorded after release.
+- Released implementation `54e3a561cb93a0d48a1a1ac5e94e25c328fc5c5b`; Pages run `33990042875` succeeded. Maincloud in-place publish succeeded with an empty migration plan; no data was deleted. A production browser opened the existing `?memory=4` and rendered the new physical desk. Screenshot: `output/playwright/pen-physical-production.png`.
+- Final safeguard clears the presentation input lock when an animation effect is replayed or has already been cancelled. Existing open tabs should refresh to load the new renderer/transport handler.
 
 ### Limits and next task for this pass
 

@@ -160,7 +160,12 @@ export function PenDesk({
   const lastMotion = useRef<string>();
   const activeAnimations = useRef<Animation[]>([]);
   useLayoutEffect(() => {
-    if (!motion || lastMotion.current === motion.sequence) return;
+    if (!motion || lastMotion.current === motion.sequence) {
+      // An effect replay/reconnect must never leave the input lock behind
+      // after its animation cleanup has already cancelled the shot.
+      onMoving(false);
+      return;
+    }
     lastMotion.current = motion.sequence;
     activeAnimations.current.forEach((animation) => animation.cancel());
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
