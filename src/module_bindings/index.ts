@@ -42,6 +42,7 @@ import CreatePenFightReducer from "./create_pen_fight_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import OnboardReducer from "./onboard_reducer";
+import OnboardWithEmailReducer from "./onboard_with_email_reducer";
 import PlayBallReducer from "./play_ball_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "./use_pen_fight_crowd_power_reducer";
@@ -63,6 +64,7 @@ import MatchParticipantRow from "./match_participant_table";
 import MatchSpectatorRow from "./match_spectator_table";
 import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
+import MyEmailContactRow from "./my_email_contact_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
 import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
@@ -474,6 +476,14 @@ const tablesSchema = __schema({
     },
     WorldPresenceRow,
   ),
+  myEmailContact: __table(
+    {
+      name: "my_email_contact",
+      indexes: [],
+      constraints: [],
+    },
+    MyEmailContactRow,
+  ),
   ownSpectatorCooldown: __table(
     {
       name: "own_spectator_cooldown",
@@ -510,6 +520,7 @@ const reducersSchema = __reducers(
   __reducerSchema("flick_pen", FlickPenReducer),
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("onboard", OnboardReducer),
+  __reducerSchema("onboard_with_email", OnboardWithEmailReducer),
   __reducerSchema("play_ball", PlayBallReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
   __reducerSchema("use_pen_fight_crowd_power", UsePenFightCrowdPowerReducer),

@@ -31,7 +31,11 @@ async function connect(name: string) {
         "SELECT * FROM live_event",
       ]),
   );
-  await c.reducers.onboard({ displayName: name });
+  // Local rule fixtures only: this does not send or claim delivery of email.
+  await c.reducers.onboardWithEmail({
+    displayName: name,
+    email: `${name.toLowerCase()}@example.com`,
+  });
   return c;
 }
 async function until(check: () => boolean, timeout = 12000) {
@@ -132,12 +136,18 @@ try {
   const desk = await rust.execute("mela_get_desk", { matchId: id });
   assert.ok(desk.events.some((e) => e.includes("CrowdNila's DESK TILT")));
   // Let the disconnected rust seat time out; server fallback must advance.
+  const timeoutEvents: string[] = [];
+  left.db.liveEvent.onInsert((_ctx, row) => {
+    if (row.matchId === match.id) timeoutEvents.push(row.message);
+  });
   right.disconnect();
   await until(
     () => left.db.penDeskState.matchId.find(match.id)?.turn !== "bot",
     38000,
   );
-  assert.match(left.db.agentDuel.matchId.find(match.id)!.notice, /timed out/);
+  // A resolved turn's notice correctly names the NEXT actor. Timeout evidence
+  // belongs to the transient feed, not a stale notice carried into that turn.
+  assert.ok(timeoutEvents.some((message) => message.includes("timed out")));
   console.log(
     JSON.stringify({
       pass: true,

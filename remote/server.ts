@@ -11,6 +11,7 @@ import {
 import { DbConnection } from "../src/module_bindings";
 import { AGENT_TOOLS, AgentBridge } from "../src/agentTools";
 import { createRecapHandler } from "./recap";
+import { createWelcomeHandler } from "./welcome";
 
 const sessions = new Map<
   string,
@@ -32,6 +33,11 @@ const recap = createRecapHandler({
   apiKey: process.env.RESEND_EMAIL_API_KEY || process.env.RESEND_API_KEY,
   from: process.env.MELA_EMAIL_FROM,
 });
+const welcome = createWelcomeHandler({
+  origin,
+  apiKey: process.env.RESEND_EMAIL_API_KEY || process.env.RESEND_API_KEY,
+  from: process.env.MELA_EMAIL_FROM,
+});
 const mime: Record<string, string> = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -44,6 +50,7 @@ createServer(async (req, res) => {
   try {
     const path = new URL(req.url || "/", origin).pathname;
     if (await recap(req, res, path)) return;
+    if (await welcome(req, res, path)) return;
     if (path !== "/mcp") {
       if (!["GET", "HEAD"].includes(req.method || "")) {
         res.writeHead(405).end();

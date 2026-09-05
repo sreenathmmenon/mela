@@ -3320,3 +3320,11 @@ button:disabled {
     font-size: 0.68rem;
   }
 }
+/* Welcome signup keeps the primary action a comfortable mobile tap target. */
+.join-card button {
+  min-height: 48px;
+}
+.join-card .recap-privacy {
+  font-size: 13px;
+  line-height: 1.5;
+}

@@ -42,7 +42,7 @@ Expected reducers include name onboarding, join/leave world, create/join Book Cr
 
 ## 5. Authentication, subscriptions, deployment
 
-Start with the smallest secure name-only onboarding compatible with SpacetimeDB identity. Treat identity as server-issued, validate all actions server-side, rate-limit/guard abuse where supported, and never persist secrets in the browser, repository, AGENTS.md, or STATUS.md.
+Sreenath approved name + real email onboarding for new people, with an immediate one-time welcome email and no password or verification wall. Existing profiles are grandfathered with unique private `@users.invalid` placeholders: never send to these, mark them unverified/legacy, and never count them as email signups or deliveries. Contact data belongs in private state, not public profiles. Email is not authentication, recovery or marketing consent. Treat SpacetimeDB identity as server-issued, validate all actions server-side, rate-limit/guard abuse where supported, and never persist secrets in the browser, repository, AGENTS.md, or STATUS.md.
 
 Use narrow subscriptions for a player’s current world/match plus relevant event feed; avoid global unbounded feeds. Plan for reconnect and idempotent-safe UI. The production target is SpacetimeDB Maincloud plus a separately deployed frontend; document actual database name, URLs, commands, and deployment results in STATUS.md. Do not claim a deployment that has not occurred.
 

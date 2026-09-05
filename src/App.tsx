@@ -13,7 +13,7 @@ import "./mela.css";
 import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
 import { EmailRecap } from "./EmailRecap";
-import { signOut } from "./identity";
+import { signOut, AUTH_TOKEN_KEY } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
 import { isMuted, playSound, toggleMuted } from "./sound";
 
@@ -141,6 +141,9 @@ function screenUrlFor(matchId: bigint) {
 
 function App() {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [joining, setJoining] = useState(false);
+  const joinBusy = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingStyle, setPendingStyle] = useState<string | null>(null);
@@ -499,7 +502,6 @@ function App() {
       revealed.swing),
   );
 
-  const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
   const createPenFight = useReducer(reducers.createPenFight);
   const createAgentDuel = useReducer(reducers.createAgentDuel);
@@ -566,7 +568,7 @@ function App() {
 
   const submitOnboarding = async (event: FormEvent) => {
     event.preventDefault();
-    if (!name.trim() || !connected) return;
+    if (!name.trim() || !connected || joinBusy.current) return;
     // The reducer is the real gate — it runs even if this is bypassed. This
     // check exists only to tell the player WHY a name was refused: SpacetimeDB
     // does not surface reducer error text, so a server rejection reaches the
@@ -577,27 +579,38 @@ function App() {
       return;
     }
     try {
-      await onboard({ displayName: name });
-      if (requestedJoinMatchId) {
-        const requestedMatch = matches.find(
-          (match) => match.id === requestedJoinMatchId,
+      joinBusy.current = true;
+      setJoining(true);
+      setError(null);
+      const result = await fetch("/api/welcome", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY) || ""}`,
+        },
+        body: JSON.stringify({ name, email, consent: true }),
+        signal: AbortSignal.timeout(25000),
+      });
+      const body = await result.json();
+      if (!result.ok || body.accepted !== true)
+        throw new Error(
+          body.error || "Could not send your welcome email. Please retry.",
         );
-        if (!requestedMatch || requestedMatch.status !== "active")
-          throw new Error(
-            "That match has ended. Start a fresh match or scan a live crowd QR.",
-          );
-        await joinSpectator({ matchId: requestedJoinMatchId });
-      }
+      setEmail("");
+      // The QR effect handles joining once the profile subscription arrives.
       setError(null);
       setFeedback(
         requestedJoinMatchId
           ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
-          : "You are in Mela. Start a match or join the live crowd.",
+          : "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game.",
       );
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to join Mela.",
       );
+    } finally {
+      joinBusy.current = false;
+      setJoining(false);
     }
   };
 
@@ -797,7 +810,7 @@ function App() {
           <p>
             {requestedJoinMatchId
               ? "You’ll join as part of the crowd — you get to change what happens on the next move."
-              : "No account, no password. Just a name."}
+              : "Your name on the desk. A welcome in your inbox. No password."}
           </p>
           <label htmlFor="name">Your display name</label>
           <div className="join-row">
@@ -806,14 +819,47 @@ function App() {
               placeholder="e.g. Maya"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              disabled={!connected}
+              disabled={!connected || joining}
               autoComplete="off"
               maxLength={24}
             />
-            <button disabled={!connected || name.trim().length < 2}>
-              {connected ? "Join Mela" : "Connecting…"}
+          </div>
+          <label htmlFor="join-email">Your email</label>
+          <div className="join-row">
+            <input
+              id="join-email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={!connected || joining}
+              aria-describedby="join-email-note"
+            />
+            <button
+              disabled={
+                !connected || joining || name.trim().length < 2 || !email.trim()
+              }
+            >
+              {joining
+                ? "Sending your welcome…"
+                : connected
+                  ? "Join Mela"
+                  : "Connecting…"}
             </button>
           </div>
+          <p id="join-email-note" className="recap-privacy">
+            By joining, you request one welcome email, delivered by Resend. Your
+            email stays private. No newsletter, password or email verification
+            step. Your history stays on this browser.
+          </p>
+          {error && (
+            <p className="feedback error" role="alert">
+              {error}
+            </p>
+          )}
           {!requestedJoinMatchId && (
             <ul className="how-mela-works">
               <li>
@@ -830,7 +876,7 @@ function App() {
           )}
         </form>
       )}
-      {error && (
+      {error && me && (
         <p className="feedback error" role="alert">
           {error}
         </p>

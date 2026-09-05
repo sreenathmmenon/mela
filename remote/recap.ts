@@ -52,7 +52,8 @@ export function parseRecap(body: unknown) {
     !/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
       email,
     ) ||
-    email.split("@")[0].length > 64
+    email.split("@")[0].length > 64 ||
+    /\.(invalid|test|localhost|example)$/i.test(email)
   )
     throw new RecapError(
       400,

@@ -49,6 +49,7 @@ import {
   spectatorJoinDelta,
 } from "./melaMetrics";
 import { checkDisplayName } from "./displayNameRules";
+import { realEmail, migrateLegacyContacts } from "./emailRules";
 import {
   PEN_FIGHT_POWERS,
   PEN_FIGHT_RULES,
@@ -75,6 +76,17 @@ const crowdSchedule = table(
 );
 
 const spacetimedb = schema({
+  emailContact: table(
+    { public: false },
+    {
+      identity: t.identity().primaryKey(),
+      email: t.string(),
+      source: t.string(),
+      verified: t.bool(),
+      createdAt: t.timestamp(),
+    },
+  ),
+  emailMigration: table({ public: false }, { id: t.u32().primaryKey() }),
   world: table(
     { public: true },
     {
@@ -1635,6 +1647,7 @@ export const init = spacetimedb.init((ctx: any) => {
   ensurePenMetrics(ctx);
 });
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
+  migrateLegacyContacts(ctx);
   ensureWorld(ctx);
   ensureMelaBot(ctx);
   // Module init is not replayed for every in-place Maincloud migration. This
@@ -1655,47 +1668,109 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx: any) => {
   if (ctx.connectionId)
     ctx.db.connectionSession.connectionId.delete(ctx.connectionId);
 });
+function onboardProfile(ctx: any, displayName: string) {
+  ensureWorld(ctx);
+  const name = displayName.trim();
+  // Validated server-side: the client can be bypassed by calling this
+  // reducer directly, and this name is about to render on a projector.
+  const check = checkDisplayName(name);
+  if (!check.ok)
+    throw new SenderError(check.message ?? "That name cannot be used.");
+  const old = ctx.db.playerProfile.identity.find(ctx.sender);
+  if (old)
+    ctx.db.playerProfile.identity.update({
+      ...old,
+      displayName: name,
+      lastSeenAt: ctx.timestamp,
+    });
+  else
+    ctx.db.playerProfile.insert({
+      identity: ctx.sender,
+      displayName: name,
+      createdAt: ctx.timestamp,
+      lastSeenAt: ctx.timestamp,
+      melaLevel: 1,
+      crowdInfluence: 0,
+    });
+  ensureMelaProfile(ctx, ctx.sender);
+  const presence = ctx.db.worldPresence.identity.find(ctx.sender);
+  if (presence)
+    ctx.db.worldPresence.identity.update({
+      ...presence,
+      state: "online",
+      lastSeenAt: ctx.timestamp,
+    });
+  else
+    ctx.db.worldPresence.insert({
+      identity: ctx.sender,
+      worldId: WORLD_ID,
+      state: "online",
+      joinedAt: ctx.timestamp,
+      lastSeenAt: ctx.timestamp,
+    });
+}
+
+// Legacy clients can rename an existing identity, but cannot create new
+// name-only registrations after the email-onboarding release.
 export const onboard = spacetimedb.reducer(
   { displayName: t.string() },
   (ctx: any, { displayName }: any) => {
-    ensureWorld(ctx);
-    const name = displayName.trim();
-    // Validated server-side: the client can be bypassed by calling this
-    // reducer directly, and this name is about to render on a projector.
-    const check = checkDisplayName(name);
-    if (!check.ok)
-      throw new SenderError(check.message ?? "That name cannot be used.");
-    const old = ctx.db.playerProfile.identity.find(ctx.sender);
-    if (old)
-      ctx.db.playerProfile.identity.update({
-        ...old,
-        displayName: name,
-        lastSeenAt: ctx.timestamp,
-      });
-    else
-      ctx.db.playerProfile.insert({
+    migrateLegacyContacts(ctx);
+    if (!ctx.db.playerProfile.identity.find(ctx.sender))
+      throw new SenderError("Refresh Mela and join with your name and email.");
+    onboardProfile(ctx, displayName);
+  },
+);
+
+export const myEmailContact = spacetimedb.view(
+  { public: true },
+  t.array(
+    t.row("OwnEmailContact", {
+      identity: t.identity().primaryKey(),
+      email: t.string(),
+      source: t.string(),
+      verified: t.bool(),
+    }),
+  ),
+  (ctx: any) => {
+    const row = ctx.db.emailContact.identity.find(ctx.sender);
+    return row
+      ? [
+          {
+            identity: row.identity,
+            email: row.email,
+            source: row.source,
+            verified: row.verified,
+          },
+        ]
+      : [];
+  },
+);
+
+export const onboardWithEmail = spacetimedb.reducer(
+  { displayName: t.string(), email: t.string() },
+  (ctx: any, { displayName, email }: any) => {
+    migrateLegacyContacts(ctx);
+    let address: string;
+    try {
+      address = realEmail(email);
+    } catch {
+      throw new SenderError("Enter a valid email address.");
+    }
+    const old = ctx.db.emailContact.identity.find(ctx.sender);
+    // Retry-safe; never silently replace an existing person's contact.
+    if (old && (old.source !== "user_supplied" || old.email !== address))
+      throw new SenderError(
+        "This identity is already registered. Rejoin your existing profile.",
+      );
+    onboardProfile(ctx, displayName);
+    if (!old)
+      ctx.db.emailContact.insert({
         identity: ctx.sender,
-        displayName: name,
+        email: address,
+        source: "user_supplied",
+        verified: false,
         createdAt: ctx.timestamp,
-        lastSeenAt: ctx.timestamp,
-        melaLevel: 1,
-        crowdInfluence: 0,
-      });
-    ensureMelaProfile(ctx, ctx.sender);
-    const presence = ctx.db.worldPresence.identity.find(ctx.sender);
-    if (presence)
-      ctx.db.worldPresence.identity.update({
-        ...presence,
-        state: "online",
-        lastSeenAt: ctx.timestamp,
-      });
-    else
-      ctx.db.worldPresence.insert({
-        identity: ctx.sender,
-        worldId: WORLD_ID,
-        state: "online",
-        joinedAt: ctx.timestamp,
-        lastSeenAt: ctx.timestamp,
       });
   },
 );

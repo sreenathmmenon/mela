@@ -14,6 +14,7 @@ import CreatePenFightReducer from "../create_pen_fight_reducer";
 import FlickPenReducer from "../flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
 import OnboardReducer from "../onboard_reducer";
+import OnboardWithEmailReducer from "../onboard_with_email_reducer";
 import PlayBallReducer from "../play_ball_reducer";
 import UseCrowdPowerReducer from "../use_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
@@ -28,6 +29,7 @@ export type JoinMatchAsSpectatorParams = __Infer<
   typeof JoinMatchAsSpectatorReducer
 >;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
+export type OnboardWithEmailParams = __Infer<typeof OnboardWithEmailReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;
 export type UsePenFightCrowdPowerParams = __Infer<

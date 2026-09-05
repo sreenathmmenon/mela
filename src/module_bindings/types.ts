@@ -110,6 +110,20 @@ export const DuelCrowdCredit = __t.object("DuelCrowdCredit", {
 });
 export type DuelCrowdCredit = __Infer<typeof DuelCrowdCredit>;
 
+export const EmailContact = __t.object("EmailContact", {
+  identity: __t.identity(),
+  email: __t.string(),
+  source: __t.string(),
+  verified: __t.bool(),
+  createdAt: __t.timestamp(),
+});
+export type EmailContact = __Infer<typeof EmailContact>;
+
+export const EmailMigration = __t.object("EmailMigration", {
+  id: __t.u32(),
+});
+export type EmailMigration = __Infer<typeof EmailMigration>;
+
 export const LiveEvent = __t.object("LiveEvent", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -233,6 +247,9 @@ export const MetricsIdentity = __t.object("MetricsIdentity", {
 });
 export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
+export const MyEmailContact = __t.object("MyEmailContact", {});
+export type MyEmailContact = __Infer<typeof MyEmailContact>;
+
 export const OwnCooldownProjection = __t.object("OwnCooldownProjection", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -241,6 +258,14 @@ export const OwnCooldownProjection = __t.object("OwnCooldownProjection", {
   readyAtMicros: __t.u64(),
 });
 export type OwnCooldownProjection = __Infer<typeof OwnCooldownProjection>;
+
+export const OwnEmailContact = __t.object("OwnEmailContact", {
+  identity: __t.identity(),
+  email: __t.string(),
+  source: __t.string(),
+  verified: __t.bool(),
+});
+export type OwnEmailContact = __Infer<typeof OwnEmailContact>;
 
 export const OwnSpectatorCooldown = __t.object("OwnSpectatorCooldown", {});
 export type OwnSpectatorCooldown = __Infer<typeof OwnSpectatorCooldown>;
