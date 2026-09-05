@@ -70,11 +70,18 @@ export function PenFight({ onBack }: { onBack: () => void }) {
       y: Math.round(((event.clientY - rect.top) / rect.height) * 1000),
     });
   };
-  if (!match || !state)
+  if (!match)
     return (
       <section className="pen-empty">
         <h2>Pen Fight is waiting for a live desk.</h2>
         <button onClick={onBack}>Back to Mela</button>
+      </section>
+    );
+  if (!state)
+    return (
+      <section className="pen-empty" aria-live="polite">
+        <h2>Setting the desk for this match…</h2>
+        <p>Your live Pen Fight state is arriving from Mela.</p>
       </section>
     );
   const actor = state.turn === "human" ? human : "MelaBot";
