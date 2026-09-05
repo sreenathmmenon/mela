@@ -1,0 +1,87 @@
+.email-recap {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #d8ccb3;
+  color: #261f14;
+  text-align: left;
+}
+.email-recap summary {
+  cursor: pointer;
+  min-height: 48px;
+  align-content: center;
+  font-weight: 700;
+}
+.email-recap summary span {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #625742;
+  margin-left: 6px;
+}
+.email-recap form > p {
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+.email-recap label {
+  display: block;
+  margin: 14px 0 8px;
+  font-weight: 700;
+}
+.recap-input-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.recap-input-row input {
+  min-width: 0;
+  flex: 1 1 220px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #625742;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #261f14;
+  padding: 12px;
+  font: inherit;
+  font-size: 16px;
+  min-height: 48px;
+}
+.recap-input-row button {
+  background: #087268;
+  color: white;
+  border: 1px solid #054e47;
+  border-radius: 8px;
+  min-height: 48px;
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.recap-input-row button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.email-recap .recap-privacy {
+  color: #625742;
+  font-size: 0.8rem;
+}
+.recap-feedback {
+  color: #943617;
+}
+.recap-feedback:empty {
+  display: none;
+}
+.recap-success {
+  padding: 16px;
+  background: #e7f1e8;
+  border-radius: 8px;
+  color: #064c46;
+}
+.email-recap :focus-visible {
+  outline: 3px solid #087268;
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .recap-input-row button {
+    width: 100%;
+  }
+}

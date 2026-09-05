@@ -8,6 +8,7 @@ import {
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AgentDuelPanel } from "./AgentDuel";
+import { EmailRecap } from "./EmailRecap";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
 import { isMuted, playSound, toggleMuted } from "./sound";
@@ -1127,6 +1128,9 @@ export function PenFight({
             <button className="primary wide" onClick={onBack}>
               Your turn? Find your own desk
             </button>
+          )}
+          {memory && (
+            <EmailRecap key={match.id.toString()} matchId={match.id} />
           )}
         </section>
       )}

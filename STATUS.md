@@ -1,6 +1,16 @@
 # MELA STATUS
 
-## Current pass — WebMCP Agent Duel
+## Current pass — optional match recap email
+
+- Handbook section 8 was read directly. Email communication, fast password-free entry and onboarding are qualifiers; the wording says failing qualifiers lowers the chance of reaching the demo, not an explicit automatic-failure rule. Optional one-time recap email is our implementation response, not a claim of organiser approval.
+- Added an optional result-screen email request to Book Cricket and Pen Fight (including agent duels and spectators). The join form still asks only for a display name. Added a read-only Book Cricket memory return view so emailed links open the saved result without joining a completed game.
+- Existing Railway transport verifies the caller's SpacetimeDB session, subscribes to the requested durable match memory, and sends escaped HTML/plain text through Resend. Browser-provided scores, summaries and URLs are rejected. No game schema/reducer changes, new backend service, accounts or newsletter list. Recipient addresses are not written to world state or app logs.
+- **83/83 tests pass** including email validation, escaping, provider failure, invalid sessions/origins, missing memory, concurrent/deduplicated sends and recipient rate limits. Frontend typecheck/production build, transport build, server typecheck, module build and formatting pass. Existing lazy Three.js chunk warning remains.
+- Browser verification: real local SpacetimeDB `mela-pen-feel-0906` memory 15 (Ira 10/0 versus MelaBot 0/2) and Pen Fight memory 12 (Asha 2–0 MelaBot). Used a local capture transport instead of sending test mail: correct saved summaries/links reached the capture, provider rejection showed an error and retry showed acceptance. Mobile 390×844 had no horizontal overflow; screenshot `output/playwright/email-recap-mobile.png`. Fresh-name join still had zero email inputs; automated name entry to game picker took 150ms after the page had connected (not a physical stranger usability measurement).
+- Both supplied Resend keys initially listed no domains. Sreenath then connected GoDaddy and added `sreenathmenon.com`; DKIM and mail-routing DNS records resolve. Domain verification was requested and is pending. Railway runtime key and `MELA_EMAIL_FROM=Mela <recap@sreenathmenon.com>` configured without displaying/committing secrets. The Railway hostname is not a sender domain we control.
+- Next task: finish domain verification, deploy this revision to Railway, send the authorised recap test to the inbox Sreenath selected, and record actual delivery evidence. Email qualifier is **not yet claimed complete**. See `docs/EMAIL_RECAP.md` for delivery, privacy and per-process rate-limit boundaries.
+
+## Previous pass — WebMCP Agent Duel
 
 - Sreenath approved host-opened Pen Fight Agent vs MelaBot, then two external agents, with visible intent, crowd interference, fallback, a remote MCP URL and a 20–30 second demonstration capture. Railway is the demo/submission origin.
 - Implemented shared `mela_get_desk`, `mela_claim_seat`, `mela_flick` definitions for native Chrome WebMCP and Streamable HTTP MCP at `/mcp`. The Railway runtime transports calls only; SpacetimeDB resolves all gameplay.

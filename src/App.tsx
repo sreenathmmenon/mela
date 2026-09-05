@@ -12,6 +12,7 @@ import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
 import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
+import { EmailRecap } from "./EmailRecap";
 import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
 import { isMuted, playSound, toggleMuted } from "./sound";
@@ -683,6 +684,57 @@ function App() {
 
   // Sharing a completed duel is read-only: strangers do not join an ended
   // match or receive participation credit just for opening its memory.
+  const sharedBookMemory =
+    !showHome &&
+    memories.find(
+      (row) =>
+        row.matchId === requestedMemoryId && row.gameKind === "book_cricket",
+    );
+  if (sharedBookMemory)
+    return (
+      <main className="mela-shell">
+        <header className="hero">
+          <p className="eyebrow">MELA · BOOK CRICKET</p>
+          <h1>A match worth remembering.</h1>
+        </header>
+        <section className="memory-hero" aria-label="Completed match memory">
+          <p className="eyebrow">NOW PART OF MELA</p>
+          <h2>
+            {sharedBookMemory.winner === "draw"
+              ? "A shared finish."
+              : `${sharedBookMemory.winner === "human" ? sharedBookMemory.humanName : sharedBookMemory.aiName} takes the story.`}
+          </h2>
+          <p className="memory-story">{sharedBookMemory.notableMoment}</p>
+          <div className="memory-facts">
+            <span>
+              {sharedBookMemory.humanName} {sharedBookMemory.humanScore}/
+              {sharedBookMemory.humanWickets}
+            </span>
+            <span>
+              {sharedBookMemory.aiName} {sharedBookMemory.botScore}/
+              {sharedBookMemory.botWickets}
+            </span>
+            <span>{sharedBookMemory.crowdActions} crowd moves</span>
+          </div>
+          <button
+            className="primary wide"
+            onClick={() => {
+              setRequestedMemoryId(null);
+              setShowHome(true);
+              const url = new URL(location.href);
+              url.searchParams.delete("memory");
+              window.history.replaceState(null, "", url.href);
+            }}
+          >
+            Your turn? Find your own game
+          </button>
+          <EmailRecap
+            key={sharedBookMemory.matchId.toString()}
+            matchId={sharedBookMemory.matchId}
+          />
+        </section>
+      </main>
+    );
   const sharedPenMemory =
     !showHome &&
     matches.find(
@@ -1227,6 +1279,10 @@ function App() {
               <button className="primary wide" onClick={() => createMatch()}>
                 Play again vs MelaBot
               </button>
+              <EmailRecap
+                key={displayedMatch.id.toString()}
+                matchId={displayedMatch.id}
+              />
             </section>
           )}
 

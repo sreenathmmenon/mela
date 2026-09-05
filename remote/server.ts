@@ -10,6 +10,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { DbConnection } from "../src/module_bindings";
 import { AGENT_TOOLS, AgentBridge } from "../src/agentTools";
+import { createRecapHandler } from "./recap";
 
 const sessions = new Map<
   string,
@@ -26,6 +27,11 @@ const origin =
   process.env.VITE_PUBLIC_APP_URL ||
   "https://mela-web-production.up.railway.app";
 const root = resolve("dist");
+const recap = createRecapHandler({
+  origin,
+  apiKey: process.env.RESEND_EMAIL_API_KEY || process.env.RESEND_API_KEY,
+  from: process.env.MELA_EMAIL_FROM,
+});
 const mime: Record<string, string> = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -37,6 +43,7 @@ const mime: Record<string, string> = {
 createServer(async (req, res) => {
   try {
     const path = new URL(req.url || "/", origin).pathname;
+    if (await recap(req, res, path)) return;
     if (path !== "/mcp") {
       if (!["GET", "HEAD"].includes(req.method || "")) {
         res.writeHead(405).end();
