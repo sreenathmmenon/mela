@@ -7,17 +7,29 @@
       name="description"
       content="Mela — play a quick game against MelaBot while the crowd changes what happens next."
     />
+    <meta name="theme-color" content="#0d0819" />
     <title>Mela · Play. Watch. Change the game.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap"
+      rel="stylesheet"
+    />
     <style>
       /* Painted before any JavaScript runs, so a cold load is never a black
          screen. #boot is removed by the app as soon as React mounts. */
       html,
       body {
         margin: 0;
-        background: #0d0a1a;
-        color: #f6f1ff;
+        background: #0d0819;
+        color: #f5eefe;
         font-family:
-          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
       }
       #boot {
         position: fixed;
@@ -25,58 +37,73 @@
         display: grid;
         place-content: center;
         justify-items: center;
-        gap: 18px;
+        gap: 20px;
         text-align: center;
         background:
           radial-gradient(
             60% 55% at 22% 12%,
-            rgba(126, 78, 214, 0.42),
+            rgba(126, 78, 214, 0.38),
             transparent 68%
           ),
-          #0d0a1a;
+          radial-gradient(
+            70% 45% at 80% 108%,
+            rgba(246, 183, 60, 0.14),
+            transparent 70%
+          ),
+          #0d0819;
       }
       #boot h1 {
         margin: 0;
-        font-size: clamp(2.6rem, 7vw, 4rem);
-        letter-spacing: -0.04em;
+        font-family:
+          "Bricolage Grotesque", "Avenir Next", "Trebuchet MS", system-ui,
+          sans-serif;
+        font-size: clamp(3rem, 9vw, 4.6rem);
         font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #f6b73c;
+        text-shadow: 0 0 42px rgba(246, 183, 60, 0.35);
       }
       #boot p {
         margin: 0;
-        max-width: 28ch;
-        color: #b9aed4;
+        max-width: 30ch;
+        color: #cfc6e6;
         font-size: 0.98rem;
         line-height: 1.5;
       }
+      /* Three festival lamps warming up. */
       #boot span {
-        display: block;
-        width: 132px;
-        height: 4px;
-        border-radius: 99px;
-        background: rgba(255, 255, 255, 0.14);
-        overflow: hidden;
+        display: flex;
+        gap: 10px;
       }
-      #boot span::after {
-        content: "";
-        display: block;
-        width: 40%;
-        height: 100%;
-        border-radius: 99px;
-        background: linear-gradient(90deg, #f6b73c, #e2653c);
-        animation: boot-slide 1.05s ease-in-out infinite;
+      #boot span i {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #f6b73c;
+        box-shadow: 0 0 12px rgba(246, 183, 60, 0.8);
+        animation: boot-lamp 1s ease-in-out infinite;
       }
-      @keyframes boot-slide {
-        0% {
-          transform: translateX(-100%);
-        }
+      #boot span i:nth-child(2) {
+        animation-delay: 0.16s;
+      }
+      #boot span i:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+      @keyframes boot-lamp {
+        0%,
         100% {
-          transform: translateX(330%);
+          opacity: 0.25;
+          transform: translateY(0);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(-5px);
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        #boot span::after {
+        #boot span i {
           animation: none;
-          width: 100%;
+          opacity: 0.7;
         }
       }
     </style>
@@ -86,7 +113,7 @@
     <div id="boot">
       <h1>Mela</h1>
       <p>Waking up the live world…</p>
-      <span></span>
+      <span aria-hidden="true"><i></i><i></i><i></i></span>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

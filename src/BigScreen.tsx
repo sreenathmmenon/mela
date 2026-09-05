@@ -8,6 +8,23 @@ function publicJoinUrl(matchId: bigint) {
   return `${base.replace(/\/$/, "")}/?join=${matchId.toString()}`;
 }
 
+/**
+ * A stable, position-derived tilt. Deterministic per position so every client
+ * shows the same pen orientation without the server storing a rotation.
+ */
+function spinFor(matchId: bigint, x: number, y: number, base: number) {
+  const mix = (Number(matchId % 7n) * 31 + x * 3 + y * 5) % 34;
+  return base + mix - 17;
+}
+
+/** Crowd moves get the gold treatment on the stage: they are the point. */
+function isCrowdLine(message: string) {
+  return (
+    message.includes("crowd") ||
+    /BOOST|CHAOS|SHIELD|CHEER|NUDGE|TILT|GUARD/.test(message)
+  );
+}
+
 function requestedMatchId() {
   const hashQuery = window.location.hash.split("?")[1] ?? "";
   const value =
@@ -125,7 +142,9 @@ export default function BigScreen() {
         <section className="screen-score">
           <div>
             <span>{humanName}</span>
-            <strong>{penState.humanRounds}</strong>
+            <strong key={`h-${penState.humanRounds}`}>
+              {penState.humanRounds}
+            </strong>
             <small>rounds won</small>
           </div>
           <div className="screen-versus">
@@ -135,7 +154,9 @@ export default function BigScreen() {
           </div>
           <div>
             <span>{aiName}</span>
-            <strong>{penState.botRounds}</strong>
+            <strong key={`b-${penState.botRounds}`}>
+              {penState.botRounds}
+            </strong>
             <small>rounds won</small>
           </div>
         </section>
@@ -158,24 +179,39 @@ export default function BigScreen() {
         </section>
         <section className="screen-pen-arena" aria-label="Live Pen Fight desk">
           <span className="screen-edge">EDGE</span>
-          <div
-            className="screen-pen-token human"
-            style={{
-              left: `${penState.humanX / 10}%`,
-              top: `${penState.humanY / 10}%`,
-            }}
-          >
-            {humanName.slice(0, 1)}
-          </div>
-          <div
-            className="screen-pen-token bot"
-            style={{
-              left: `${penState.botX / 10}%`,
-              top: `${penState.botY / 10}%`,
-            }}
-          >
-            M
-          </div>
+          {(() => {
+            const nearEdge = (v: number) => v < 130 || v > 870;
+            const humanTeeter =
+              nearEdge(penState.humanX) || nearEdge(penState.humanY);
+            const botTeeter =
+              nearEdge(penState.botX) || nearEdge(penState.botY);
+            return (
+              <>
+                <div
+                  className={`screen-pen-token human ${humanTeeter ? "teeter" : ""}`}
+                  style={{
+                    left: `${penState.humanX / 10}%`,
+                    top: `${penState.humanY / 10}%`,
+                    ["--pen-spin" as string]: `${spinFor(penState.matchId, penState.humanX, penState.humanY, -8)}deg`,
+                  }}
+                >
+                  <i className="pen-shadow" />
+                  <span>{humanName.slice(0, 1)}</span>
+                </div>
+                <div
+                  className={`screen-pen-token bot ${botTeeter ? "teeter" : ""}`}
+                  style={{
+                    left: `${penState.botX / 10}%`,
+                    top: `${penState.botY / 10}%`,
+                    ["--pen-spin" as string]: `${spinFor(penState.matchId, penState.botX, penState.botY, 11)}deg`,
+                  }}
+                >
+                  <i className="pen-shadow" />
+                  <span>M</span>
+                </div>
+              </>
+            );
+          })()}
         </section>
         <section className="screen-lower">
           <article className="screen-crowd">
@@ -192,7 +228,12 @@ export default function BigScreen() {
             <p className="eyebrow">LIVE DESK MOMENTS</p>
             <ul>
               {moments.map((event) => (
-                <li key={event.id.toString()}>{event.message}</li>
+                <li
+                  key={event.id.toString()}
+                  className={isCrowdLine(event.message) ? "crowd" : ""}
+                >
+                  {event.message}
+                </li>
               ))}
             </ul>
           </article>
@@ -231,7 +272,7 @@ export default function BigScreen() {
       <section className="screen-score" aria-label="Book Cricket shared score">
         <div>
           <span>{humanName}</span>
-          <strong>
+          <strong key={`h-${state.humanScore}-${state.humanWickets}`}>
             {state.humanScore}/{state.humanWickets}
           </strong>
           <small>
@@ -247,7 +288,7 @@ export default function BigScreen() {
         </div>
         <div>
           <span>{aiName}</span>
-          <strong>
+          <strong key={`b-${state.botScore}-${state.botWickets}`}>
             {state.botScore}/{state.botWickets}
           </strong>
           <small>
@@ -393,7 +434,12 @@ export default function BigScreen() {
           <ul>
             {moments.length ? (
               moments.map((event) => (
-                <li key={event.id.toString()}>{event.message}</li>
+                <li
+                  key={event.id.toString()}
+                  className={isCrowdLine(event.message) ? "crowd" : ""}
+                >
+                  {event.message}
+                </li>
               ))
             ) : (
               <li>Waiting for the next moment…</li>

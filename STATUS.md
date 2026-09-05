@@ -2,10 +2,57 @@
 
 ## Last updated
 
-- Date/time: 2026-09-05, Asia/Kolkata
-- Agent/provider: Claude (Opus 5)
+- Date/time: 2026-09-05 (evening), Asia/Kolkata
+- Agent/provider: ZCode (GLM-5.3)
 - Branch: `main`
-- Delivery state: Product excellence pass complete, published to Maincloud, deployed, and smoke-tested in production.
+- Delivery state: Design pass complete and verified locally (all roles, 1440px
+  and 390px). Not yet committed or deployed — the frontend-only changes are
+  safe to push against the currently published schema.
+
+## Design pass: the fairground identity
+
+A full UI/UX pass over the already-working product. No game rules, reducers,
+subscriptions, schema, routing, QR, memory or metrics behaviour changed — the
+diff is `src/mela.css` (rewritten as a token-based design system), presentational
+markup/motion in `src/App.tsx`, `src/PenFight.tsx`, `src/BigScreen.tsx`, the
+pre-render splash in `index.html`, and one webfont (Bricolage Grotesque via
+Google Fonts, with system fallbacks; no npm dependency added).
+
+- **Identity**: "the fairground at dusk" — deep indigo night lit by marigold
+  lamps; the games play on cream paper. Players read paper (Book Cricket is a
+  school scorebook with a red margin rule; Pen Fight is a notebook page on a
+  walnut desk); the crowd reads gold-on-night; the stage is night sky with a
+  glowing QR beacon.
+- **Tokens**: one `:root` system for colour (semantic: player/pitch-green,
+  AI/orchid, crowd/marigold, danger/chili, success/energy, memory/parchment),
+  type, spacing (4px scale), radii, elevation and motion easings. All existing
+  class names preserved.
+- **Typography**: Bricolage Grotesque display for headings, scores, buttons and
+  eyebrows; system stack for body; tabular numerals everywhere numbers change.
+- **Book Cricket**: scorebook page with ink numerals that pop on change, a
+  dashed "VS" stamp, choice cards as ticket stubs with the real OUT odds drawn
+  as risk meters, crowd intervention as a gold dashed ticket, the reveal as a
+  double-bordered banner (SIX/OUT emphasised, OUT shakes, crowd-attributed
+  swings render gold), ball-by-ball as ledger chips.
+- **Crowd**: gold-on-night panel, festival-lamp energy bar, power cards with
+  cost badges and dimmed blocked states; crowd-authored lines in the feed and
+  on stage are gold with a lamp dot.
+- **Pen Fight**: walnut desk frame with grain, hatched EDGE danger zone that
+  throbs when a pen is near the border, pens with barrel/nib/cap/clip/contact
+  shadow on both player and stage, desk shudder on CONTACT, gold flash when a
+  round is decided, teeter wobble for pens within 13% of an edge.
+- **Stage**: huge cream numerals, marigold "JOIN THE CROWD" QR beacon with a
+  soft glow pulse, gold latest-moment banner, large ball chips, pen rendered
+  as a pen at stage scale.
+- **Motion**: score pops, reveal pops, banner entrances, memory entrance,
+  impact/teeter/edge-throb, QR beacon — all covered by
+  `prefers-reduced-motion`.
+- **Mobile 390px**: single-column choices/powers, sticky Crowd Energy header,
+  portrait desk, memory stamp hidden where it would collide, 44px+ targets.
+
+Verification for this pass is recorded under "Validation evidence" as the
+design-pass rows. Screenshots (before and after) live in this session's
+browser evidence, not in the repo.
 
 ## Product excellence pass
 
@@ -110,6 +157,8 @@ as no longer describing the current build.
 | Check | Status | Evidence |
 | --- | --- | --- |
 | Deterministic suite | Pass | `pnpm test`: **34/34** (was 25). New coverage: expectimax proof that no Book Cricket style is optimal in every state; MelaBot required-rate chase; a pen can reach and knock out the opponent from the start; force carries overshoot risk near an edge; no legal opening flick can end a round; contact point steers the struck pen; degenerate aim cannot produce an invalid position; desk-margin tiebreak; crowd swings are attributed. |
+| Design pass checks | Pass | After the design pass: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build`, `pnpm run build:pages`, and `prettier --check` on every touched file. |
+| Design pass browser loop | Pass | Local module republished (`--delete-data`, dev database only) and driven with three real clients (player Sreenath, spectator Nila on a second origin, fresh stranger Arjun on a third): cold-load splash, onboarding, game picker, Book Cricket played to completion twice with suspense/reveal, crowd BOOST attributed before and after the ball (gold banner), pen desk with legal flick + contact + MelaBot response, stage for Book Cricket and Pen Fight, and 390x844 passes for player, spectator and Pen Fight. No functional regressions observed: reducers, subscriptions, QR join, stage route, memory and metrics all behaved as before. |
 | Module build | Pass | `pnpm run spacetime:build`. |
 | Frontend checks | Pass | `pnpm run typecheck`, `pnpm run build`, `pnpm run build:pages` (production host/database/origin). |
 | Book Cricket balance | Pass | Independent expectimax over the exact 100-roll joint distribution, cross-checked against a 200k-delivery LCG chain (avg 1.760 / 2.160 / 2.690; OUT 4.0% / 14.0% / 35.0%). Optimal policy: SAFE 4 states, BALANCED 2, AGGRESSIVE 6. Chase policy varies with required rate and wickets. |
@@ -148,6 +197,14 @@ rows as evidence for the current build.
 
 ## Known limitations
 
+- The design pass is verified locally only. Deploying it means pushing `main`
+  (GitHub Pages builds the frontend); no module publish is needed because the
+  schema and bindings are unchanged.
+- The display font loads from Google Fonts; offline, Mela falls back to the
+  system stack (Avenir Next/Trebuchet/system-ui), which is legible but less
+  distinctive. No font is bundled locally.
+- The "MELA" corner stamp on memory cards is CSS `::after` content, so it is
+  exposed to assistive tech as decorative text; it is hidden below 520px.
 - The published schema reset the world's prior demo data (approved). Any future
   column addition will hit the same constraint until the SDK supports column
   defaults.
@@ -170,12 +227,13 @@ rows as evidence for the current build.
 
 ## Next task
 
-Run a multi-device production session — a real phone scanning the QR into a live
-match — to confirm crowd attribution and concurrent matches with genuine
-separate devices rather than separate browser identities. After that, the
-highest-value remaining work is sound on the six moments that carry the games
-(Pen Fight: flick, contact, edge teeter, fall; Book Cricket: SIX, OUT) and a
-shared crowd-level goal so multiple spectators feel like one crowd.
+Deploy the design pass (push `main`; no module publish required), then run the
+planned multi-device production session — a real phone scanning the QR into a
+live match — to confirm crowd attribution and concurrent matches with genuine
+separate devices. After that, the highest-value remaining work is sound on the
+six moments that carry the games (Pen Fight: flick, contact, edge teeter, fall;
+Book Cricket: SIX, OUT) and a shared crowd-level goal so multiple spectators
+feel like one crowd.
 
 ## Handoff notes
 

@@ -43,21 +43,32 @@ const PLAY_CHOICES = [
     style: "safe",
     title: "SAFE",
     risk: "4% OUT · 0–3 runs",
+    pct: 4,
     copy: "Best when you are one wicket from the end.",
   },
   {
     style: "balanced",
     title: "BALANCED",
     risk: "14% OUT · fours on offer",
+    pct: 14,
     copy: "Steady scoring without betting the innings.",
   },
   {
     style: "aggressive",
     title: "AGGRESSIVE",
     risk: "35% OUT · sixes",
+    pct: 35,
     copy: "Worth it early, or when you need runs fast.",
   },
 ] as const;
+
+/** Crowd moves get the gold treatment in the ledger: they are the point. */
+function isCrowdLine(message: string) {
+  return (
+    message.includes("crowd") ||
+    /BOOST|CHAOS|SHIELD|CHEER|NUDGE|TILT|GUARD/.test(message)
+  );
+}
 
 /** Renders "4,1,W,6" as a readable run of ball chips. */
 function BallStrip({ label, timeline }: { label: string; timeline: string }) {
@@ -361,9 +372,9 @@ function App() {
   }, [ballsBowled, liveOutcome, liveSwing]);
   const bigMoment = Boolean(
     revealed &&
-      (revealed.outcome.includes("OUT") ||
-        revealed.outcome.startsWith("6") ||
-        revealed.swing),
+    (revealed.outcome.includes("OUT") ||
+      revealed.outcome.startsWith("6") ||
+      revealed.swing),
   );
 
   const onboard = useReducer(reducers.onboard);
@@ -649,7 +660,8 @@ function App() {
                         <em>
                           {watching === 0
                             ? "no one watching yet"
-                            : plural(watching, "person", "people") + " watching"}
+                            : plural(watching, "person", "people") +
+                              " watching"}
                         </em>
                       </span>
                       <button
@@ -692,9 +704,18 @@ function App() {
               <div>
                 <span className="team">{humanName}</span>
                 {/* During the suspense beat the committed score is withheld, so
-                    the reveal below is the moment the number lands. */}
-                <strong>
-                  {suspense ? "…" : `${matchState.humanScore}/${matchState.humanWickets}`}
+                    the reveal below is the moment the number lands. Keying the
+                    remount on the score replays the pop when it changes. */}
+                <strong
+                  key={
+                    suspense
+                      ? "hold"
+                      : `${matchState.humanScore}-${matchState.humanWickets}`
+                  }
+                >
+                  {suspense
+                    ? "…"
+                    : `${matchState.humanScore}/${matchState.humanWickets}`}
                 </strong>
                 <small>
                   Ball {matchState.humanBalls}/6 · {humanWicketsLeft} wickets
@@ -704,8 +725,16 @@ function App() {
               <div className="versus">VS</div>
               <div>
                 <span className="team">MelaBot</span>
-                <strong>
-                  {suspense ? "…" : `${matchState.botScore}/${matchState.botWickets}`}
+                <strong
+                  key={
+                    suspense
+                      ? "hold"
+                      : `${matchState.botScore}-${matchState.botWickets}`
+                  }
+                >
+                  {suspense
+                    ? "…"
+                    : `${matchState.botScore}/${matchState.botWickets}`}
                 </strong>
                 <small>
                   Ball {matchState.botBalls}/6 · {botWicketsLeft} wickets left
@@ -733,7 +762,7 @@ function App() {
               <div
                 className={`delivery-result reveal ${
                   revealed.outcome.includes("OUT") ? "out" : ""
-                } ${bigMoment ? "big" : ""}`}
+                } ${bigMoment ? "big" : ""} ${revealed.swing ? "crowd" : ""}`}
                 key={revealed.ball}
                 role="status"
               >
@@ -762,7 +791,10 @@ function App() {
                   timeline={matchState.humanTimeline}
                 />
                 {matchState.botTimeline && (
-                  <BallStrip label="MelaBot" timeline={matchState.botTimeline} />
+                  <BallStrip
+                    label="MelaBot"
+                    timeline={matchState.botTimeline}
+                  />
                 )}
               </div>
             )}
@@ -805,6 +837,10 @@ function App() {
                     >
                       <strong>{choice.title}</strong>
                       <span>{choice.risk}</span>
+                      {/* The real odds, drawn to scale. */}
+                      <i className="risk" aria-hidden="true">
+                        <b style={{ width: `${choice.pct}%` }} />
+                      </i>
                       <small>
                         {pendingStyle === choice.style
                           ? "Resolving your choice…"
@@ -941,8 +977,9 @@ function App() {
                 <div className="active-effects">
                   {matchEffects.map((effect) => (
                     <span key={effect.id.toString()}>
-                      <b>{effect.actorName}</b>&nbsp;· {effect.power.toUpperCase()}{" "}
-                      → {effect.target === "human" ? humanName : "MelaBot"}
+                      <b>{effect.actorName}</b>&nbsp;·{" "}
+                      {effect.power.toUpperCase()} →{" "}
+                      {effect.target === "human" ? humanName : "MelaBot"}
                     </span>
                   ))}
                 </div>
@@ -1044,7 +1081,12 @@ function App() {
                 .slice(-8)
                 .reverse()
                 .map((event) => (
-                  <li key={event.id.toString()}>{event.message}</li>
+                  <li
+                    key={event.id.toString()}
+                    className={isCrowdLine(event.message) ? "crowd" : ""}
+                  >
+                    {event.message}
+                  </li>
                 ))}
               {matchEvents.filter(
                 (event) => event.matchId === displayedMatch.id,

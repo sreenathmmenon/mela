@@ -1,4 +1,4 @@
-import { useState, type PointerEvent } from "react";
+import { useEffect, useState, type PointerEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
@@ -88,6 +88,35 @@ export function PenFight({
       y: Math.round(((event.clientY - rect.top) / rect.height) * 1000),
     });
   };
+  // Presentation only: the desk reacts to what the server already resolved —
+  // a shudder on contact, a gold flash when a round is decided.
+  const lastOutcome = state?.lastOutcome;
+  const [deskFx, setDeskFx] = useState({ impact: false, round: false });
+  useEffect(() => {
+    if (
+      !lastOutcome ||
+      lastOutcome === "START" ||
+      lastOutcome === "AIM YOUR FIRST FLICK"
+    )
+      return;
+    const round =
+      lastOutcome.includes("TAKES ROUND") || lastOutcome.includes("WINS");
+    setDeskFx({ impact: true, round });
+    const timer = window.setTimeout(
+      () => setDeskFx({ impact: false, round: false }),
+      round ? 850 : 480,
+    );
+    return () => window.clearTimeout(timer);
+  }, [lastOutcome]);
+  // A pen close to the border is one nudge from ending the round.
+  const nearEdge = (v: number) => v < 130 || v > 870;
+  const humanTeeter = Boolean(
+    state && (nearEdge(state.humanX) || nearEdge(state.humanY)),
+  );
+  const botTeeter = Boolean(
+    state && (nearEdge(state.botX) || nearEdge(state.botY)),
+  );
+  const edgeDanger = humanTeeter || botTeeter;
   if (!match)
     return (
       <section className="pen-empty">
@@ -132,7 +161,7 @@ export function PenFight({
           <strong>{state.botRounds}</strong> MelaBot
         </span>
       </section>
-      <section className="pen-arena-wrap">
+      <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
         <div className="pen-turn">
           <strong>
             {completed ? "DUEL REMEMBERED" : `${actor.toUpperCase()}’S TURN`}
@@ -146,7 +175,7 @@ export function PenFight({
           </span>
         </div>
         <div
-          className="pen-arena"
+          className={`pen-arena ${deskFx.impact ? "impact" : ""} ${edgeDanger ? "danger" : ""}`}
           onPointerDown={
             owns && state.turn === "human"
               ? (event) => {
@@ -164,7 +193,7 @@ export function PenFight({
           <i className="notebook-line l3" />
           <div className="danger-zone">EDGE</div>
           <div
-            className="pen-token human"
+            className={`pen-token human ${humanTeeter ? "teeter" : ""}`}
             style={{
               left: `${state.humanX / 10}%`,
               top: `${state.humanY / 10}%`,
@@ -175,7 +204,7 @@ export function PenFight({
             <span>{human.slice(0, 1).toUpperCase()}</span>
           </div>
           <div
-            className="pen-token bot"
+            className={`pen-token bot ${botTeeter ? "teeter" : ""}`}
             style={{
               left: `${state.botX / 10}%`,
               top: `${state.botY / 10}%`,
