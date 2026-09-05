@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
@@ -39,6 +40,17 @@ function secondsRemaining(readyAtMicros: bigint | undefined, now: number) {
   return Math.max(0, Math.ceil((Number(readyAtMicros / 1000n) - now) / 1000));
 }
 
+function matchIdFromJoinLink() {
+  const value = new URLSearchParams(window.location.search).get("join");
+  if (!value || !/^\d+$/.test(value)) return undefined;
+  return BigInt(value);
+}
+
+function joinUrlFor(matchId: bigint) {
+  const base = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
+  return `${base.replace(/\/$/, "")}/?join=${matchId.toString()}`;
+}
+
 function App() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +62,7 @@ function App() {
   const [matchEvents, setMatchEvents] = useState<
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
+  const requestedJoinMatchId = useMemo(matchIdFromJoinLink, []);
   const onMatchEvent = useCallback(
     (event: { id: bigint; matchId: bigint; message: string }) =>
       setMatchEvents((feed) =>
@@ -167,6 +180,8 @@ function App() {
     if (!name.trim() || !connected) return;
     try {
       await onboard({ displayName: name });
+      if (requestedJoinMatchId)
+        await joinSpectator({ matchId: requestedJoinMatchId });
       setError(null);
     } catch (reason) {
       setError(
@@ -215,8 +230,16 @@ function App() {
 
       {!me && (
         <form className="join-card" onSubmit={submitOnboarding}>
-          <p className="eyebrow">STEP 1 OF 1</p>
-          <h2>Enter the matchday crowd</h2>
+          <p className="eyebrow">
+            {requestedJoinMatchId
+              ? "YOU’VE BEEN INVITED TO THE CROWD"
+              : "STEP 1 OF 1"}
+          </p>
+          <h2>
+            {requestedJoinMatchId
+              ? "Name yourself and join live."
+              : "Enter the matchday crowd"}
+          </h2>
           <p>Pick a name to play, watch, and influence the live world.</p>
           <label htmlFor="name">Your display name</label>
           <div className="join-row">
@@ -323,6 +346,30 @@ function App() {
                     {melaBot?.persona ??
                       "Cool under pressure. Reckless when behind."}
                   </p>
+                </div>
+              </div>
+            )}
+            {ownsMatch && activeMatch && (
+              <div className="join-qr">
+                <QRCodeSVG
+                  value={joinUrlFor(activeMatch.id)}
+                  size={96}
+                  level="M"
+                  includeMargin
+                />
+                <div>
+                  <p className="eyebrow">BRING IN THE CROWD</p>
+                  <strong>Scan to join this match</strong>
+                  <span>
+                    Guests choose a name, then influence the same live world.
+                  </span>
+                  <a
+                    href={`/#/screen?match=${activeMatch.id.toString()}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open big screen
+                  </a>
                 </div>
               </div>
             )}

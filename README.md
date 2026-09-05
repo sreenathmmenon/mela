@@ -1,14 +1,10 @@
 # Mela
 
-Mela is Flux’s persistent, realtime shared gaming world: players play, spectators influence, AI participates, and the world remembers.
+Mela is Flux’s persistent realtime gaming world: players play, spectators influence, AI participates, and the world remembers.
 
-## Current state
+Book Cricket is the first complete vertical slice: one human bats first against MelaBot, the crowd uses shared energy to affect the match, and the result becomes durable Mela memory.
 
-Phase 1 foundation is running locally with the official SpacetimeDB React + TypeScript template. It currently contains only the template `person` example; Mela world and Book Cricket domain logic have not been implemented yet.
-
-Read [AGENTS.md](AGENTS.md), [STATUS.md](STATUS.md), [the architecture gate](docs/MELA_SpacetimeDB_Architecture_Gate.md), and [P0 game rules](docs/MELA_P0_Game_Rules.md) before changing architecture or product behavior.
-
-## Local development
+## Run locally
 
 Prerequisites: Node 22+, pnpm 10+, and SpacetimeDB CLI 2.10+.
 
@@ -22,14 +18,36 @@ pnpm run spacetime:generate
 pnpm dev --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:5173`. The local database name is recorded in `spacetime.local.json`; `.env.local` must use the same `VITE_SPACETIMEDB_DB_NAME`.
+Open `http://127.0.0.1:5173`. The player can start a match, show the in-game QR code, and open the shared stage at `/#/screen?match=<match-id>`.
 
-## Verification
+## QR and big screen
+
+The QR encodes a public, non-secret URL such as `/?join=<match-id>`. A guest scans it, chooses a display name, and is server-validated into the active match as a spectator. The big-screen route is read-only: it shows the shared score, turn, crowd energy, events, result, and QR join code; it has no player or spectator controls.
+
+For a deployed frontend, set these build-time values:
 
 ```bash
+VITE_SPACETIMEDB_HOST=https://maincloud.spacetimedb.com
+VITE_SPACETIMEDB_DB_NAME=<your-maincloud-database>
+VITE_PUBLIC_APP_URL=https://<your-frontend-origin>
+```
+
+The production client defaults to the Maincloud host when no host override is supplied. `VITE_PUBLIC_APP_URL` ensures QR codes point to the public HTTPS frontend rather than a local origin. The stage uses a hash route so it works on static hosting without a server-side rewrite.
+
+## Verify
+
+```bash
+pnpm test
 pnpm run spacetime:build
 pnpm run typecheck
 pnpm run build
 ```
 
-Do not use the template example as product architecture. Phase 2 replaces it with the approved Mela world foundation.
+To publish the authoritative module after `spacetime login`:
+
+```bash
+pnpm run spacetime:publish -- <database-name>
+pnpm run spacetime:generate
+```
+
+Read [AGENTS.md](AGENTS.md), [STATUS.md](STATUS.md), [the architecture gate](docs/MELA_SpacetimeDB_Architecture_Gate.md), and [the P0 game rules](docs/MELA_P0_Game_Rules.md) before changing the product.
