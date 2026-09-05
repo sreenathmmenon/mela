@@ -20,5 +20,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "vite.config.ts"]
+  // displayNameRules is pure logic with no server imports, and both the
+  // reducer and the client validate against it — the server as the real gate,
+  // the client only to show the player WHY a name was refused. Including it
+  // here keeps one source of truth instead of two drifting copies.
+  "include": [
+    "src",
+    "vite.config.ts",
+    "spacetimedb/src/displayNameRules.ts"
+  ]
 }

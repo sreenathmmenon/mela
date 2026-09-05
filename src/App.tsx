@@ -12,6 +12,7 @@ import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
 import { PenFight } from "./PenFight";
 import { signOut } from "./identity";
+import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
 import { isMuted, playSound, toggleMuted } from "./sound";
 
 const POWER_CARDS = [
@@ -558,6 +559,15 @@ function App() {
   const submitOnboarding = async (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim() || !connected) return;
+    // The reducer is the real gate — it runs even if this is bypassed. This
+    // check exists only to tell the player WHY a name was refused: SpacetimeDB
+    // does not surface reducer error text, so a server rejection reaches the
+    // client as "The instance encountered a fatal error".
+    const nameCheck = checkDisplayName(name);
+    if (!nameCheck.ok) {
+      setError(nameCheck.message ?? "That name cannot be used.");
+      return;
+    }
     try {
       await onboard({ displayName: name });
       if (requestedJoinMatchId) {
