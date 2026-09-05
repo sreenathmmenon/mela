@@ -75,6 +75,71 @@
   pointer-events: none;
   box-shadow: 0 3px 10px #36220e30;
 }
+.desk-shot-cue {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 20px;
+  background: #183e3cf0;
+  color: #fff7de;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 750;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px #20332a30;
+}
+.desk-shot-cue[data-phase="contact"] {
+  background: #7d4618f0;
+}
+.desk-shot-cue[data-phase="settle"] {
+  background: #823a24f0;
+}
+.flick-strength-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.pen-shell .flick-strength-label label {
+  display: block;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+.flick-strength-label output {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #096e6b;
+}
+.pen-shell input.flick-strength {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: #087e83;
+  cursor: pointer;
+}
+.flick-strength-help,
+.desk-keyboard-help {
+  font-size: 0.75rem;
+  color: #52625b;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+.desk-keyboard-help {
+  margin: 12px 0 0;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .desk-keyboard-help {
+    display: none;
+  }
+  .desk-shot-cue {
+    font-size: 0.72rem;
+    bottom: 12px;
+    padding: 8px 12px;
+  }
+}
 .pen-shell .flick-controls {
   max-width: 640px;
   margin: 8px auto;
@@ -96,6 +161,20 @@
 .pen-shell .pen-rivalry {
   font-size: 0.9rem;
   margin: 10px 0;
+  color: #087268;
+}
+.pen-shell .keyboard-flick button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 8px;
+}
+.pen-shell .keyboard-flick button.primary {
+  min-width: 56px;
+}
+@media (max-width: 360px) {
+  .pen-shell .keyboard-flick {
+    gap: 4px;
+  }
 }
 .pen-shell .pen-score {
   max-width: 640px;
@@ -111,14 +190,39 @@
   }
 }
 @media (max-width: 640px) {
+  .pen-shell .pen-top {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: "brand home sound" "title title title" "intro intro intro";
+    gap: 8px;
+  }
   .pen-shell .pen-top > div {
-    flex-basis: 100%;
+    display: contents;
+  }
+  .pen-shell .pen-top .eyebrow {
+    grid-area: brand;
+    font-size: 0.65rem;
+    margin: 0;
+  }
+  .pen-shell .pen-top h1 {
+    grid-area: title;
+    margin: 0;
+  }
+  .pen-shell .pen-top button:nth-of-type(1) {
+    grid-area: home;
+  }
+  .pen-shell .pen-top button:nth-of-type(2) {
+    grid-area: sound;
+  }
+  .pen-shell .pen-top p:not(.eyebrow) {
+    grid-area: intro;
+    margin: 0;
   }
   .pen-shell .pen-top p:not(.eyebrow) {
     font-size: 0.85rem;
   }
   .pen-shell .pen-top button {
-    min-height: 36px;
+    min-height: 48px;
     padding: 8px 12px;
     font-size: 0.8rem;
   }

@@ -4,10 +4,10 @@ import {
   deskToScreen,
   PEN_LENGTH,
   PEN_SCALE,
-  completedPenExited,
   screenToDesk,
 } from "./penDeskProjection";
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
+import { HUMAN_PEN_YAW } from "./penFightInput";
 
 export type DeskFrame = {
   pull?: DeskPoint | null;
@@ -214,6 +214,18 @@ export function createDeskScene(
     scene,
   );
   shaft.castShadow = false;
+  // The direction guide is an input overlay, not another desk object. A soft
+  // shot along the barrel must not hide its arrowhead underneath the pen.
+  for (const guide of [arrow.line, arrow.cone, shaft]) {
+    guide.renderOrder = 20;
+    const materials = Array.isArray(guide.material)
+      ? guide.material
+      : [guide.material];
+    for (const material of materials) {
+      material.depthTest = false;
+      material.depthWrite = false;
+    }
+  }
   const tether = mesh(
     new T.CylinderGeometry(2, 2, 1, 8),
     new T.MeshBasicMaterial({ color: "#fff8dd" }),
@@ -254,7 +266,7 @@ export function createDeskScene(
   observer.observe(host);
   function place(group: T.Group, point: DeskPoint, side: number, fall = 0) {
     group.position.set(point.x - 500, 21 - fall * fall * 250, point.y - 500);
-    group.rotation.set(fall * 2, side * 0.12 + fall * 2, fall * 1.4);
+    group.rotation.set(fall * 2, side * HUMAN_PEN_YAW + fall * 2, fall * 1.4);
     group.visible = fall < 0.97;
   }
   function draw(frame: DeskFrame, progress = 1) {
@@ -287,14 +299,19 @@ export function createDeskScene(
     }
     place(human.group, h, 1, hFall);
     place(bot.group, b, -1, bFall);
+    if (m?.hit && progress > 0.38 && progress < 1) {
+      // Brief surface recoil, not persistent orientation or collision physics.
+      const recoil = Math.sin(((progress - 0.38) / 0.62) * Math.PI) * 0.13;
+      const struck = m.actor === "human" ? bot.group : human.group;
+      struck.rotation.z += recoil;
+      struck.rotation.y += recoil * (m.actor === "human" ? 1 : -1);
+    }
     if (frame.completed && m && progress >= 1) {
       human.group.visible = !(m.actor === "human" ? m.actorOut : m.targetOut);
       bot.group.visible = !(m.actor === "melabot" ? m.actorOut : m.targetOut);
     }
-    if (frame.completed && !m) {
-      human.group.visible = !completedPenExited(frame.human);
-      bot.group.visible = !completedPenExited(frame.bot);
-    }
+    // Without live out flags, render recorded positions. A boundary centre may
+    // be a GUARD save, so coordinates alone cannot prove that this pen fell.
     human.body.color.set(
       frame.pen === "pen-gel"
         ? "#11a9aa"
@@ -347,26 +364,17 @@ export function createDeskScene(
       impact.position.set(m.contact.x - 500, 4, m.contact.y - 500);
       impact.scale.setScalar(1 + Math.max(0, progress - 0.38) * 9);
     }
-    const namePositions = [h, b].map((p) =>
-      deskToScreen(camera, { x: p.x, y: p.y + 260 }, 0),
-    );
-    if (
-      Math.abs(namePositions[0].x - namePositions[1].x) < 0.26 &&
-      Math.abs(namePositions[0].y - namePositions[1].y) < 0.15
-    ) {
-      namePositions[0] = deskToScreen(camera, { x: h.x, y: h.y - 280 }, 0);
-    }
-    namePositions.forEach((screen, i) => {
-      labels[i].style.left =
-        `${Math.max(0.13, Math.min(0.87, screen.x)) * 100}%`;
-      labels[i].style.top =
-        `${Math.max(0.05, Math.min(0.84, screen.y)) * 100}%`;
+    // Names belong in the clear upper margin, never over a pen or its aim line.
+    labels.forEach((label, i) => {
+      label.style.left = i ? "78%" : "22%";
+      label.style.top = "5%";
       labels[i].hidden =
         progress < 1 || !(i ? bot.group.visible : human.group.visible);
     });
     host.dataset.human = `${h.x.toFixed(1)},${h.y.toFixed(1)}`;
     host.dataset.bot = `${b.x.toFixed(1)},${b.y.toFixed(1)}`;
     host.dataset.animating = String(progress < 1);
+    host.dataset.aim = `${frame.aim.x},${frame.aim.y}`;
     renderer.render(scene, camera);
   }
   resize();

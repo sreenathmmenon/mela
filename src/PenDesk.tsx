@@ -3,6 +3,7 @@ import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
 import type { createDeskScene, DeskFrame } from "./penDeskScene";
 import { PenDeskFallback } from "./PenDeskFallback";
 import { playSound } from "./sound";
+import { shotCue } from "./penFightInput";
 
 export const SHOT_DURATION = 880;
 export type DeskInput = (clientX: number, clientY: number) => DeskPoint | null;
@@ -15,6 +16,7 @@ type Props = DeskFrame & {
 
 export function PenDesk(props: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const cue = useRef<HTMLSpanElement>(null);
   const humanLabel = useRef<HTMLSpanElement>(null),
     botLabel = useRef<HTMLSpanElement>(null);
   const scene = useRef<ReturnType<typeof createDeskScene>>();
@@ -77,6 +79,7 @@ export function PenDesk(props: Props) {
       !props.motion ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
+      if (cue.current) cue.current.hidden = true;
       props.onMoving(false);
       return;
     }
@@ -84,6 +87,15 @@ export function PenDesk(props: Props) {
     active.current = { motion, start: performance.now() };
     scene.current?.draw({ ...latest.current, motion }, 0);
     props.onMoving(true);
+    const updateCue = (progress: number) => {
+      if (!cue.current) return;
+      const text = shotCue(motion, progress, latest.current.humanName);
+      cue.current.hidden = !text;
+      if (cue.current.textContent !== text) cue.current.textContent = text;
+      cue.current.dataset.phase =
+        progress < 0.38 ? "launch" : progress < 0.75 ? "contact" : "settle";
+    };
+    updateCue(0);
     playSound("flick");
     let contact = false,
       fall = false;
@@ -94,6 +106,7 @@ export function PenDesk(props: Props) {
         (now - active.current.start) / SHOT_DURATION,
       );
       scene.current?.draw({ ...latest.current, motion }, progress);
+      updateCue(progress);
       if (progress >= 0.38 && !contact) {
         contact = true;
         if (motion.hit) playSound("contact");
@@ -115,12 +128,14 @@ export function PenDesk(props: Props) {
       cancelAnimationFrame(raf.current);
       active.current = undefined;
       scene.current?.draw(latest.current);
+      updateCue(1);
       latest.current.onMoving(false);
     }, SHOT_DURATION + 40);
     return () => {
       window.clearTimeout(settle);
       cancelAnimationFrame(raf.current);
       active.current = undefined;
+      updateCue(1);
       latest.current.onMoving(false);
     };
   }, [props.motion, props.onMoving, ready, failed]);
@@ -141,26 +156,35 @@ export function PenDesk(props: Props) {
       </>
     );
   return (
-    <div
-      className="three-desk"
-      ref={host}
-      data-renderer="three-webgl"
-      data-motion-sequence={props.motion?.sequence}
-      role="img"
-      aria-label={`3D Pen Fight desk. ${props.humanName}'s pen and MelaBot's pen.`}
-    >
-      {!ready && (
-        <span className="desk-render-notice">
-          Setting your pens on the desk…
+    <>
+      <div
+        className="three-desk"
+        ref={host}
+        data-renderer="three-webgl"
+        data-motion-sequence={props.motion?.sequence}
+        role="img"
+        aria-label={`3D Pen Fight desk. ${props.humanName}'s pen and MelaBot's pen.`}
+      >
+        {!ready && (
+          <span className="desk-render-notice">
+            Setting your pens on the desk…
+          </span>
+        )}
+        <span className="desk-name human-name" ref={humanLabel}>
+          {props.humanName}
+          <small>{props.interactive ? "YOUR FLICK" : "PLAYER"}</small>
         </span>
-      )}
-      <span className="desk-name human-name" ref={humanLabel}>
-        {props.humanName}
-        <small>{props.interactive ? "YOUR FLICK" : "PLAYER"}</small>
-      </span>
-      <span className="desk-name bot-name" ref={botLabel}>
-        MelaBot<small>THE CHALLENGER</small>
-      </span>
-    </div>
+        <span className="desk-name bot-name" ref={botLabel}>
+          MelaBot<small>THE CHALLENGER</small>
+        </span>
+      </div>
+      <span
+        className="desk-shot-cue"
+        ref={cue}
+        hidden
+        role="status"
+        aria-live="polite"
+      />
+    </>
   );
 }

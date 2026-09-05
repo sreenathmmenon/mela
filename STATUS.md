@@ -1,6 +1,35 @@
 # MELA STATUS
 
-## Current pass — actual 3D Pen Fight desk
+## Current pass — Pen Fight aiming and interaction playtest
+
+- 6 September 2026, baseline `7b65d90`. Sreenath asked for a careful game-design/UX continuation. This pass fixes concrete play problems in the existing 3D game rather than changing its world architecture or rules.
+- **Current-turn aiming:** the old default stayed at opening coordinate `(740,500)` after the pens moved. Each new authoritative human turn now points at MelaBot's current position; manual adjustments remain available. A new turn cancels a stale gesture.
+- **Accurate edge gestures:** ray/board intersection bounds the aim as one vector. Separately clipping X/Y used to distort diagonals near the edge. Invalid outward/zero-length gestures do not fall through to a different shot. Keyboard angle changes use the same helper.
+- **Whole-pen grabbing:** cap, barrel and tip share a generous input capsule matching the visible 3D pen. This is a gesture hit area only, not a change to authoritative game collisions.
+- **Strength and keyboard play:** labelled native strength slider, soft/firm/hard readout, explicit opening cap/risk explanation, arrow keys for aim/strength and Space/Enter to flick. Controls remain present but disabled through human/AI animation, avoiding layout jumps; repeated keydown cannot double-submit.
+- **Readable action:** input arrow draws over the pen instead of disappearing underneath it on soft barrel-aligned shots. Actor labels moved to the upper margin. On-desk cues progress through launch → contact/miss → exit/crowd save → settled, using only committed motion flags. Brief struck-pen recoil is presentation, not new physics. Live cue is outside the flattened image accessibility role.
+- **Mobile/accessibility:** compact header, darker readable rivalry text, labelled invitation QR, at least 48×48 action buttons, and a stable control panel. Name/pen/desk proportions from the actual 3D pass are preserved.
+- **History correction:** the prior boundary-coordinate hiding heuristic was too strong: GUARD can legitimately leave a pen at exactly 0/1000. Removed that inference and replaced its test with a guard regression. Only live committed out flags hide a pen; a reopened memory renders recorded positions and is not a replay. No history is fabricated.
+
+### Evidence for this pass
+
+- **71/71 tests passed.** Added edge/diagonal angle preservation across hundreds of positions/directions, invalid aim rejection, full-pen hit-area coverage, wrong-pen rejection and timed hit/miss/save cue tests. Existing Book Cricket, AI, crowd, history and motion tests remain passing.
+- Frontend typecheck, standard build, Pages production build, SpacetimeDB module build, changed-file formatting and whitespace checks passed. Existing lazy WebGL scene chunk-size warning remains (~133kB gzip).
+- Independent Asha/Nila clients, local `mela-pen-feel-0906`: match 11 completed **Asha 2–1 MelaBot**, matching in both clients. Both captured the same exact cue sequence for `1:2:1207168774` (human flick → contact → off edge) and `2:0:3578598518` (MelaBot flick → miss). Both then showed human `(260,500)`, bot `(192,601)`, and default aim `(192,601)`.
+- Match 12: grabbing the visible tip (rather than the centre) produced a 67% strength gesture and committed `1:0:3468182620`. Nila's NUDGE subsequently changed the human flick; both clients converged at `(260,500)` / `(198,577)` after automatic AI sequence `2:0:455780638`. Completed **Asha 2–0 MelaBot**, matching in both clients.
+- Real keyboard path: slider Home=20, End=100, desk ArrowDown=92; left/right aim then Space committed sequence `1:2:1207168774`.
+- Additional isolated Ira client, match 13: the control panel remained present at a constant measured height of **194.5625px** across human flick, AI turn and return; disabled during action, enabled afterward. Default aim then matched bot `(630,525)`.
+- Mobile 390×844 and 320×740 checked. At 320px: no horizontal overflow; four direction/strength buttons were 48×48, central flick 61×48. Screenshots: `output/playwright/pen-tip-grab.png`, `pen-game-feel-final-mobile.png` (ignored local artifacts).
+- Accessibility/Chrome DevTools skill checks caught rivalry contrast and missing QR text alternative; fixed both. Mobile Lighthouse accessibility improved **95 → 100**, best practices **100**. Reports parsed for failures. Remaining non-accessibility audit findings concern the local dev fallback for robots/llms files and navigation layout shift; this is not a claim of comprehensive WCAG or physical-device certification. Final audit JSON: `/var/folders/vr/ttsdq38s06l357twx77l57rm0000gn/T/chrome-devtools-mcp-Kvg2Lm/report.json`.
+- Book Cricket browser regression: local match 14, **Asha 13/1–MelaBot 15/0**, target 14, normal automatic three-ball chase and completed result. No Book Cricket code or server code changed.
+- Release is frontend-only through existing Pages workflow. No Maincloud module publication, migration, backend, new game or economy change.
+
+### Remaining limits and next task
+
+- The server still uses its existing simplified pen collision model; this pass fixes controls and presentation, not rigid-body simulation. Native phone touch/audio/GPU performance and independent human enjoyment remain unverified.
+- Next task: Sreenath plays the published version on a physical phone, particularly cap/tip grabbing, edge angles, soft shots and spectator timing. Use that observed feedback for the next tuning pass; do not claim world-best quality, attachment or retention from automated play.
+
+## Previous pass — actual 3D Pen Fight desk
 
 - 6 September 2026. Baseline `b85936d`. Sreenath rejected the previous small-pen/2.5D result and explicitly asked for a better actual game surface. This pass replaces the primary SVG scene with real Three.js/WebGL geometry, not another CSS perspective treatment.
 - Solid cylindrical pens, raised clips, ribbed grips, tapered metal tips, a thick wooden desk, perspective camera, directional lighting and cast/received shadows. Pen models are approximately 420 board units long; automated projection checks require over 80px visible length at a 364px phone canvas. All playable corners remain in view. Camera framing is fitted per viewport.

@@ -6,15 +6,8 @@ import {
   screenToDesk,
   PEN_LENGTH,
   PEN_SCALE,
-  completedPenExited,
 } from "../src/penDeskProjection";
 
-test("completed boundary centres stay off the desk without transient event replay", () => {
-  assert.equal(completedPenExited({ x: 0, y: 0 }), true);
-  assert.equal(completedPenExited({ x: 1000, y: 400 }), true);
-  assert.equal(completedPenExited({ x: 21, y: 229 }), false);
-  assert.equal(completedPenExited({ x: 500, y: 500 }), false);
-});
 test("perspective input round trips both pens and all board corners", () => {
   for (const aspect of [0.8, 1, 1.12, 1.7]) {
     const camera = deskCamera(aspect);

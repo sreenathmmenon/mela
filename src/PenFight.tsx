@@ -24,6 +24,7 @@ import {
 import "./pens.css";
 import "./penFightExperience.css";
 import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
+import { boundedAim, canGrabPen } from "./penFightInput";
 import {
   PEN_MOTION_PREFIX,
   readPenMotion,
@@ -218,6 +219,28 @@ export function PenFight({
       )?.displayName ?? "Player")
     : "Player";
   const completed = match?.status === "complete";
+  // Start each authoritative human turn from the opponent's CURRENT position,
+  // not the opening coordinate left over from the previous exchange.
+  useEffect(() => {
+    if (!state || state.turn !== "human" || completed) return;
+    setAim({ x: state.botX, y: state.botY });
+    setForce((f) =>
+      Math.min(f, state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE),
+    );
+    if (dragStart.current) setNote("The desk moved. Line up your next flick.");
+    setAiming(false);
+    setPullPoint(null);
+    dragStart.current = null;
+    shot.current = null;
+  }, [
+    state?.matchId,
+    state?.round,
+    state?.turnsInRound,
+    state?.turn,
+    state?.botX,
+    state?.botY,
+    completed,
+  ]);
   useEffect(() => {
     if (!completed) return;
     const timer = window.setTimeout(
@@ -256,14 +279,21 @@ export function PenFight({
     const dx = start.x - point.x;
     const dy = start.y - point.y;
     const len = Math.hypot(dx, dy);
-    if (len < 1) return;
+    if (len < 1) {
+      shot.current = null;
+      return;
+    }
     const ux = dx / len;
     const uy = dy / len;
     const drawn = Math.min(PULL_MAX, len);
-    const nextAim = {
-      x: Math.round(Math.max(0, Math.min(1000, state.humanX + ux * 600))),
-      y: Math.round(Math.max(0, Math.min(1000, state.humanY + uy * 600))),
-    };
+    const nextAim = boundedAim(
+      { x: state.humanX, y: state.humanY },
+      { x: ux, y: uy },
+    );
+    if (!nextAim) {
+      shot.current = null;
+      return;
+    }
     setAim(nextAim);
     const ceiling = state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE;
     const nextForce = Math.round(
@@ -346,16 +376,13 @@ export function PenFight({
   const nudgeAim = (dir: number) => {
     const dx = aim.x - state.humanX;
     const dy = aim.y - state.humanY;
-    const len = Math.max(1, Math.hypot(dx, dy));
     const a = Math.atan2(dy, dx) + dir * 0.14;
-    setAim({
-      x: Math.round(
-        Math.max(0, Math.min(1000, state.humanX + Math.cos(a) * len)),
-      ),
-      y: Math.round(
-        Math.max(0, Math.min(1000, state.humanY + Math.sin(a) * len)),
-      ),
-    });
+    const nextAim = boundedAim(
+      { x: state.humanX, y: state.humanY },
+      { x: Math.cos(a), y: Math.sin(a) },
+    );
+    if (nextAim) setAim(nextAim);
+    else setNote("Aim back across the desk from this edge.");
   };
   const commitFlick = async (gesture?: {
     x: number;
@@ -371,6 +398,15 @@ export function PenFight({
       state.turn !== "human"
     )
       return;
+    if (
+      Math.hypot(
+        (gesture?.x ?? aim.x) - state.humanX,
+        (gesture?.y ?? aim.y) - state.humanY,
+      ) < 1
+    ) {
+      setNote("Choose a direction across the desk first.");
+      return;
+    }
     busy.current = true;
     setPending(true);
     try {
@@ -553,6 +589,34 @@ export function PenFight({
               setPullPoint(null);
               dragStart.current = null;
               shot.current = null;
+            } else if (
+              owns &&
+              !completed &&
+              !moving &&
+              !pending &&
+              conn.isActive &&
+              state.turn === "human" &&
+              !aiming
+            ) {
+              if (
+                [
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "ArrowUp",
+                  "ArrowDown",
+                  " ",
+                  "Enter",
+                ].includes(event.key)
+              )
+                event.preventDefault();
+              if (event.key === "ArrowLeft") nudgeAim(-1);
+              if (event.key === "ArrowRight") nudgeAim(1);
+              if (event.key === "ArrowUp")
+                setForce((f) => Math.min(maxForceNow, f + 8));
+              if (event.key === "ArrowDown")
+                setForce((f) => Math.max(MIN_FORCE, f - 8));
+              if ((event.key === " " || event.key === "Enter") && !event.repeat)
+                void commitFlick();
             }
           }}
           onPointerDown={
@@ -573,9 +637,12 @@ export function PenFight({
                     x: ((event.clientX - bounds.left) / bounds.width) * 1000,
                     y: ((event.clientY - bounds.top) / bounds.height) * 1000,
                   };
-                  if (Math.hypot(x - state.humanX, y - state.humanY) > 110) {
+                  const grabbed = deskInput.current
+                    ? canGrabPen({ x, y }, { x: state.humanX, y: state.humanY })
+                    : Math.hypot(x - state.humanX, y - state.humanY) <= 110;
+                  if (!grabbed) {
                     setNote(
-                      "Start on your pen's ring. Pull back, then release.",
+                      "Grab your pen—not the other one. Pull back, then release.",
                     );
                     return;
                   }
@@ -608,11 +675,13 @@ export function PenFight({
               pull(event);
               setPullPoint(null);
               if (shot.current) void commitFlick(shot.current);
+              else setNote("Aim back across the desk from this edge.");
             } else
               setNote(
                 "Pull back and let go to flick. A tap won't spend your turn.",
               );
             dragStart.current = null;
+            shot.current = null;
           }}
           onPointerCancel={() => {
             setAiming(false);
@@ -678,30 +747,57 @@ export function PenFight({
                 : "Pull your pen back → release to flick"}
             </div>
           )}
-          {moving && (
-            <div className="desk-gesture-hint">
-              {motion?.guarded
-                ? "Crowd save!"
-                : motion?.actorOut || motion?.targetOut
-                  ? "Off the edge!"
-                  : "Watch the flick…"}
-            </div>
-          )}
         </div>
       </section>
-      {owns && !completed && state.turn === "human" && (
+      {owns && !completed && (
         <section className="flick-controls">
           <p className="eyebrow">
-            {aiming ? "RELEASE TO FLICK" : "AIM · SET YOUR POWER · FLICK"}
+            {moving
+              ? "LET THE PENS SETTLE"
+              : state.turn !== "human"
+                ? "MELABOT’S TURN · WATCH THE DESK"
+                : aiming
+                  ? "RELEASE TO FLICK"
+                  : "AIM · SET YOUR POWER · FLICK"}
           </p>
-          <div className="power-readout" aria-hidden="true">
-            <i style={{ width: `${powerPct}%` }} />
+          <div className="flick-strength-label">
+            <label htmlFor={`flick-strength-${match.id}`}>Flick strength</label>
+            <output htmlFor={`flick-strength-${match.id}`}>
+              {powerPct}% ·{" "}
+              {powerPct < 35 ? "Soft" : powerPct < 75 ? "Firm" : "Hard"}
+            </output>
           </div>
+          <input
+            id={`flick-strength-${match.id}`}
+            className="flick-strength"
+            type="range"
+            min={MIN_FORCE}
+            max={maxForceNow}
+            step={1}
+            value={cappedForce}
+            onChange={(event) => setForce(Number(event.target.value))}
+            disabled={
+              pending || moving || !conn.isActive || state.turn !== "human"
+            }
+            aria-valuetext={`${powerPct}% of ${isOpening ? "opening" : "full"} flick strength`}
+            aria-describedby={`flick-strength-help-${match.id}`}
+          />
+          <p
+            className="flick-strength-help"
+            id={`flick-strength-help-${match.id}`}
+          >
+            {isOpening
+              ? "Opening exchange: strength is limited for both pens."
+              : "More strength pushes further—and can carry your own pen off."}
+          </p>
           {/* Keyboard path: holding a pointer down is a motor-accessibility
               barrier, so aim and power are also reachable with arrows + space. */}
           <div className="keyboard-flick">
             <button
               onClick={() => nudgeAim(-1)}
+              disabled={
+                pending || moving || !conn.isActive || state.turn !== "human"
+              }
               aria-label="Aim left"
               title="Aim left"
             >
@@ -709,6 +805,9 @@ export function PenFight({
             </button>
             <button
               onClick={() => setForce((f) => Math.max(MIN_FORCE, f - 8))}
+              disabled={
+                pending || moving || !conn.isActive || state.turn !== "human"
+              }
               aria-label="Less power"
               title="Less power"
             >
@@ -716,13 +815,22 @@ export function PenFight({
             </button>
             <button
               className="primary"
-              disabled={pending || moving || !conn.isActive}
+              disabled={
+                pending || moving || !conn.isActive || state.turn !== "human"
+              }
               onClick={() => void commitFlick()}
             >
-              {pending ? "FLICKING…" : "FLICK"}
+              {pending
+                ? "SENDING…"
+                : moving || state.turn !== "human"
+                  ? "WAIT"
+                  : "FLICK"}
             </button>
             <button
               onClick={() => setForce((f) => Math.min(maxForceNow, f + 8))}
+              disabled={
+                pending || moving || !conn.isActive || state.turn !== "human"
+              }
               aria-label="More power"
               title="More power"
             >
@@ -730,12 +838,18 @@ export function PenFight({
             </button>
             <button
               onClick={() => nudgeAim(1)}
+              disabled={
+                pending || moving || !conn.isActive || state.turn !== "human"
+              }
               aria-label="Aim right"
               title="Aim right"
             >
               ▶
             </button>
           </div>
+          <p className="desk-keyboard-help">
+            On the desk: ← → aim · ↑ ↓ strength · Space flicks · Esc cancels
+          </p>
         </section>
       )}
       {owns && !completed && (
@@ -1001,7 +1115,15 @@ export function PenFight({
         </section>
       )}
       <section className="pen-join">
-        <QRCodeSVG value={url(match.id, completed)} size={92} />
+        <QRCodeSVG
+          value={url(match.id, completed)}
+          size={92}
+          aria-label={
+            completed
+              ? "QR code to revisit this duel"
+              : "QR code to join this match as a spectator"
+          }
+        />
         <div>
           <strong>
             {completed ? "THIS WAS OUR DESK" : "SAVE A CHAIR FOR A FRIEND"}

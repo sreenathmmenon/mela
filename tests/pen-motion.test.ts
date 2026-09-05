@@ -42,6 +42,18 @@ test("a miss has no fictional contact and the unstruck pen stays still", () => {
   assert.equal(miss.motion.targetY, base.targetY);
   assert.equal(miss.motion.contactX, miss.motion.actorX);
 });
+test("a saved boundary pen must not be hidden from coordinates alone", () => {
+  const out = resolvePenFlick({ ...base, force: 100 });
+  const saved = resolvePenFlick({
+    ...base,
+    force: 100,
+    effects: { ...base.effects, guard: true },
+  });
+  assert.equal(out.targetX, saved.targetX);
+  assert.equal(out.targetX, 1000);
+  assert.equal(out.targetOut, true);
+  assert.equal(saved.targetOut, false);
+});
 test("motion metadata is deterministic for human and mirrored AI actions", () => {
   for (let seed = 1n; seed <= 100n; seed++) {
     for (const reverse of [false, true]) {
