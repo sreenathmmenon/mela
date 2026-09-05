@@ -6,7 +6,7 @@
 - This pass implements the approved Pen Fight emotional-connection brief.
 - Book Cricket remains the stable baseline. No new game, account system, AI provider, backend, schema, or progression economy.
 - Server update published successfully in place to Maincloud `mela-cah23`; no data deletion or migration.
-- Frontend changes verified locally; this commit is the Pages release candidate. Push/deployment confirmation is reported in the delivery message rather than predicted here.
+- Implementation committed/pushed as `08e2723a3e9b1477e0d6d7dbbbbbaa44f3cf531b`, authored solely by Sreenath. GitHub Pages run `33988780671` completed successfully. The deployed JS/CSS fingerprints match the verified build.
 - Prior release narratives/evidence are preserved in Git at `11cd12a:STATUS.md`. Their test counts and older deployment claims are historical, not current evidence.
 
 ## What changed
@@ -53,6 +53,7 @@
 - Both browsers showed Asha 0–2 MelaBot, one crowd move, and a durable knockout memory. Database readback confirmed that exact result and crowd action. Nila's profile readback: one crowd action, three Crowd Influence.
 - Replay opened a fresh desk. Gel selection survived reload. The player and spectator mobile screenshots were visually inspected; no horizontal overflow at 390×844.
 - A fresh stranger opened `?memory=1` directly, with result and next-action controls and no account prompt.
+- Replay from an owner's shared memory URL also passed: a new desk rendered and the old `memory` parameter was cleared.
 - Book Cricket regression playthrough: OPEN THE BOOK, subsequent SAFE choices, automatic chase, durable result **Asha 17–20 MelaBot**. Existing Book Cricket deterministic tests all passed.
 - Local screenshots: `output/playwright/pen-player-memory.png`, `pen-crowd-memory.png`, `pen-mobile-player.png`; CLI snapshots/screenshots remain local and Git-ignored.
 - Existing local favicon 404 observed. Native audio quality and native OS share sheets are not validated by these browser checks.
@@ -74,6 +75,7 @@
 - Frontend: https://sreenathmenon.com/mela/
 - GitHub Pages deploys on main through `.github/workflows/deploy-pages.yml`.
 - Actual server release command: `spacetime publish --module-path spacetimedb --server maincloud mela-cah23 --yes`. Result: updated existing database successfully, empty migration plan.
+- Production browser smoke: fresh visitor opened `/mela/?memory=4`, connected to Maincloud, and saw the existing RailwayCheck 2–0 MelaBot memory with share and next-action controls, without onboarding. No production match was created or played during this smoke check. Screenshot: `output/playwright/pen-production-memory.png`.
 - Commits must be Sreenath <sreenathmmmenon@gmail.com>, without co-author attribution.
 
 ## Known limits and next task
