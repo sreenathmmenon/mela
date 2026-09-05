@@ -5,7 +5,7 @@
 - Date/time: 2026-09-05, Asia/Kolkata
 - Agent/provider: Claude (Opus 5)
 - Branch: `main`
-- Delivery state: Product excellence pass complete and verified locally. **A production publish is pending an explicit human decision because it requires a data-destroying migration — see "Deployment decision required".**
+- Delivery state: Product excellence pass complete, published to Maincloud, deployed, and smoke-tested in production.
 
 ## Product excellence pass
 
@@ -74,26 +74,22 @@ crowd whether to spend now or hold.
 - Memories are state-derived and name people rather than using filler.
 - Mobile: sticky Crowd Energy, single-column powers, 44px+ touch targets.
 
-## Deployment decision required
+## Deployment
 
-`spacetime publish` to Maincloud **aborts**: adding `humanTimeline`,
-`botTimeline`, `lastCrowdSwing` and `hasActed`, plus a table reordering,
-requires a manual migration. The SpacetimeDB 2.10 TypeScript SDK exposes no
-column default annotation, so the only available path is `--delete-data`.
+Adding `humanTimeline`, `botTimeline`, `lastCrowdSwing` and `hasActed` plus a
+table reordering is a breaking schema change, and the SpacetimeDB 2.10
+TypeScript SDK exposes no column default annotation — so the publish required
+`--delete-data`. The world held 5 profiles, 2 memories and 2 matches, all demo
+data from prior QA runs with no real users; Sreenath approved the reset.
 
-Production currently holds **5 player profiles, 2 match memories, 2 matches** —
-all demo/QA data from the runs recorded below, no real users. Resetting is
-therefore low-cost, but it is destructive and outward-facing, so it needs an
-explicit human go-ahead. The upgrade path was verified end to end on a local
-database seeded with the previous schema.
+Published to Maincloud on 2026-09-05. Database identity
+`c200fad7d7acce35e4289bd2d998b2eedfd145f765f58cb2c86534d67d844d3a`; dashboard
+`https://spacetimedb.com/mela-cah23`. Frontend deployed by GitHub Pages runs
+`33970151428` and `33971062100`.
 
-To deploy:
-
-```bash
-spacetime publish --module-path spacetimedb --server maincloud mela-cah23 --delete-data
-pnpm run spacetime:generate
-git push            # GitHub Pages workflow rebuilds the frontend
-```
+Note for future schema changes: publishing the module and pushing the frontend
+must happen in that order, or the live site briefly runs against a schema it
+does not have.
 
 ## Authoritative schema and reducers
 
@@ -128,7 +124,8 @@ as no longer describing the current build.
 | Big screen | Pass | 1440x900: score/subtext collision fixed; crowd attribution and ball-by-ball strip render; QR and turn state readable from a distance. |
 | Mobile spectator | Pass | 390px viewport: score, situation, crowd attribution and ball strip all readable with no horizontal scroll; Crowd Energy sticks to the top of the crowd panel. |
 | Schema migration | **Blocked** | In-place publish aborts (new columns need default annotations; table reordering needs manual migration). Verified end to end on a local database seeded with the previous schema: `--delete-data` migrates cleanly. Production publish deliberately not performed — see "Deployment decision required". |
-| Production smoke test | **Not run** | Cannot run until the module is published. The frontend production bundle builds correctly with Maincloud host/database and the `/mela/` base path. |
+| Production smoke test | Pass | `https://sreenathmenon.com/mela/` on a cleared browser: splash → landing → onboarding → game picker. Book Cricket played to completion — went OUT on ball 1 to AGGRESSIVE (the 35% risk is real), then SAFE through to **Riya 12/1 vs MelaBot 14/1, decided by 2 runs**, with MelaBot losing a wicket mid-chase. Both ball-by-ball strips, the required-rate pressure line and the state-derived memory rendered. Pen Fight: reached and struck MelaBot's pen at force 64 — contact was impossible in the previous build. Stage route, "Mela home" and reconnect all verified live. |
+| Stage route regression | Fixed | The stage is a hash route; navigating to it from inside the app only changed the hash, and the route was read once at module load, so it rendered the player view instead. Caught during the production smoke test, made reactive to `hashchange`/`popstate`, and the in-app link now resolves against `BASE_URL` rather than the domain root. Re-verified live. |
 
 ### Prior release evidence (previous build — does not describe the current code)
 
@@ -151,9 +148,9 @@ rows as evidence for the current build.
 
 ## Known limitations
 
-- **The production module has not been updated.** Publishing needs
-  `--delete-data`, which resets the world's 5 demo profiles and 2 memories. That
-  is a destructive, outward-facing action and is left to a human decision.
+- The published schema reset the world's prior demo data (approved). Any future
+  column addition will hit the same constraint until the SDK supports column
+  defaults.
 - Batting first is structurally disadvantaged in Book Cricket: the chaser knows
   the exact target. With optimal play the human wins ~41% and MelaBot ~54% (4%
   draws). Tuning the bot's chase bands barely moves this; closing it fully would
@@ -173,11 +170,12 @@ rows as evidence for the current build.
 
 ## Next task
 
-Decide whether to publish the module to Maincloud with `--delete-data` (see
-"Deployment decision required"). Once published, regenerate bindings, push to
-deploy the frontend, and run a production smoke test covering: fresh-visitor
-onboarding, both games, QR crowd join, crowd attribution, big screen, reconnect,
-and `?operator=metrics`.
+Run a multi-device production session — a real phone scanning the QR into a live
+match — to confirm crowd attribution and concurrent matches with genuine
+separate devices rather than separate browser identities. After that, the
+highest-value remaining work is sound on the six moments that carry the games
+(Pen Fight: flick, contact, edge teeter, fall; Book Cricket: SIX, OUT) and a
+shared crowd-level goal so multiple spectators feel like one crowd.
 
 ## Handoff notes
 
