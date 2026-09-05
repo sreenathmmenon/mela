@@ -156,6 +156,27 @@ export default function BigScreen() {
           </h2>
           <p>{penState.lastOutcome}</p>
         </section>
+        <section className="screen-pen-arena" aria-label="Live Pen Fight desk">
+          <span className="screen-edge">EDGE</span>
+          <div
+            className="screen-pen-token human"
+            style={{
+              left: `${penState.humanX / 10}%`,
+              top: `${penState.humanY / 10}%`,
+            }}
+          >
+            {humanName.slice(0, 1)}
+          </div>
+          <div
+            className="screen-pen-token bot"
+            style={{
+              left: `${penState.botX / 10}%`,
+              top: `${penState.botY / 10}%`,
+            }}
+          >
+            M
+          </div>
+        </section>
         <section className="screen-lower">
           <article className="screen-crowd">
             <p className="eyebrow">SHARED CROWD ENERGY</p>

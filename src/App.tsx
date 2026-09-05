@@ -151,10 +151,12 @@ function App() {
       : undefined;
   }, [records, conn.identity]);
   const activeMatch = matches.find((match) => match.status === "active");
-  const bookMatches = matches.filter(
-    (match) => match.gameKind === "book_cricket",
-  );
-  const displayedMatch = activeMatch ?? bookMatches[bookMatches.length - 1];
+  const displayedMatch =
+    activeMatch ??
+    matches.reduce<(typeof matches)[number] | undefined>(
+      (latest, match) => (!latest || match.id > latest.id ? match : latest),
+      undefined,
+    );
   const matchState = displayedMatch
     ? states.find((state) => state.matchId === displayedMatch.id)
     : undefined;

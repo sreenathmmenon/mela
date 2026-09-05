@@ -16,6 +16,7 @@ import {
   DeterministicAIProvider,
   shouldExecuteScheduledAIWake,
 } from "./aiProvider";
+import { DeterministicPenFightAIProvider } from "./penFightAiProvider";
 import {
   crowdInfluenceForPower,
   nextBookCricketRecord,
@@ -912,6 +913,19 @@ function finishPenMatch(
     matchesWon: profile.matchesWon + (win ? 1 : 0),
     updatedAt: ctx.timestamp,
   });
+  for (const spectator of ctx.db.matchSpectator.iter()) {
+    if (spectator.matchId !== match.id) continue;
+    const spectatorProfile = ensureMelaProfile(ctx, spectator.identity);
+    const spectatorUpdate = spectatorProgressAfterMatch(
+      spectatorProfile.progressPoints,
+    );
+    ctx.db.melaProfile.identity.update({
+      ...spectatorProfile,
+      ...spectatorUpdate,
+      matchesWatched: spectatorProfile.matchesWatched + 1,
+      updatedAt: ctx.timestamp,
+    });
+  }
   const record = ctx.db.penFightRecord.identity.find(match.playerIdentity);
   const nextRecord = {
     matchesPlayed: (record?.matchesPlayed ?? 0) + 1,
@@ -937,6 +951,12 @@ function finishPenMatch(
     roundsCompleted: state.humanRounds + state.botRounds,
     knockouts: knockout ? 1 : 0,
   });
+  applyMetricDelta(ctx, completedMatchDelta());
+  const humanMetrics = metricsIdentityFor(ctx, match.playerIdentity);
+  ctx.db.metricsIdentity.identity.update({
+    ...humanMetrics,
+    completedPlayerMatches: humanMetrics.completedPlayerMatches + 1,
+  });
   emit(
     ctx,
     match.id,
@@ -956,7 +976,8 @@ function resolvePenFlick(
   const human = side === "human";
   const actor = human ? "human" : "melabot";
   const target = human ? "melabot" : "human";
-  const effects = penEffectsFor(ctx, match.id, actor);
+  const actorEffects = penEffectsFor(ctx, match.id, actor);
+  const targetEffects = penEffectsFor(ctx, match.id, target);
   const resolution = resolvePenFightPhysics({
     seed: state.seed,
     actorX: human ? state.humanX : state.botX,
@@ -967,11 +988,30 @@ function resolvePenFlick(
     aimY,
     force,
     contact,
-    effects: effects.state,
+    // Guard belongs to the selected pen, so resolve it below against the
+    // correct side rather than treating it as a global invulnerability flag.
+    effects: { ...actorEffects.state, guard: false },
   });
-  for (const effect of effects.rows) ctx.db.crowdEffect.id.delete(effect.id);
-  const actorOut = resolution.actorOut;
-  const targetOut = resolution.targetOut;
+  for (const effect of actorEffects.rows)
+    if (effect.power !== "guard") ctx.db.crowdEffect.id.delete(effect.id);
+  let actorOut = resolution.actorOut;
+  let targetOut = resolution.targetOut;
+  const actorGuard = actorEffects.rows.find(
+    (effect) => effect.power === "guard",
+  );
+  const targetGuard = targetEffects.rows.find(
+    (effect) => effect.power === "guard",
+  );
+  if (actorOut && actorGuard) {
+    actorOut = false;
+    ctx.db.crowdEffect.id.delete(actorGuard.id);
+    emit(ctx, match.id, `GUARD kept ${actor} on the desk.`);
+  }
+  if (targetOut && targetGuard) {
+    targetOut = false;
+    ctx.db.crowdEffect.id.delete(targetGuard.id);
+    emit(ctx, match.id, `GUARD kept ${target} on the desk.`);
+  }
   let next: any = {
     ...state,
     seed: resolution.seed,
@@ -1055,6 +1095,7 @@ export const init = spacetimedb.init((ctx: any) => {
   ensureWorld(ctx);
   ensureMelaBot(ctx);
   ensureMetrics(ctx);
+  ensurePenMetrics(ctx);
 });
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   ensureWorld(ctx);
@@ -1063,6 +1104,7 @@ export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   // makes the first post-migration connection seed a truthful snapshot from
   // the persisted match tables, then normal reducers maintain it incrementally.
   ensureMetrics(ctx);
+  ensurePenMetrics(ctx);
   if (ctx.db.playerProfile.identity.find(ctx.sender))
     ensureMelaProfile(ctx, ctx.sender);
   if (ctx.connectionId)
@@ -1219,6 +1261,9 @@ export const createPenFight = spacetimedb.reducer((ctx: any) => {
     ...metricIdentity,
     hasPlayed: 1,
   });
+  const globalMetrics = metricsIdentityFor(ctx, ctx.sender);
+  applyMetricDelta(ctx, playerMatchStartDelta(globalMetrics));
+  ctx.db.metricsIdentity.identity.update({ ...globalMetrics, hasPlayed: 1 });
   const matchId = nextMatchId(ctx);
   ctx.db.match.insert({
     id: matchId,
@@ -1370,6 +1415,14 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
         lastPower: power,
       });
     updatePenMetrics(ctx, { crowdActions: 1 });
+    applyMetricDelta(ctx, crowdActionDelta());
+    const influence = power === "tilt" ? 3 : power === "cheer" ? 1 : 2;
+    const melaProfile = ensureMelaProfile(ctx, ctx.sender);
+    ctx.db.melaProfile.identity.update({
+      ...melaProfile,
+      crowdInfluence: melaProfile.crowdInfluence + influence,
+      updatedAt: ctx.timestamp,
+    });
     if (power === "cheer") {
       emit(
         ctx,
@@ -1581,34 +1634,19 @@ export const processCrowdSchedule = spacetimedb.reducer(
           state.turnsInRound !== Number(arg.effectId)
         )
           return;
-        const dx = state.humanX - state.botX;
-        const dy = state.humanY - state.botY;
-        const edge =
-          Math.min(
-            state.humanX,
-            state.humanY,
-            1000 - state.humanX,
-            1000 - state.humanY,
-          ) < 150;
-        const force = edge ? 92 : Math.hypot(dx, dy) < 210 ? 78 : 58;
-        const aimX = Math.max(0, Math.min(1000, state.humanX + dx * 0.18));
-        const aimY = Math.max(0, Math.min(1000, state.humanY + dy * 0.18));
-        emit(
-          ctx,
-          arg.matchId,
-          edge
-            ? "MelaBot goes for the edge shot."
-            : "MelaBot lines up a measured flick.",
+        const proposal = new DeterministicPenFightAIProvider().decideAction(
+          state,
         );
+        emit(ctx, arg.matchId, proposal.rationale);
         resolvePenFlick(
           ctx,
           match,
           state,
           "melabot",
-          Math.round(aimX),
-          Math.round(aimY),
-          force,
-          50,
+          proposal.aimX,
+          proposal.aimY,
+          proposal.force,
+          proposal.contact,
         );
         return;
       }

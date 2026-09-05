@@ -22,11 +22,14 @@ export function PenFight({ onBack }: { onBack: () => void }) {
   const [spectators] = useTable(tables.matchSpectator);
   const [effects] = useTable(tables.crowdEffect);
   const [profiles] = useTable(tables.playerProfile);
+  const [memories] = useTable(tables.matchMemory);
+  const [records] = useTable(tables.penFightRecord);
   const [aim, setAim] = useState({ x: 740, y: 500 });
   const [force, setForce] = useState(60);
   const [contact, setContact] = useState(50);
   const [target, setTarget] = useState<"human" | "melabot">("human");
   const [note, setNote] = useState("");
+  const [aiming, setAiming] = useState(false);
   const match =
     matches.find(
       (row) => row.status === "active" && row.gameKind === "pen_fight",
@@ -53,6 +56,7 @@ export function PenFight({ onBack }: { onBack: () => void }) {
   const flick = useReducer(reducers.flickPen);
   const join = useReducer(reducers.joinMatchAsSpectator);
   const power = useReducer(reducers.usePenFightCrowdPower);
+  const rematch = useReducer(reducers.createPenFight);
   const human = match
     ? (participants.find(
         (row) => row.matchId === match.id && row.actorKind === "human",
@@ -74,6 +78,10 @@ export function PenFight({ onBack }: { onBack: () => void }) {
       </section>
     );
   const actor = state.turn === "human" ? human : "MelaBot";
+  const memory = memories.find((row) => row.matchId === match.id);
+  const record = identity
+    ? records.find((row) => row.identity.isEqual(identity))
+    : undefined;
   return (
     <main className="pen-shell">
       <header className="pen-top">
@@ -110,7 +118,17 @@ export function PenFight({ onBack }: { onBack: () => void }) {
         </div>
         <div
           className="pen-arena"
-          onPointerDown={owns && state.turn === "human" ? place : undefined}
+          onPointerDown={
+            owns && state.turn === "human"
+              ? (event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setAiming(true);
+                  place(event);
+                }
+              : undefined
+          }
+          onPointerMove={aiming ? place : undefined}
+          onPointerUp={() => setAiming(false)}
         >
           <i className="notebook-line l1" />
           <i className="notebook-line l2" />
@@ -153,7 +171,7 @@ export function PenFight({ onBack }: { onBack: () => void }) {
       {owns && !completed && state.turn === "human" && (
         <section className="flick-controls">
           <p className="eyebrow">
-            1 AIM ON THE DESK · 2 SET YOUR FLICK · 3 RELEASE
+            DRAG FROM YOUR PEN TOWARD MELABOT · SET YOUR FLICK · COMMIT
           </p>
           <label>
             Force{" "}
@@ -212,7 +230,7 @@ export function PenFight({ onBack }: { onBack: () => void }) {
           Join {human}'s crowd
         </button>
       )}
-      {(spectating || owns) && crowd && !completed && (
+      {spectating && crowd && !completed && (
         <section className="pen-crowd">
           <p className="eyebrow">
             HANDS AROUND THE DESK · {crowd.energy}/{crowd.maxEnergy} ENERGY
@@ -270,11 +288,65 @@ export function PenFight({ onBack }: { onBack: () => void }) {
           )}
         </section>
       )}
+      {owns && crowd && !completed && (
+        <section className="pen-crowd pen-player-crowd">
+          <p className="eyebrow">
+            THE CROWD IS WITH YOU · {crowd.energy}/{crowd.maxEnergy} ENERGY
+          </p>
+          <p>
+            Spectators can alter the next flick’s conditions. Watch the desk for
+            their NUDGE, TILT, and GUARD signals.
+          </p>
+          {effects.filter((e) => e.matchId === match.id).length > 0 && (
+            <p className="active-effects">
+              Active:{" "}
+              {effects
+                .filter((e) => e.matchId === match.id)
+                .map((e) => `${e.power.toUpperCase()} → ${e.target}`)
+                .join(" · ")}
+            </p>
+          )}
+        </section>
+      )}
+      {completed && (
+        <section className="pen-memory">
+          <p className="eyebrow">THIS DUEL STAYS IN MELA</p>
+          <h2>{memory?.notableMoment ?? state.lastOutcome}</h2>
+          <p>
+            {human} {state.humanRounds} · MelaBot {state.botRounds}
+            {memory
+              ? ` · ${memory.crowdParticipants} crowd hands · ${memory.crowdActions} crowd moves`
+              : ""}
+          </p>
+          {owns && record && (
+            <p>
+              Your Pen Fight record: {record.wins} wins from{" "}
+              {record.matchesPlayed} matches.
+            </p>
+          )}
+          {owns && (
+            <button
+              className="primary wide"
+              onClick={async () => {
+                try {
+                  await rematch();
+                  setNote("Fresh desk. Your next duel starts now.");
+                } catch {
+                  setNote("A new desk could not be set up yet.");
+                }
+              }}
+            >
+              PLAY ANOTHER DESK
+            </button>
+          )}
+        </section>
+      )}
       <section className="pen-join">
         <QRCodeSVG value={url(match.id)} size={92} />
         <div>
           <strong>JOIN THE CROWD</strong>
           <span>Scan, name yourself, then shape the next flick.</span>
+          <a href={url(match.id)}>Open crowd link</a>
         </div>
       </section>
     </main>

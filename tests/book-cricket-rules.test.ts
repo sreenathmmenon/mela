@@ -32,12 +32,14 @@ import {
   spectatorJoinDelta,
 } from "../spacetimedb/src/melaMetrics";
 import {
+  PEN_FIGHT_POWERS,
   PEN_FIGHT_RULES,
   penFightCrowdEnergyResult,
   penFightRoundWinner,
   resolvePenFlick,
   validatePenFlick,
 } from "../spacetimedb/src/penFightRules";
+import { DeterministicPenFightAIProvider } from "../spacetimedb/src/penFightAiProvider";
 
 test("delivery scoring is deterministic and bounded by each selected strategy", () => {
   const first = resolveBookCricketOutcome(18n, "balanced");
@@ -364,4 +366,48 @@ test("Pen Fight stalemate resolves from actual safer positioning", () => {
     }),
     "human",
   );
+});
+
+test("Pen Fight opening cap, crowd costs, and bounded effects are explicit", () => {
+  assert.equal(PEN_FIGHT_RULES.openingForceMax, 65);
+  assert.equal(PEN_FIGHT_POWERS.nudge.cost, 14);
+  assert.equal(PEN_FIGHT_POWERS.tilt.cost, 18);
+  assert.equal(PEN_FIGHT_POWERS.guard.cost, 16);
+  assert.equal(PEN_FIGHT_POWERS.cheer.cost, 4);
+  assert.equal(penFightCrowdEnergyResult(13, "nudge"), undefined);
+  assert.equal(penFightCrowdEnergyResult(60, "cheer"), 60);
+});
+
+test("Pen Fight guard makes an edge exit recoverable without changing physics determinism", () => {
+  const guarded = resolvePenFlick({
+    seed: 8n,
+    actorX: 940,
+    actorY: 500,
+    targetX: 500,
+    targetY: 500,
+    aimX: 1000,
+    aimY: 500,
+    force: 100,
+    contact: 50,
+    effects: { nudge: false, tilt: false, guard: true },
+  });
+  assert.equal(guarded.actorOut, false);
+  assert.ok(guarded.actorX <= PEN_FIGHT_RULES.arenaSize);
+});
+
+test("Pen Fight MelaBot proposals are deterministic, bounded, and never mutate state", () => {
+  const provider = new DeterministicPenFightAIProvider();
+  const observation = {
+    humanX: 125,
+    humanY: 500,
+    botX: 620,
+    botY: 500,
+    turnsInRound: 3,
+  };
+  const first = provider.decideAction(observation);
+  assert.deepEqual(first, provider.decideAction(observation));
+  assert.ok(first.aimX >= 0 && first.aimX <= 1000);
+  assert.ok(first.aimY >= 0 && first.aimY <= 1000);
+  assert.ok(first.force >= PEN_FIGHT_RULES.minForce);
+  assert.ok(first.force <= PEN_FIGHT_RULES.maxForce);
 });

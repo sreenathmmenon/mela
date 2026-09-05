@@ -368,6 +368,30 @@ button:disabled {
   margin-top: 4px;
   color: #e7d4c0;
 }
+.pen-join a {
+  display: inline-block;
+  margin-top: 8px;
+  color: #f6cf75;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.pen-player-crowd {
+  border-left: 5px solid #226d8b;
+}
+.active-effects {
+  color: #8b351f;
+  font-weight: 800;
+}
+.pen-memory {
+  margin: 16px 0;
+  padding: 20px;
+  border: 2px solid #c58b35;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f3dfa9, #d9b66d);
+}
+.pen-memory h2 {
+  margin: 8px 0;
+}
 .start {
   margin: 9px 0;
   font-size: 1rem;
@@ -1067,6 +1091,55 @@ button:disabled {
   max-width: 1520px;
   margin: 20px auto 0;
 }
+.screen-pen-arena {
+  position: relative;
+  max-width: 1520px;
+  aspect-ratio: 2.15;
+  overflow: hidden;
+  margin: 20px auto 0;
+  border: 12px solid #513424;
+  border-radius: 28px;
+  background: repeating-linear-gradient(
+    0deg,
+    #f5e6bf 0,
+    #f5e6bf 56px,
+    #9cc3df 58px,
+    #f5e6bf 60px
+  );
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.35);
+}
+.screen-edge {
+  position: absolute;
+  inset: 0;
+  border: 34px solid rgba(207, 67, 44, 0.22);
+  color: #9f3323;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+}
+.screen-pen-token {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 34px;
+  border-radius: 99px;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: 900;
+  font-size: 1.1rem;
+  box-shadow: 0 9px 12px rgba(0, 0, 0, 0.3);
+  transition:
+    left 0.4s ease,
+    top 0.4s ease;
+}
+.screen-pen-token.human {
+  background: #226d8b;
+}
+.screen-pen-token.bot {
+  background: #c64b44;
+}
 .screen-crowd,
 .screen-moments {
   padding: 24px;
@@ -1153,6 +1226,15 @@ button:disabled {
   }
   .pen-token {
     width: 52px;
+  }
+  .screen-pen-arena {
+    aspect-ratio: 1.25;
+    border-width: 8px;
+  }
+  .screen-pen-token {
+    width: 72px;
+    height: 24px;
+    font-size: 0.8rem;
   }
   .flick-controls label {
     grid-template-columns: 64px 1fr 45px;
