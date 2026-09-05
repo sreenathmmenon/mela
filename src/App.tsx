@@ -108,6 +108,15 @@ function joinUrlFor(matchId: bigint) {
   return `${base.replace(/\/$/, "")}/?join=${matchId.toString()}`;
 }
 
+/**
+ * The stage lives under the app's own base path, not the domain root — on a
+ * static host like GitHub Pages the app is served from a subdirectory.
+ */
+function screenUrlFor(matchId: bigint) {
+  const base = import.meta.env.BASE_URL || "/";
+  return `${base.replace(/\/$/, "")}/#/screen?match=${matchId.toString()}`;
+}
+
 function App() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -849,7 +858,7 @@ function App() {
                     Guests choose a name, then influence the same live world.
                   </span>
                   <a
-                    href={`/#/screen?match=${activeMatch.id.toString()}`}
+                    href={screenUrlFor(activeMatch.id)}
                     target="_blank"
                     rel="noreferrer"
                   >

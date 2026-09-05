@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { Identity } from "spacetimedb";
@@ -38,15 +38,33 @@ const connectionBuilder = DbConnection.builder()
   .onDisconnect(onDisconnect)
   .onConnectError(onConnectError);
 
+const isScreenRoute = () =>
+  window.location.pathname.endsWith("/screen") ||
+  window.location.hash.startsWith("#/screen");
+
+/**
+ * The stage is a hash route so it works on static hosting. Navigating to it
+ * from inside the app only changes the hash, which does not reload the page —
+ * so the route has to be reactive, not read once at startup.
+ */
+function MelaRoot() {
+  const [onScreen, setOnScreen] = useState(isScreenRoute);
+  useEffect(() => {
+    const sync = () => setOnScreen(isScreenRoute());
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+    };
+  }, []);
+  return onScreen ? <BigScreen /> : <App />;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
-      {window.location.pathname === "/screen" ||
-      window.location.hash.startsWith("#/screen") ? (
-        <BigScreen />
-      ) : (
-        <App />
-      )}
+      <MelaRoot />
     </SpacetimeDBProvider>
   </StrictMode>,
 );
