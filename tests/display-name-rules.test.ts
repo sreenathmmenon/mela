@@ -75,12 +75,15 @@ test("plain obscenities are blocked", () => {
 });
 
 test("evasion by separators, repeats and leetspeak is blocked", () => {
-  for (const name of ["f-u-c-k", "F U C K", "fuuuck", "f0ck", "sh1t", "Fu*ck"]) {
-    assert.equal(
-      checkDisplayName(name).ok,
-      false,
-      `${name} should be blocked`,
-    );
+  for (const name of [
+    "f-u-c-k",
+    "F U C K",
+    "fuuuck",
+    "f0ck",
+    "sh1t",
+    "Fu*ck",
+  ]) {
+    assert.equal(checkDisplayName(name).ok, false, `${name} should be blocked`);
   }
 });
 
@@ -89,6 +92,46 @@ test("leet evasion is caught but the same spelling as a real surname is not", ()
   // only the one showing evidence of evasion may be rejected.
   assert.equal(checkDisplayName("f0ck").ok, false);
   assert.equal(checkDisplayName("Fick").ok, true);
+});
+
+test("obscenities joined together or lightly padded are blocked", () => {
+  // Whole-word matching alone let "shitfuck" through: one token equal to no
+  // single blocked word. Found by typing it into the live site.
+  for (const name of [
+    "shitfuck",
+    "fuckshit",
+    "bitchcunt",
+    "MrFuck",
+    "fuckboy",
+    "xfuckx",
+    "1fuck",
+    "theshit",
+    "shitty",
+    "bigbitch",
+  ]) {
+    assert.equal(checkDisplayName(name).ok, false, `${name} should be blocked`);
+  }
+});
+
+test("the padding heuristic never overrides a known real name", () => {
+  // "Shital" is literally "shit" plus two letters, which is exactly the shape
+  // the padding rule looks for. Real people win over the heuristic.
+  for (const name of ["Shital", "Sheetal", "Scunthorpe"]) {
+    assert.equal(checkDisplayName(name).ok, true, `${name} should be allowed`);
+  }
+});
+
+test("country names are allowed without unblocking the slur", () => {
+  // The subtle one: folding collapses repeated letters, so "nigger" folds to
+  // the same string as "niger". Allowlisting the country by its folded form
+  // therefore unblocked the slur, and only comparing the raw spelling keeps
+  // both correct. Verified in both directions here on purpose.
+  for (const name of ["Niger", "Nigeria", "Nigerian", "Nigel"]) {
+    assert.equal(checkDisplayName(name).ok, true, `${name} should be allowed`);
+  }
+  for (const name of ["nigger", "NIGGER", "nigga", "n1gger", "niggers"]) {
+    assert.equal(checkDisplayName(name).ok, false, `${name} should be blocked`);
+  }
 });
 
 test("system and bot names are reserved", () => {

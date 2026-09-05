@@ -35,8 +35,7 @@ const STRUCTURAL = /[<>{}[\]\\|`~]/;
  * invisible, so they let one name masquerade as another — or reverse the
  * rendering of the text around it — without showing anything on screen.
  */
-const INVISIBLE =
-  /[­​‌‍‎‏‪-‮⁦-⁩﻿]/;
+const INVISIBLE = /[­​‌‍‎‏‪-‮⁦-⁩﻿]/;
 
 /**
  * Unambiguous slurs and obscenities, matched as whole words against a
@@ -77,6 +76,35 @@ const BLOCKED = new Set([
   "kamina",
 ]);
 
+/**
+ * Real names and words that the padding heuristic below would otherwise reject,
+ * because they genuinely are a blocked word plus a letter or two. Checked
+ * first, so a real person always wins over the filter.
+ *
+ * This list is the honest cost of the heuristic: it cannot be complete, and
+ * every entry represents somebody who would have been told their own name is
+ * unacceptable. Add to it whenever a real name is reported.
+ */
+const ALWAYS_ALLOWED = new Set([
+  "shital", // common Indian given name
+  "sheetal",
+  "shitala", // the goddess Shitala
+  "cunthorpe",
+  "scunthorpe",
+  "nigeria", // the country; "nigga" plus three letters
+  "nigerian",
+  "nigel",
+]);
+
+/**
+ * Checked against the RAW lowercased name, before any folding.
+ *
+ * "niger" cannot go in ALWAYS_ALLOWED: folding collapses repeated letters, so
+ * "nigger" also folds to "niger" and the allowlist entry would unblock the
+ * slur. Comparing the untouched spelling separates the two.
+ */
+const ALWAYS_ALLOWED_RAW = new Set(["niger"]);
+
 /** Names that would let a player impersonate the system or the AI opponent. */
 const RESERVED = new Set([
   "melabot",
@@ -115,10 +143,7 @@ function deLeet(token: string): string {
  * "fuuuuck" matches "fuck".
  */
 export function normalizeForFilter(token: string): string {
-  const unaccented = token
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "");
+  const unaccented = token.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
   return deLeet(unaccented)
     .replace(/[^a-z]/g, "")
     .replace(/(.)\1+/g, "$1");
@@ -158,9 +183,9 @@ const RESERVED_FOLDED = new Set([...RESERVED].map(normalizeForFilter));
  *     "fuck". It is saved by the digit rule at the call site: skeleton
  *     matching only applies to tokens that actually used a leet substitution,
  *     and "Fick" contains no digit. "f0ck" does, so it is still caught.
- *   - "Niger" collides with a slur and is left blocked. On a projector in a
- *     public room, the cost of that word appearing outweighs asking one person
- *     to pick a different name. "Nigeria" and "Nigel" are unaffected.
+ *   - "Niger" and "Nigeria" are the country names and are explicitly allowed.
+ *     Blocking a nationality is a worse failure than the marginal risk of the
+ *     word itself, which reads as a country to everyone in the room.
  */
 const SKELETON_CHECKED = [
   "fuck",
@@ -193,9 +218,47 @@ const BLOCKED_SKELETONS = new Set(
 function containsBlockedWord(name: string): boolean {
   const tokens = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
+  /**
+   * Whole-token matching alone let "shitfuck" through: it is a single token
+   * equal to no blocked word. Substring matching would fix that and break
+   * "Scunthorpe" again, so instead a token is decomposed — if it is built
+   * ENTIRELY out of blocked words joined together, it is blocked.
+   *
+   * "shitfuck" = shit + fuck, nothing left over, so it goes.
+   * "Scunthorpe" leaves "sc"/"horpe" over, so it stays.
+   */
+  const isAllBlockedWords = (folded: string): boolean => {
+    if (folded.length === 0) return false;
+    for (const word of BLOCKED_FOLDED) {
+      if (word.length === 0 || !folded.startsWith(word)) continue;
+      const rest = folded.slice(word.length);
+      if (rest.length === 0 || isAllBlockedWords(rest)) return true;
+    }
+    return false;
+  };
+
   for (const token of tokens) {
     const folded = normalizeForFilter(token);
+    // A real name beats the heuristics, always.
+    if (ALWAYS_ALLOWED.has(folded)) continue;
+    if (ALWAYS_ALLOWED_RAW.has(token.toLowerCase())) continue;
     if (BLOCKED_FOLDED.has(folded)) return true;
+    // A token made only of blocked words concatenated, e.g. "shitfuck".
+    if (isAllBlockedWords(folded)) return true;
+
+    /**
+     * A blocked word carrying only light padding: "MrFuck", "fuckboy",
+     * "xshitx". Pure substring matching is what breaks "Scunthorpe", so the
+     * leftover is measured instead — a real name that merely happens to
+     * contain these letters has a lot of word left over ("scunthorpe" minus
+     * "cunt" leaves 6), whereas padding around a deliberate obscenity is
+     * short. Four is the threshold: it clears "Scunthorpe", "Bassist" and
+     * "Dickens" while catching the decorations people actually type.
+     */
+    for (const word of BLOCKED_FOLDED) {
+      if (word.length < 4 || !folded.includes(word)) continue;
+      if (folded.length - word.length <= 3) return true;
+    }
 
     // Skeleton matching is reserved for tokens that actually substituted a
     // digit or symbol for a letter. Somebody typing "f0ck" is evading;
