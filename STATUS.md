@@ -5,10 +5,10 @@
 - Date/time: 2026-09-05 (night), Asia/Kolkata
 - Agent/provider: ZCode (GLM-5.3)
 - Branch: `main`
-- Delivery state: Full redesign ("Daylight Mela") verified locally across all
-  roles and both breakpoints; committed and deployed to production, smoke-tested
-  live. Supersedes the earlier "fairground at dusk" pass (`3cae643`), which the
-  human rejected for keeping the old dark-purple world.
+- Delivery state: Full redesign ("Daylight Mela") deployed to production
+  (`eed3c41`) and smoke-tested live. Supersedes the earlier "fairground at
+  dusk" pass (`3cae643`), which the human rejected for keeping the old
+  dark-purple world.
 
 ## Full redesign: Daylight Mela
 
@@ -167,6 +167,7 @@ as no longer describing the current build.
 | Design pass production deploy | Pass | Pushed `3cae643` to `main`; GitHub Pages built and deployed it (deployed CSS/JS fingerprinted: tokens + desk-shake/teeter/qr-glow present, JS points at `maincloud.spacetimedb.com` / `mela-cah23`). Live smoke test on `https://sreenathmenon.com/mela/`: splash → onboarding as a fresh visitor (Priya) → picker → Book Cricket match 7 started, one BALANCED ball committed through Maincloud (1/0, ball strip and reveal rendered), stage route showed the match with QR beacon, latest-moment banner and ball chip. |
 | Full redesign (Daylight) checks | Pass | After the rewrite: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build:pages`, prettier-clean. |
 | Full redesign (Daylight) browser loop | Pass | Local three-identity loop re-run on the new system: player scorebook with teal/rust dots and Fraunces numerals, AGGRESSIVE ball resolving to SIX with Nila's BOOST attributed in the inverted-ink stamp, honey crowd booth with power tickets, poster stage (live match + QR beacon), Pen Fight desk with the teal player pen, fresh-visitor landing, and 390x844 passes for the crowd booth (sticky honey energy header) and the desk. No functional regressions: the same reducer/subscription/QR/stage/memory behaviours as before. |
+| Full redesign (Daylight) production deploy | Pass | Pushed `eed3c41`; Pages deployed it (deployed CSS carries `--canvas`/`--teal`/`--honey` and Fraunces; index references the new fonts). Live smoke: returning visitor (Priya) reconnected to her live match 7 with the daylight scorebook and choices, Maincloud state intact; splash and landing render in the new identity. |
 | Module build | Pass | `pnpm run spacetime:build`. |
 | Frontend checks | Pass | `pnpm run typecheck`, `pnpm run build`, `pnpm run build:pages` (production host/database/origin). |
 | Book Cricket balance | Pass | Independent expectimax over the exact 100-roll joint distribution, cross-checked against a 200k-delivery LCG chain (avg 1.760 / 2.160 / 2.690; OUT 4.0% / 14.0% / 35.0%). Optimal policy: SAFE 4 states, BALANCED 2, AGGRESSIVE 6. Chase policy varies with required rate and wickets. |
