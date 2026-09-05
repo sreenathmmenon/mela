@@ -1,9 +1,17 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
 import { PenFight } from "./PenFight";
+import { signOut } from "./identity";
 
 const POWER_CARDS = [
   {
@@ -135,6 +143,9 @@ function App() {
   const [pendingStyle, setPendingStyle] = useState<string | null>(null);
   const [creatingMatch, setCreatingMatch] = useState(false);
   const [showHome, setShowHome] = useState(false);
+  // A scanned QR pins the match it names: the visitor lands in THAT game,
+  // not whichever one they happened to play or watch last time.
+  const [pinnedMatchId, setPinnedMatchId] = useState<bigint | null>(null);
   const [pendingPower, setPendingPower] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<"human" | "melabot">(
     "human",
@@ -230,12 +241,21 @@ function App() {
       (latest, match) => (!latest || match.id > latest.id ? match : latest),
       undefined,
     );
+  const myMatches = matches.filter(isMine);
+  const myLastMatch = newest(myMatches);
+  // A scanned QR pins that match, so a returning visitor lands in the crowd they
+  // just scanned rather than whichever match they happened to touch last.
+  const pinnedMatch =
+    pinnedMatchId !== null
+      ? myMatches.find((match) => match.id === pinnedMatchId)
+      : undefined;
   const myLiveMatch = newest(
-    matches.filter((match) => match.status === "active" && isMine(match)),
+    myMatches.filter((match) => match.status === "active"),
   );
-  const myLastMatch = newest(matches.filter(isMine));
   const activeMatch = myLiveMatch;
-  const displayedMatch = showHome ? undefined : (myLiveMatch ?? myLastMatch);
+  const displayedMatch = showHome
+    ? undefined
+    : (pinnedMatch ?? myLiveMatch ?? myLastMatch);
   const liveMatchesToWatch = matches.filter(
     (match) => match.status === "active" && !isMine(match),
   );
@@ -384,6 +404,59 @@ function App() {
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
 
+  // A scanned QR must land the visitor in THAT match — even if they have
+  // played or watched here before. Fresh identities join during onboarding;
+  // everyone else joins here, exactly once per page load.
+  const qrJoinHandled = useRef(false);
+  useEffect(() => {
+    if (
+      !requestedJoinMatchId ||
+      !connected ||
+      !me ||
+      matches.length === 0 ||
+      qrJoinHandled.current
+    )
+      return;
+    qrJoinHandled.current = true;
+    // Consume the link so a refresh or the back button cannot re-trigger it.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("join");
+    window.history.replaceState({}, "", url.href);
+    const target = matches.find((match) => match.id === requestedJoinMatchId);
+    if (!target || target.status !== "active") {
+      setError("That match has ended. Start a fresh match or scan a live crowd QR.");
+      return;
+    }
+    const alreadyIn = Boolean(
+      myIdentity &&
+        (target.playerIdentity.isEqual(myIdentity) ||
+          spectators.some(
+            (row) =>
+              row.matchId === target.id && row.identity.isEqual(myIdentity),
+          )),
+    );
+    setPinnedMatchId(target.id);
+    setShowHome(false);
+    if (alreadyIn) {
+      setFeedback(
+        `You're back in the ${target.gameKind === "pen_fight" ? "Pen Fight" : "Book Cricket"} crowd.`,
+      );
+      return;
+    }
+    joinSpectator({ matchId: target.id })
+      .then(() =>
+        setFeedback(
+          "You joined the crowd. Spend Crowd Energy to change the next move.",
+        ),
+      )
+      .catch((reason) =>
+        setError(
+          reason instanceof Error ? reason.message : "Could not join that crowd.",
+        ),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedJoinMatchId, connected, me, matches]);
+
   const submitOnboarding = async (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim() || !connected) return;
@@ -415,6 +488,7 @@ function App() {
   const startMatch = async () => {
     setCreatingMatch(true);
     setShowHome(false);
+    setPinnedMatchId(null);
     try {
       await createMatch();
       setError(null);
@@ -432,6 +506,7 @@ function App() {
   const startPenFight = async () => {
     setCreatingMatch(true);
     setShowHome(false);
+    setPinnedMatchId(null);
     try {
       await createPenFight();
       setError(null);
@@ -587,6 +662,9 @@ function App() {
               <button
                 className="link-back"
                 onClick={() => {
+                  // Leaving a match must also drop the QR pin, or the pinned
+                  // match immediately pulls the visitor straight back in.
+                  setPinnedMatchId(null);
                   setShowHome(true);
                   setFeedback(null);
                   setError(null);
@@ -599,6 +677,13 @@ function App() {
           <span>
             {presence.filter((row) => row.state === "online").length} people in
             Mela
+            <button
+              className="link-back"
+              onClick={signOut}
+              title="Leave Mela on this device and re-enter with a new name"
+            >
+              Sign out
+            </button>
           </span>
         </section>
       )}

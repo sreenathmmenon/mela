@@ -5,6 +5,7 @@ import { Identity } from "spacetimedb";
 import { SpacetimeDBProvider } from "spacetimedb/react";
 import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
 import BigScreen from "./BigScreen.tsx";
+import { AUTH_TOKEN_KEY } from "./identity.ts";
 
 const HOST =
   import.meta.env.VITE_SPACETIMEDB_HOST ??
@@ -12,10 +13,9 @@ const HOST =
     ? "ws://localhost:3000"
     : "https://maincloud.spacetimedb.com");
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "mela-cah23";
-const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
 const onConnect = (_conn: DbConnection, identity: Identity, token: string) => {
-  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
   console.log(
     "Connected to SpacetimeDB with identity:",
     identity.toHexString(),
@@ -33,7 +33,7 @@ const onConnectError = (_ctx: ErrorContext, err: Error) => {
 const connectionBuilder = DbConnection.builder()
   .withUri(HOST)
   .withDatabaseName(DB_NAME)
-  .withToken(localStorage.getItem(TOKEN_KEY) || undefined)
+  .withToken(localStorage.getItem(AUTH_TOKEN_KEY) || undefined)
   .onConnect(onConnect)
   .onDisconnect(onDisconnect)
   .onConnectError(onConnectError);
