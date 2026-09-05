@@ -4,6 +4,11 @@ import type { DeskPoint } from "../spacetimedb/src/penFightMotion";
 // Presentation dimensions only. The authoritative game remains a 1000-unit board.
 export const PEN_LENGTH = 350;
 export const PEN_SCALE = 1.2;
+// Completed authoritative positions clamp an exited centre to the boundary.
+// This controls visibility only; it never chooses a round or match winner.
+export function completedPenExited(point: DeskPoint) {
+  return point.x <= 0 || point.x >= 1000 || point.y <= 0 || point.y >= 1000;
+}
 export function deskCamera(aspect: number) {
   const camera = new PerspectiveCamera(38, aspect, 1, 6000);
   camera.position.set(90, 1450, 1000);

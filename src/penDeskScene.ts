@@ -4,6 +4,7 @@ import {
   deskToScreen,
   PEN_LENGTH,
   PEN_SCALE,
+  completedPenExited,
   screenToDesk,
 } from "./penDeskProjection";
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
@@ -289,6 +290,10 @@ export function createDeskScene(
     if (frame.completed && m && progress >= 1) {
       human.group.visible = !(m.actor === "human" ? m.actorOut : m.targetOut);
       bot.group.visible = !(m.actor === "melabot" ? m.actorOut : m.targetOut);
+    }
+    if (frame.completed && !m) {
+      human.group.visible = !completedPenExited(frame.human);
+      bot.group.visible = !completedPenExited(frame.bot);
     }
     human.body.color.set(
       frame.pen === "pen-gel"

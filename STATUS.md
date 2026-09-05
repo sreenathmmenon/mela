@@ -11,7 +11,7 @@
 
 ### Verification — actual 3D pass
 
-- **63/63 tests pass**, including three new camera tests: projection/input round trips across four aspect ratios, full-board framing plus phone pen-size minimum, and perspective pull direction. Existing Book Cricket/Pen Fight/crowd/AI/history tests remain passing.
+- **64/64 tests pass**, including four new presentation tests: projection/input round trips across four aspect ratios, full-board framing plus phone pen-size minimum, perspective pull direction, and completed off-desk pen visibility without transient replay. Existing Book Cricket/Pen Fight/crowd/AI/history tests remain passing.
 - Frontend typecheck, standard build, Pages production build and SpacetimeDB module build passed. Changed-file formatting and whitespace checks passed. Vite warns about the lazy 522kB uncompressed scene chunk; it is split from the initial app, not silently claimed as zero-cost.
 - Local player Asha and independent spectator Nila, database `mela-pen-feel-0906`, match 8: both animated human sequence `1:0:1909890900` and AI sequence `1:1:1109230037`; both settled to human `(323,413)`, bot `(610,464)`. Match completed **Asha 0–2 MelaBot**, with matching player/crowd result. Big screen for match 8 also showed the same completed result.
 - Match 9: Nila's NUDGE was accepted and the player feed explicitly confirmed it changed the human flick. Human and autonomous AI state converged at `(421,524)` / `(682,518)` in both browsers. Reduced-motion player emitted **no animated frames**, with controls unlocked.
@@ -20,13 +20,14 @@
 - Forced browser WebGL context loss: simplified-view notice appeared, WebGL canvas removed, fallback board measured square 362×362. A hot-reload check exposed an animation lock when its frame loop was cancelled; fixed with cleanup unlock and a bounded settle timer, then completed the full fresh-page match test.
 - Book Cricket UI regression: match 10 completed **Asha 15/0–MelaBot 0/2**, human win, normal six-ball innings and autonomous chase. No Book Cricket code or authority changed.
 - Local browser logs include the pre-existing favicon 404; no new application exception in the verified fresh-page flow. The deprecated shadow-map warning from the first prototype was removed by selecting the supported PCF shadow map.
-- Release: implementation ready for commit/push; production deployment not yet claimed. No Maincloud module publication is needed because server code/schema are unchanged.
+- Main implementation `12eb0bbc9a2e5625cd5b9642583ed7d87c779c92` committed/pushed as Sreenath; Pages run `33991283468` succeeded. Production browser loaded `/mela/assets/index-C0LvPCNk.js` and the real `three-webgl` scene in existing memory 4. No Maincloud module publication is needed because server code/schema are unchanged.
+- That production inspection caught an old completed-match edge case: absent transient motion, a fallen pen could appear at its clamped boundary position. The follow-up hides completed boundary-centre pens without changing the result or historical coordinates. Local remembered match 8 verified the fallen human pen hidden and MelaBot visible; all 64 tests and the production build were rerun successfully.
 
 ### Remaining limits / next task
 
 - Actual low-end-phone GPU performance, native touch/audio feel and real-person playtesting have not been established by desktop browser emulation. No claim of world-best ranking or emotional attachment is made.
 - The existing simplified server collision model remains authoritative; visual pen length/rotation do not introduce capsule/3D collision rules. Pen cosmetic selection remains device-local, as before.
-- Next task: release this verified 3D frontend, then have Sreenath inspect the visible pen proportions and actual phone play feel before another visual direction change.
+- Next task: have Sreenath inspect the visible pen proportions and actual phone play feel before another visual direction change.
 
 ## Previous pass — physical Pen Fight desk and shot feel
 
