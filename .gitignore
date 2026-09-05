@@ -7,3 +7,5 @@ dist
 .DS_Store
 
 spacetime.local.json
+.playwright-cli/
+output/playwright/

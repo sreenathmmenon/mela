@@ -1,0 +1,190 @@
+/* Pen Fight's personal layer. Keep the existing desk and handcrafted pens. */
+.pen-shell .pen-top {
+  gap: 12px;
+  align-items: center;
+}
+.pen-shell .pen-top > div {
+  flex: 1;
+}
+.pen-shell .pen-top h1 {
+  font-size: clamp(1.8rem, 4.5vw, 3.1rem);
+  line-height: 1.06;
+}
+.pen-shell .pen-top p {
+  margin-bottom: 0;
+}
+.pen-rivalry {
+  color: var(--teal);
+  font-weight: 650;
+}
+.pen-rivalry span {
+  color: var(--ink);
+  font-weight: 400;
+}
+.pen-shell .pen-picker {
+  order: 0;
+}
+.pen-picker summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  font-weight: 650;
+}
+.pen-picker[open] summary {
+  margin-bottom: 12px;
+}
+.pen-feedback {
+  position: sticky;
+  bottom: 12px;
+  z-index: 8;
+  padding: 14px 18px;
+  background: var(--ink);
+  color: var(--canvas);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px #221b1024;
+}
+.pen-live-story {
+  border-left: 3px solid var(--honey);
+  padding: 0 16px;
+}
+.pen-live-story ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.pen-live-story li {
+  padding: 5px 0;
+  font-size: 0.88rem;
+}
+.pen-live-story li:first-child {
+  font-weight: 650;
+}
+.pen-live-story li:not(:first-child) {
+  color: #665f50;
+}
+.pen-energy {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #221b1030;
+}
+.pen-energy strong {
+  font: 700 2.2rem var(--font-display, Georgia, serif);
+  white-space: nowrap;
+}
+.pen-energy small {
+  display: block;
+  font: 600 0.75rem system-ui;
+}
+.pen-energy > span {
+  max-width: 200px;
+  font-size: 0.85rem;
+}
+.pen-shell .power-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pen-shell .power-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.pen-shell .power-card h3 small {
+  display: block;
+  font: 500 0.8rem system-ui;
+  margin-top: 4px;
+}
+.pen-shell .power-card p {
+  margin: 0;
+}
+.pen-shell .power-card > small {
+  color: #625339;
+  font-size: 0.75rem;
+}
+.pen-shell .power-card button {
+  margin-top: auto;
+  min-height: 46px;
+}
+.pen-shell button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.pen-shell .pen-memory > button {
+  margin-top: 12px;
+}
+.pen-keepsake {
+  padding: 12px 0;
+  border-block: 1px solid #221b1025;
+  color: var(--teal);
+}
+.pen-crowd-shortcut {
+  display: block;
+  padding: 12px 16px;
+  background: var(--honey-wash);
+  color: var(--ink);
+  border-radius: 8px;
+  font-weight: 650;
+}
+#pen-crowd {
+  scroll-margin-top: 12px;
+}
+.pen-join button {
+  margin-top: 8px;
+}
+@media (max-width: 640px) {
+  .pen-shell {
+    padding: 16px 12px 32px;
+  }
+  .pen-shell .pen-top {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .pen-shell .pen-top > div {
+    flex-basis: 100%;
+  }
+  .pen-shell .pen-top h1 {
+    margin: 4px 0 8px;
+  }
+  .pen-shell .pen-score {
+    gap: 8px;
+    padding: 12px 8px;
+  }
+  .pen-shell .pen-score > span {
+    overflow-wrap: anywhere;
+  }
+  .pen-shell .pen-turn {
+    padding: 12px;
+  }
+  .pen-shell .pen-turn span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.82rem;
+  }
+  .pen-shell .pen-crowd {
+    padding: 16px 12px;
+  }
+  .pen-shell .power-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .pen-shell .power-card {
+    padding: 12px;
+  }
+  .pen-shell .power-card p {
+    font-size: 0.82rem;
+  }
+  .pen-shell .power-card button {
+    padding-inline: 6px;
+    font-size: 0.78rem;
+  }
+  .pen-energy {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--honey-wash);
+    padding: 12px;
+    margin: -16px -12px 12px;
+  }
+}

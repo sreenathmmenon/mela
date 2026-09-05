@@ -1,9 +1,28 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
-import { playSound } from "./sound";
+import { isMuted, playSound, toggleMuted } from "./sound";
+import {
+  PEN_FIGHT_POWERS,
+  PEN_FIGHT_RULES,
+  type PenFightPower,
+} from "../spacetimedb/src/penFightRules";
+import {
+  duelShare,
+  isIntentionalDrag,
+  powerAvailability,
+  rivalry,
+} from "./penFightExperience";
 import "./pens.css";
+import "./penFightExperience.css";
 
 /**
  * Four pens off a school desk. They are purely cosmetic — every pen has exactly
@@ -32,12 +51,10 @@ const EFFECT_ON_DESK: Record<string, { label: string; effect: string }> = {
   cheer: { label: "CHEER", effect: "energy returned" },
 };
 
-const powers = [
-  ["nudge", "NUDGE", 14, "Give your side's next flick a small extra push."],
-  ["tilt", "DESK TILT", 18, "Add a gentle sideways drift to the next flick."],
-  ["guard", "GUARD", 16, "Save a chosen pen from one edge exit."],
-  ["cheer", "CHEER", 4, "Return 8 shared Energy for the crowd."],
-] as const;
+const powers = Object.entries(PEN_FIGHT_POWERS) as [
+  PenFightPower,
+  (typeof PEN_FIGHT_POWERS)[PenFightPower],
+][];
 /**
  * A stable, position-derived tilt. Deterministic per position so every client
  * shows the same pen orientation without the server storing a rotation.
@@ -48,19 +65,21 @@ function spinFor(matchId: bigint, x: number, y: number, base: number) {
 }
 // Mirrors penFightRules.ts. The server validates every flick regardless, so a
 // drift here can only ever cost the player a rejected shot, never an illegal one.
-const MIN_FORCE = 20;
-const MAX_FORCE = 100;
-const OPENING_FORCE_MAX = 66;
+const MIN_FORCE = PEN_FIGHT_RULES.minForce;
+const MAX_FORCE = PEN_FIGHT_RULES.maxForce;
+const OPENING_FORCE_MAX = PEN_FIGHT_RULES.openingForceMax;
 
-const url = (id: bigint) =>
-  `${(import.meta.env.VITE_PUBLIC_APP_URL || location.origin).replace(/\/$/, "")}/?join=${id}`;
+const url = (id: bigint, remembered = false) =>
+  `${(import.meta.env.VITE_PUBLIC_APP_URL || location.origin).replace(/\/$/, "")}/?${remembered ? "memory" : "join"}=${id}`;
 
 export function PenFight({
   matchId,
   onBack,
+  onRematch,
 }: {
   matchId?: bigint;
   onBack: () => void;
+  onRematch?: () => void;
 }) {
   const conn = useSpacetimeDB();
   const identity = conn.identity;
@@ -73,6 +92,44 @@ export function PenFight({
   const [profiles] = useTable(tables.playerProfile);
   const [memories] = useTable(tables.matchMemory);
   const [records] = useTable(tables.penFightRecord);
+  const [cooldowns] = useTable(tables.spectatorCooldown);
+  const [melaProfiles] = useTable(tables.melaProfile);
+  const [feed, setFeed] = useState<
+    { key: string; matchId: bigint; message: string }[]
+  >([]);
+  const onEvent = useCallback(
+    (event: {
+      id: bigint;
+      matchId: bigint;
+      message: string;
+      occurredAt: { microsSinceUnixEpoch: bigint };
+    }) => {
+      if (event.message.startsWith("Crowd Energy +")) return;
+      const key = `${event.occurredAt.microsSinceUnixEpoch}:${event.id}:${event.message}`;
+      setFeed((rows) =>
+        rows.some((row) => row.key === key)
+          ? rows
+          : [
+              ...rows,
+              { key, matchId: event.matchId, message: event.message },
+            ].slice(-24),
+      );
+    },
+    [],
+  );
+  useTable(tables.liveEvent, { onInsert: onEvent });
+  const [now, setNow] = useState(Date.now);
+  const [pending, setPending] = useState(false);
+  const busy = useRef(false);
+  const [muted, setMuted] = useState(isMuted);
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const shot = useRef<{ x: number; y: number; force: number } | null>(null);
+  const memoryCard = useRef<HTMLElement>(null);
+  const lastAnimatedRevision = useRef<string>();
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [aim, setAim] = useState({ x: 740, y: 500 });
   const [force, setForce] = useState(60);
   const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
@@ -80,7 +137,8 @@ export function PenFight({
   );
   const [myPen, setMyPen] = useState<string>(() => {
     try {
-      return localStorage.getItem(PEN_KEY) ?? PENS[0][0];
+      const saved = localStorage.getItem(PEN_KEY);
+      return PENS.find(([id]) => id === saved)?.[0] ?? PENS[0][0];
     } catch {
       return PENS[0][0];
     }
@@ -95,6 +153,11 @@ export function PenFight({
   };
   const [target, setTarget] = useState<"human" | "melabot">("human");
   const [note, setNote] = useState("");
+  useEffect(() => {
+    if (!note) return;
+    const timer = window.setTimeout(() => setNote(""), 6000);
+    return () => window.clearTimeout(timer);
+  }, [note]);
   const [aiming, setAiming] = useState(false);
   const match =
     (matchId !== undefined
@@ -138,6 +201,10 @@ export function PenFight({
       )?.displayName ?? "Player")
     : "Player";
   const completed = match?.status === "complete";
+  useEffect(() => {
+    if (completed)
+      memoryCard.current?.scrollIntoView({ block: "center", behavior: "auto" });
+  }, [completed]);
   /**
    * One gesture sets the whole flick. Drag back from your pen like a
    * slingshot: the direction you pull is the direction it will NOT go, and how
@@ -158,21 +225,32 @@ export function PenFight({
     const ux = dx / len;
     const uy = dy / len;
     const drawn = Math.min(PULL_MAX, len);
-    setAim({
+    const nextAim = {
       x: Math.round(Math.max(0, Math.min(1000, state.humanX + ux * 600))),
       y: Math.round(Math.max(0, Math.min(1000, state.humanY + uy * 600))),
-    });
+    };
+    setAim(nextAim);
     const ceiling = state.turnsInRound < 2 ? OPENING_FORCE_MAX : MAX_FORCE;
-    setForce(
-      Math.round(MIN_FORCE + (drawn / PULL_MAX) * (ceiling - MIN_FORCE)),
+    const nextForce = Math.round(
+      MIN_FORCE + (drawn / PULL_MAX) * (ceiling - MIN_FORCE),
     );
+    setForce(nextForce);
+    shot.current = { ...nextAim, force: nextForce };
     setPullPoint({ x: px, y: py });
   };
   // Presentation only: the desk reacts to what the server already resolved —
   // a shudder on contact, a gold flash when a round is decided.
   const lastOutcome = state?.lastOutcome;
+  const revision = state
+    ? `${state.matchId}:${state.round}:${state.turnsInRound}:${state.seed}`
+    : undefined;
   const [deskFx, setDeskFx] = useState({ impact: false, round: false });
   useEffect(() => {
+    if (!revision || revision === lastAnimatedRevision.current) return;
+    const previous = lastAnimatedRevision.current;
+    lastAnimatedRevision.current = revision;
+    // Subscribing to a remembered or in-progress desk is not a new shot.
+    if (!previous) return;
     if (
       !lastOutcome ||
       lastOutcome === "START" ||
@@ -190,7 +268,7 @@ export function PenFight({
       round ? 850 : 480,
     );
     return () => window.clearTimeout(timer);
-  }, [lastOutcome]);
+  }, [lastOutcome, revision]);
   // A pen close to the border is one nudge from ending the round.
   const nearEdge = (v: number) => v < 130 || v > 870;
   const humanTeeter = Boolean(
@@ -204,9 +282,9 @@ export function PenFight({
   // and stays quiet while a pen sits there — otherwise it smears every frame.
   const wasInDanger = useRef(false);
   useEffect(() => {
-    if (edgeDanger && !wasInDanger.current) playSound("teeter");
+    if (edgeDanger && !wasInDanger.current && !completed) playSound("teeter");
     wasInDanger.current = edgeDanger;
-  }, [edgeDanger]);
+  }, [edgeDanger, completed]);
   if (!match)
     return (
       <section className="pen-empty">
@@ -246,21 +324,38 @@ export function PenFight({
       ),
     });
   };
-  const commitFlick = async () => {
+  const commitFlick = async (gesture?: {
+    x: number;
+    y: number;
+    force: number;
+  }) => {
+    if (
+      busy.current ||
+      !conn.isActive ||
+      !owns ||
+      completed ||
+      state.turn !== "human"
+    )
+      return;
+    busy.current = true;
+    setPending(true);
     playSound("flick");
     try {
       await flick({
         matchId: match.id,
-        aimX: aim.x,
-        aimY: aim.y,
-        force: cappedForce,
+        aimX: gesture?.x ?? aim.x,
+        aimY: gesture?.y ?? aim.y,
+        force: gesture?.force ?? cappedForce,
         // Contact stays centred: one gesture beats two, and a spin control can
         // be added later as a dial if players actually ask for it.
         contact: 50,
       });
-      setNote("Flick committed. Watch the desk.");
+      setNote("");
     } catch {
       setNote("That flick is not legal right now.");
+    } finally {
+      busy.current = false;
+      setPending(false);
     }
   };
 
@@ -281,7 +376,7 @@ export function PenFight({
         ? "MelaBot is cornered. It has to play its way back in."
         : gap < 260
           ? "You are in range. MelaBot is lining up a hit."
-          : "Too far to reach — MelaBot is closing the gap.";
+          : "MelaBot is lining up its next flick.";
   const myPlan = !state
     ? ""
     : myMargin < 150
@@ -290,7 +385,7 @@ export function PenFight({
         ? "MelaBot is on the rim. One good hit ends the round."
         : gap < 260
           ? "In range. Pull back and aim through its middle."
-          : "Out of reach. Pull further to close the gap.";
+          : "Pull back, release. A longer pull means more force.";
 
   const actor = state.turn === "human" ? human : "MelaBot";
   // Pens rotate toward where they last travelled, so a slide reads as a real
@@ -301,18 +396,88 @@ export function PenFight({
   const record = identity
     ? records.find((row) => row.identity.isEqual(identity))
     : undefined;
+  const personal = identity
+    ? melaProfiles.find((row) => row.identity.isEqual(identity))
+    : undefined;
+  const penName = PENS.find(([id]) => id === myPen)?.[1] ?? "Reynolds";
+  const matchFeed = feed
+    .filter((row) => row.matchId === match.id)
+    .slice(-6)
+    .reverse();
+  const crowdCount = spectators.filter(
+    (row) => row.matchId === match.id,
+  ).length;
+  const share = async () => {
+    const text = duelShare({
+      human,
+      humanRounds: state.humanRounds,
+      botRounds: state.botRounds,
+      crowdActions: memory?.crowdActions ?? 0,
+      moment: memory?.notableMoment ?? state.lastOutcome,
+    });
+    try {
+      if (navigator.share)
+        await navigator.share({
+          title: "A desk worth remembering · Mela",
+          text,
+          url: url(match.id, true),
+        });
+      else {
+        await navigator.clipboard.writeText(`${text}\n${url(match.id, true)}`);
+        setNote(
+          "Duel story and link copied. Share it wherever your people are.",
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError"))
+        setNote(
+          "Sharing is unavailable here. You can copy the match link below.",
+        );
+    }
+  };
   return (
     <main className="pen-shell">
       <header className="pen-top">
         <div>
           <p className="eyebrow">MELA · PEN FIGHT</p>
-          <h1>Flick. Hit. Survive.</h1>
-          <p>Win two rounds by knocking the other pen off the desk.</p>
+          <h1>
+            {completed
+              ? "A desk to remember."
+              : owns
+                ? "Your pen. Your move."
+                : `${human}’s desk. Your influence.`}
+          </h1>
+          <p>Knock the other pen off. First to two rounds wins.</p>
         </div>
         <button className="secondary" onClick={onBack}>
           Choose game
         </button>
+        <button
+          className="secondary"
+          aria-pressed={!muted}
+          onClick={() => setMuted(toggleMuted())}
+        >
+          Sound {muted ? "off" : "on"}
+        </button>
       </header>
+      {owns && (
+        <p className="pen-rivalry">
+          {rivalry(record?.wins ?? 0, record?.matchesPlayed ?? 0)}{" "}
+          <span>Your {penName} is ready.</span>
+        </p>
+      )}
+      {!conn.isActive && (
+        <p role="status">
+          Reconnecting to your desk. Your next move will wait.
+        </p>
+      )}
+      {!owns && !completed && (
+        <a className="pen-crowd-shortcut" href="#pen-crowd">
+          {spectating
+            ? `Shape the next flick · ${crowd?.energy ?? 0} shared Energy ↓`
+            : "Join the crowd. Make a difference ↓"}
+        </a>
+      )}
       <section className="pen-score">
         <span>
           {human} <strong>{state.humanRounds}</strong>
@@ -331,15 +496,24 @@ export function PenFight({
             {completed
               ? state.lastOutcome
               : state.turn === "human"
-                ? myPlan
+                ? owns
+                  ? myPlan
+                  : `${human} is aiming. Choose a crowd move below, or save your Energy.`
                 : botPlan}
           </span>
         </div>
         <div
           className={`pen-arena ${deskFx.impact ? "impact" : ""} ${edgeDanger ? "danger" : ""}`}
           onPointerDown={
-            owns && state.turn === "human" && !completed
+            owns &&
+            conn.isActive &&
+            !pending &&
+            state.turn === "human" &&
+            !completed
               ? (event) => {
+                  if (!event.isPrimary || event.button !== 0) return;
+                  dragStart.current = { x: event.clientX, y: event.clientY };
+                  shot.current = null;
                   event.currentTarget.setPointerCapture(event.pointerId);
                   setAiming(true);
                   pull(event);
@@ -347,15 +521,30 @@ export function PenFight({
               : undefined
           }
           onPointerMove={aiming ? pull : undefined}
-          onPointerUp={() => {
+          onPointerUp={(event) => {
             if (!aiming) return;
             setAiming(false);
             setPullPoint(null);
-            void commitFlick();
+            if (
+              dragStart.current &&
+              isIntentionalDrag(dragStart.current, {
+                x: event.clientX,
+                y: event.clientY,
+              })
+            ) {
+              pull(event);
+              setPullPoint(null);
+              if (shot.current) void commitFlick(shot.current);
+            } else
+              setNote(
+                "Pull back and let go to flick. A tap won't spend your turn.",
+              );
+            dragStart.current = null;
           }}
           onPointerCancel={() => {
             setAiming(false);
             setPullPoint(null);
+            dragStart.current = null;
           }}
         >
           <i className="notebook-line l1" />
@@ -446,8 +635,8 @@ export function PenFight({
         </div>
       </section>
       {owns && !completed && (
-        <section className="pen-picker" aria-label="Choose your pen">
-          <p className="eyebrow">YOUR PEN</p>
+        <details className="pen-picker">
+          <summary>Your {penName} · Change pen</summary>
           <div className="pen-swatches">
             {PENS.map(([id, name, blurb]) => (
               <button
@@ -466,7 +655,7 @@ export function PenFight({
             Every pen plays exactly the same. Pick the one that feels like
             yours.
           </p>
-        </section>
+        </details>
       )}
       {owns && !completed && state.turn === "human" && (
         <section className="flick-controls">
@@ -495,8 +684,12 @@ export function PenFight({
             >
               −
             </button>
-            <button className="primary" onClick={() => void commitFlick()}>
-              FLICK
+            <button
+              className="primary"
+              disabled={pending || !conn.isActive}
+              onClick={() => void commitFlick()}
+            >
+              {pending ? "FLICKING…" : "FLICK"}
             </button>
             <button
               onClick={() => setForce((f) => Math.min(maxForceNow, f + 8))}
@@ -516,24 +709,54 @@ export function PenFight({
         </section>
       )}
       <p className="pen-result" role="status">
-        {note || state.lastOutcome}
+        {state.lastOutcome}
         {state.turnsInRound >= 6 && !completed
           ? " · Final exchanges—safer positioning decides the round at 8 turns."
           : ""}
       </p>
+      {note && (
+        <p className="pen-feedback" role="status">
+          {note}
+        </p>
+      )}
       {!owns && me && !spectating && !completed && (
         <button
           className="primary wide"
-          onClick={() => join({ matchId: match.id })}
+          id="pen-crowd"
+          disabled={pending || !conn.isActive}
+          onClick={async () => {
+            if (busy.current) return;
+            busy.current = true;
+            setPending(true);
+            try {
+              await join({ matchId: match.id });
+              setNote(
+                "You're in. Pick a pen to influence, then choose your move.",
+              );
+            } catch {
+              setNote(
+                "Couldn't join yet. Check your connection and try again.",
+              );
+            } finally {
+              busy.current = false;
+              setPending(false);
+            }
+          }}
         >
           Join {human}'s crowd
         </button>
       )}
       {spectating && crowd && !completed && (
-        <section className="pen-crowd">
-          <p className="eyebrow">
-            HANDS AROUND THE DESK · {crowd.energy}/{crowd.maxEnergy} ENERGY
-          </p>
+        <section className="pen-crowd" id="pen-crowd">
+          <div className="pen-energy">
+            <strong>
+              {crowd.energy}
+              <small>/{crowd.maxEnergy} shared Energy</small>
+            </strong>
+            <span>
+              {crowdCount} around the desk · Every move uses the same pool.
+            </span>
+          </div>
           <p>
             {state.turn === "human"
               ? `${human} is lining up a flick. Help now or save it for the edge.`
@@ -544,37 +767,74 @@ export function PenFight({
               className={target === "human" ? "selected" : ""}
               onClick={() => setTarget("human")}
             >
-              Help {human}
+              Affect {human}
             </button>
             <button
               className={target === "melabot" ? "selected" : ""}
               onClick={() => setTarget("melabot")}
             >
-              Help MelaBot
+              Affect MelaBot
             </button>
           </div>
           <div className="power-grid">
-            {powers.map(([key, label, cost, copy]) => (
-              <article className="power-card" key={key}>
-                <h3>
-                  {label} · {cost}
-                </h3>
-                <p>{copy}</p>
-                <button
-                  disabled={crowd.energy < cost}
-                  onClick={async () => {
-                    try {
-                      await power({ matchId: match.id, power: key, target });
-                      setNote(`${label} is now part of the desk.`);
-                    } catch {
-                      setNote("That crowd move is unavailable.");
-                    }
-                  }}
-                >
-                  {crowd.energy < cost ? "Need Energy" : "Use now"}
-                </button>
-              </article>
-            ))}
+            {powers.map(([key, rule]) => {
+              const cooldown = cooldowns.find(
+                (row) =>
+                  row.matchId === match.id &&
+                  row.power === key &&
+                  identity &&
+                  row.identity.isEqual(identity),
+              );
+              const availability = powerAvailability({
+                power: key,
+                energy: crowd.energy,
+                readyAtMicros: cooldown?.readyAtMicros,
+                now,
+                waiting: liveEffects.some(
+                  (row) => row.power === key && row.target === target,
+                ),
+                pending,
+                connected: conn.isActive,
+              });
+              return (
+                <article className="power-card" key={key}>
+                  <h3>
+                    {rule.label} <small>{rule.cost} Energy</small>
+                  </h3>
+                  <p>{rule.description}</p>
+                  <small>
+                    {key === "cheer"
+                      ? "Immediate · up to +4 net Energy"
+                      : `One effect per pen · lasts ${Number(rule.durationMicros / 1_000_000n)}s`}
+                  </small>
+                  <button
+                    disabled={availability.disabled}
+                    onClick={async () => {
+                      if (busy.current) return;
+                      busy.current = true;
+                      setPending(true);
+                      try {
+                        await power({ matchId: match.id, power: key, target });
+                        setNote(
+                          key === "cheer"
+                            ? "Your CHEER returned Energy to everyone's pool."
+                            : `You played ${rule.label} on ${target === "human" ? human : "MelaBot"}'s pen. Follow its effect on the desk.`,
+                        );
+                      } catch {
+                        setNote(
+                          "The desk changed before your move landed. Check Energy and cooldown, then try again.",
+                        );
+                      } finally {
+                        busy.current = false;
+                        setPending(false);
+                      }
+                    }}
+                  >
+                    {availability.label}
+                  </button>
+                </article>
+              );
+            })}
           </div>
           {effects.filter((e) => e.matchId === match.id).length > 0 && (
             <p>
@@ -593,53 +853,127 @@ export function PenFight({
             THE CROWD IS WITH YOU · {crowd.energy}/{crowd.maxEnergy} ENERGY
           </p>
           <p>
-            Spectators are spending Energy on your desk right now. You will not
-            see what they chose until it lands — watch the feed after each
-            flick.
+            {crowdCount
+              ? `${crowdCount} in your crowd.`
+              : "An empty chair for your friends. Invite someone with the link below."}{" "}
+            You will not see what they chose until it lands — watch the feed
+            after each flick.
           </p>
           {/* Deliberately no list of pending effects here. The player finds
               out what the crowd did once it has landed, never before. */}
         </section>
       )}
+      {matchFeed.length > 0 && (
+        <details
+          className="pen-live-story"
+          open={owns || completed || undefined}
+        >
+          <summary>AROUND THIS DESK · Latest moments</summary>
+          <ol>
+            {matchFeed.map((event) => (
+              <li key={event.key}>{event.message}</li>
+            ))}
+          </ol>
+        </details>
+      )}
       {completed && (
-        <section className="pen-memory">
+        <section className="pen-memory" ref={memoryCard}>
           <p className="eyebrow">THIS DUEL STAYS IN MELA</p>
-          <h2>{memory?.notableMoment ?? state.lastOutcome}</h2>
+          <h2>
+            {owns
+              ? state.humanRounds > state.botRounds
+                ? `You did it, ${human}.`
+                : state.humanRounds === 1
+                  ? "One round away. Another desk?"
+                  : "MelaBot takes this chapter."
+              : spectating
+                ? "Your crowd was part of this."
+                : `${human} and MelaBot made a memory.`}
+          </h2>
+          <p>{memory?.notableMoment ?? state.lastOutcome}</p>
           <p>
             {human} {state.humanRounds} · MelaBot {state.botRounds}
             {memory
-              ? ` · ${memory.crowdParticipants} crowd hands · ${memory.crowdActions} crowd moves`
+              ? ` · ${memory.crowdParticipants} spectator${memory.crowdParticipants === 1 ? "" : "s"} · ${memory.crowdActions} crowd move${memory.crowdActions === 1 ? "" : "s"}`
               : ""}
           </p>
           {owns && record && (
+            <p>{rivalry(record.wins, record.matchesPlayed)}</p>
+          )}
+          {personal && (
+            <p className="pen-keepsake">
+              Mela remembers you · Level {personal.melaLevel}
+              {spectating
+                ? ` · ${personal.crowdInfluence} Crowd Influence`
+                : " · Every finished duel is part of your journey."}
+            </p>
+          )}
+          {owns && state.humanRounds < state.botRounds && (
             <p>
-              Your Pen Fight record: {record.wins} wins from{" "}
-              {record.matchesPlayed} matches.
+              Try this next: near an edge, shorten your pull. Full force can
+              carry your own pen off too.
             </p>
           )}
           {owns && (
             <button
               className="primary wide"
+              disabled={pending || !conn.isActive}
               onClick={async () => {
+                if (busy.current) return;
+                busy.current = true;
+                setPending(true);
                 try {
                   await rematch();
+                  onRematch?.();
                   setNote("Fresh desk. Your next duel starts now.");
                 } catch {
                   setNote("A new desk could not be set up yet.");
+                } finally {
+                  busy.current = false;
+                  setPending(false);
                 }
               }}
             >
-              PLAY ANOTHER DESK
+              {pending ? "SETTING YOUR DESK…" : "SAME PEN. FRESH DESK."}
+            </button>
+          )}
+          <button className="secondary wide" onClick={() => void share()}>
+            Share this duel
+          </button>
+          {!owns && (
+            <button className="primary wide" onClick={onBack}>
+              Your turn? Find your own desk
             </button>
           )}
         </section>
       )}
       <section className="pen-join">
-        <QRCodeSVG value={url(match.id)} size={92} />
+        <QRCodeSVG value={url(match.id, completed)} size={92} />
         <div>
-          <strong>JOIN THE CROWD</strong>
-          <span>Scan, name yourself, then shape the next flick.</span>
-          <a href={url(match.id)}>Open crowd link</a>
+          <strong>
+            {completed ? "THIS WAS OUR DESK" : "SAVE A CHAIR FOR A FRIEND"}
+          </strong>
+          <span>
+            {completed
+              ? "Scan to revisit this duel."
+              : "Send them this desk. Their next move could change yours."}
+          </span>
+          <a href={url(match.id, completed)}>
+            {completed ? "Open remembered duel" : "Open crowd link"}
+          </a>
+          <button
+            className="secondary"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(url(match.id, completed));
+                setNote("Desk link copied. Invite your crowd.");
+              } catch {
+                setNote("Copy the match link above to invite a friend.");
+              }
+            }}
+          >
+            Copy desk link
+          </button>
         </div>
       </section>
     </main>

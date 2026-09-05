@@ -166,6 +166,10 @@ function App() {
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
   const requestedJoinMatchId = useMemo(matchIdFromJoinLink, []);
+  const [requestedMemoryId, setRequestedMemoryId] = useState(() => {
+    const value = new URLSearchParams(window.location.search).get("memory");
+    return value && /^[0-9]{1,20}$/.test(value) ? BigInt(value) : null;
+  });
   /**
    * The operator dashboard is gated on a key in the URL, compared against a
    * value baked in at build time. This keeps the numbers off a guessable URL;
@@ -674,10 +678,30 @@ function App() {
     }
   };
 
-  if (me && displayedMatch?.gameKind === "pen_fight")
+  // Sharing a completed duel is read-only: strangers do not join an ended
+  // match or receive participation credit just for opening its memory.
+  const sharedPenMemory =
+    !showHome &&
+    matches.find(
+      (row) =>
+        row.id === requestedMemoryId &&
+        row.status === "complete" &&
+        row.gameKind === "pen_fight",
+    );
+  const penMatch = sharedPenMemory || displayedMatch;
+  if ((me || sharedPenMemory) && penMatch?.gameKind === "pen_fight")
     return (
       <PenFight
-        matchId={displayedMatch.id}
+        key={penMatch.id.toString()}
+        matchId={penMatch.id}
+        onRematch={() => {
+          setRequestedMemoryId(null);
+          setPinnedMatchId(null);
+          setShowHome(false);
+          const link = new URL(window.location.href);
+          link.searchParams.delete("memory");
+          window.history.replaceState({}, "", link.href);
+        }}
         onBack={() => {
           setShowHome(true);
           setFeedback(null);

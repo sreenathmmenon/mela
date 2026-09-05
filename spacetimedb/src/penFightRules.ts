@@ -186,7 +186,9 @@ export function resolvePenFlick(input: {
   const jitter = (Number(s1 % 2001n) / 1000 - 1) * PHYSICS.varPct;
   const drift =
     (Number(s2 % 2001n) / 1000 - 1) * PHYSICS.driftPct +
-    (input.effects.tilt ? ((input.contact - 50) / 50) * PHYSICS.tiltDrift : 0);
+    // Desk tilt must also affect centred flicks (the player's gesture uses
+    // contact=50). Direction is seeded, bounded, and shared by both actors.
+    (input.effects.tilt ? (s2 % 2n === 0n ? 1 : -1) * PHYSICS.tiltDrift : 0);
 
   // Lateral drift bends the actual line of travel away from the aim.
   let vx = ux - uy * drift;
@@ -200,10 +202,7 @@ export function resolvePenFlick(input: {
   // Swept collision: closest approach of the travel segment to the target pen.
   const toTargetX = input.targetX - input.actorX;
   const toTargetY = input.targetY - input.actorY;
-  const along = Math.max(
-    0,
-    Math.min(travel, toTargetX * vx + toTargetY * vy),
-  );
+  const along = Math.max(0, Math.min(travel, toTargetX * vx + toTargetY * vy));
   const missX = input.actorX + vx * along - input.targetX;
   const missY = input.actorY + vy * along - input.targetY;
   const miss = Math.hypot(missX, missY);
@@ -236,14 +235,11 @@ export function resolvePenFlick(input: {
       -1,
       Math.min(
         1,
-        vx * tanX +
-          vy * tanY +
-          ((input.contact - 50) / 50) * PHYSICS.spinMax,
+        vx * tanX + vy * tanY + ((input.contact - 50) / 50) * PHYSICS.spinMax,
       ),
     );
     const straight = Math.sqrt(Math.max(0, 1 - spin * spin));
-    const transfer =
-      PHYSICS.transferBase + PHYSICS.transferPerForce * power;
+    const transfer = PHYSICS.transferBase + PHYSICS.transferPerForce * power;
 
     targetX += (nx * straight + tanX * spin) * remaining * transfer;
     targetY += (ny * straight + tanY * spin) * remaining * transfer;
@@ -257,7 +253,8 @@ export function resolvePenFlick(input: {
     const awayLen = Math.max(1e-6, Math.hypot(awayX, awayY));
     awayX /= awayLen;
     awayY /= awayLen;
-    const carry = remaining * (PHYSICS.actorRetain + PHYSICS.followThrough * squareness);
+    const carry =
+      remaining * (PHYSICS.actorRetain + PHYSICS.followThrough * squareness);
     actorX = hitX + awayX * carry;
     actorY = hitY + awayY * carry;
   }

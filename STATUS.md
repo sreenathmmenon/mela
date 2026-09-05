@@ -1,185 +1,87 @@
 # MELA STATUS
 
-## Last updated
+## Current handoff — 6 September 2026, Asia/Kolkata
 
-- Date/time: 2026-09-05, Asia/Kolkata
-- Agent/provider: Claude (Opus 5)
-- Branch: `main`
-- Delivery state: Pen Fight gesture, the Book Cricket book, sound and the return
-  hooks are all live on `https://sreenathmenon.com/mela/` against Maincloud
-  `mela-cah23`.
+- Provider: Codex. Branch: main. Starting baseline: `11cd12a`.
+- This pass implements the approved Pen Fight emotional-connection brief.
+- Book Cricket remains the stable baseline. No new game, account system, AI provider, backend, schema, or progression economy.
+- Server update published successfully in place to Maincloud `mela-cah23`; no data deletion or migration.
+- Frontend changes verified locally; this commit is the Pages release candidate. Push/deployment confirmation is reported in the delivery message rather than predicted here.
+- Prior release narratives/evidence are preserved in Git at `11cd12a:STATUS.md`. Their test counts and older deployment claims are historical, not current evidence.
 
-## This pass
+## What changed
 
-A mentor could not tell what Book Cricket was or how it was played, and taking a
-Pen Fight shot needed three separate controls. Both are fixed.
+### Pen ownership, interaction and feedback
 
-### Pen Fight — one gesture
+- Retained the four handcrafted, equal-physics pens. Remembered cosmetic choice now has an explicit “Your Gel/Reynolds…” identity and a collapsed change-pen control. Invalid saved pen IDs fall back safely.
+- Real Pen Fight records supply rivalry copy. No invented streaks, best shots, personality memories, unlocks, or psychological claims.
+- A tap/finger wobble cannot fire a shot; deliberate drag uses its final pointer position. Pending/disconnected actions are disabled. Keyboard/button flick remains available.
+- Repeated CONTACT outcomes now retrigger feedback using authoritative state revision, not just outcome text. Loading a remembered duel does not replay its shot sound.
+- Transient acknowledgement is separate from authoritative outcome, so feedback no longer permanently hides the game state.
+- Pen Fight receives a bounded live event feed. Timestamp/ID/message deduplication handles repeated transient IDs. Routine energy regeneration does not displace meaningful desk moments.
+- Spectator instructions no longer tell a non-player to aim. Existing hidden-until-resolved crowd behavior is preserved, with named effects in the feed afterward.
 
-Pull back from your pen like a slingshot: direction is aim, distance is force,
-release fires. A dashed rubber band follows your finger and the launch guide is
-short and colour-ramped by power rather than showing a full trajectory. The
-contact/spin slider is gone entirely — one control beats two. Aim and power are
-also reachable with on-screen arrows and a FLICK button, since holding a pointer
-down is a motor-accessibility barrier.
+### Crowd connection
 
-Two bugs surfaced by playing rather than by the type checker: the aim guide was
-anchored to the pen's top-left while pens are centred on their position, leaving
-it floating ~111px above the pen; and the power bar scaled against max force but
-clamped to the opening cap, so it froze part-way during the first two turns.
+- Power labels/costs/durations derive from the pure server configuration. GUARD correctly displays 20, not 16.
+- Per-identity cooldown countdown, shared energy shortfall, pending/disconnected states, and existing-effect blocking are visible. The countdown is presentation only; reducers still decide eligibility.
+- Mobile two-column power panel, jump-to-crowd link, shared pool header, explicit affected pen, expiry and non-stacking explanations.
+- DESK TILT previously multiplied drift by contact offset: centred human flicks (contact 50) got no effect. It now applies the same bounded, seeded lateral tilt to centred or off-centre flicks for either actor.
+- Pen crowd actions now also increment the existing Mela participation counter; influence remains distinct from player skill.
 
-### Book Cricket — the book explains the game
+### Memory and sharing
 
-Ball one asks nothing: one button, OPEN THE BOOK. The book falls open, a page
-number sits in the corner the way it does in any real book, and the last digit
-is the runs. Nobody is told to take the last digit — they see 252, then 2 RUNS,
-and work it out by ball two.
+- Completion brings the result card into view: real result/moment, crowd contribution, personal rivalry or Crowd Influence, a practical loss tip, and replay.
+- Explicit “Share this duel” uses the native share sheet where supported; otherwise copies truthful result/story/link. Nothing is posted automatically.
+- Completed QR/share links use `?memory=<matchId>`, a read-only public Pen Fight memory. Fresh visitors see the result without onboarding or receiving participation credit.
+- Replay clears old memory/QR selection and resets component-local pending/aim state for the new desk.
+- Live desk invitation remains `?join=<matchId>`. Browser-only pen preferences are not represented as cross-device/server-owned customization.
 
-From ball two the choice appears as two intentions rather than three risk
-categories: PLAY IT SAFE and GO FOR IT. BALANCED is not removed; it is the
-default first delivery, so only the two deviations from normal are named. Every
-percentage and the drawn odds bar are gone — a player should be shown a
-decision, not a probability.
+## Actual verification this pass
 
-Verified the maths survives collapsing to two visible choices: optimal play is
-still SAFE in 4 states and GO FOR IT in 8, and the match stays competitive at
-roughly 46% human / 50% MelaBot / 4% draw.
+- `pnpm test`: **55/55 passed** (50 existing plus 5 experience/regression tests).
+- Added checks: tap threshold; server-configured pricing/cooldown/stacking/offline/pending presentation; honest rivalry; share copy including losses and zero crowd moves; deterministic TILT across 100 seeds in both directions with centred contact and bounded coordinates.
+- `pnpm run typecheck`: pass.
+- `pnpm run spacetime:build`: pass.
+- `pnpm run build` and `pnpm run build:pages`: pass.
+- Prettier check on changed code: pass. Git whitespace check: pass.
+- Isolated local database: `mela-pen-feel-0906`, local frontend `http://127.0.0.1:5174/`.
+- First attempt against the older local `mela-cah23` was rejected for an existing schema mismatch. No deletion was used; created the isolated database instead.
+- Independent browser sessions: Asha (player), Nila (390×844 spectator), fresh stranger (read-only memory).
+- Nila joined via match link, played DESK TILT, saw a 22-second remaining cooldown; the effect was consumed by Asha's flick. Both sessions received Nila's named TILT event, contact, automatic MelaBot action and shared Energy updates.
+- Pointer tap did not change outcome; a deliberate drag advanced to MelaBot and automatically back to Asha. Button controls also drove the completed duel.
+- Both browsers showed Asha 0–2 MelaBot, one crowd move, and a durable knockout memory. Database readback confirmed that exact result and crowd action. Nila's profile readback: one crowd action, three Crowd Influence.
+- Replay opened a fresh desk. Gel selection survived reload. The player and spectator mobile screenshots were visually inspected; no horizontal overflow at 390×844.
+- A fresh stranger opened `?memory=1` directly, with result and next-action controls and no account prompt.
+- Book Cricket regression playthrough: OPEN THE BOOK, subsequent SAFE choices, automatic chase, durable result **Asha 17–20 MelaBot**. Existing Book Cricket deterministic tests all passed.
+- Local screenshots: `output/playwright/pen-player-memory.png`, `pen-crowd-memory.png`, `pen-mobile-player.png`; CLI snapshots/screenshots remain local and Git-ignored.
+- Existing local favicon 404 observed. Native audio quality and native OS share sheets are not validated by these browser checks.
 
-A bug caught by playing it: the first version snapped pages to even numbers to
-honour the real game's verso rule, so an odd score showed a page that
-contradicted it (374 for 3 runs). On SAFE that would have misreported half of
-all balls. Truthfulness beat the verso detail; the digit is now always exactly
-what happened, locked by a test across 12,000 outcomes.
+## Authority and implementation map
 
-### Sound, rivalry and regret
-
-Six sounds and nowhere else — flick, contact, teeter, fall, SIX, OUT — entirely
-synthesised with the Web Audio API. No audio assets, about 1.5 KB gzipped. It
-defaults to muted under reduced-motion, so a Sound on/off control sits in the
-identity bar. Every entry point fails silently if audio is blocked.
-
-Rivalry: the picker opens with "You lead MelaBot 2-0." The record already
-existed; it was never said out loud, so every match started from nothing.
-
-Regret: when MelaBot wins, the story names the choice that cost you.
+- Shared world: world, playerProfile, melaProfile, presence, world activity, connection sessions, aggregate metrics, match and actor-generic participants.
+- Book Cricket: bookCricketState, Book Cricket rules/provider, record, shared history/memory.
+- Pen Fight: penFightState, Pen Fight rules/provider, penFightRecord and metrics.
+- Crowd: matchCrowd, matchCrowdActivity, matchSpectator, spectatorCooldown, crowdEffect and private crowdSchedule.
+- liveEvent is transient delivery; matchHistory/matchMemory are durable product history.
+- Reducers own mutations; clients project subscriptions. Human/AI share game-specific rule resolution. Private scheduling owns AI wake/effect expiry and existing discrete tasks.
+- Public gameplay includes onboard, createBookCricket, playBall, createPenFight, flickPen, joinMatchAsSpectator, useCrowdPower, usePenFightCrowdPower.
+- No table/reducer contract or generated binding changes in this pass.
 
 ## Deployment
 
-Book Cricket's `lastPage` column forced a `--delete-data` publish (the 2.10 SDK
-has no column-default annotation). Before publishing, all 12 player identities,
-6 remembered matches and the full metrics were exported to
-`../mela-backup-20260905-224143/` with a `PLAYERS.md` naming everyone who had
-played or watched, including the two audience members who only spent Crowd
-Energy. That archive is evidence, not a restore point: profiles are keyed by
-SpacetimeDB identity and the only reducer that writes them uses `ctx.sender`, so
-a faithful restore would mean impersonating those people. Adding an admin import
-reducer would punch a permanent hole in the identity model for demo data, so it
-was not done.
+- Maincloud: `https://maincloud.spacetimedb.com`, database `mela-cah23`.
+- Frontend: https://sreenathmenon.com/mela/
+- GitHub Pages deploys on main through `.github/workflows/deploy-pages.yml`.
+- Actual server release command: `spacetime publish --module-path spacetimedb --server maincloud mela-cah23 --yes`. Result: updated existing database successfully, empty migration plan.
+- Commits must be Sreenath <sreenathmmmenon@gmail.com>, without co-author attribution.
 
-## Authoritative schema and reducers
+## Known limits and next task
 
-- World/identity: `world`, `playerProfile`, `melaProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
-- Match/game: `match`, `matchParticipant`, `bookCricketState`, `matchHistory`, `matchMemory`, `bookCricketRecord`, event `liveEvent`, `aiCharacter`.
-- Pen Fight: `penFightState`, `penFightRecord`, public aggregate `penFightMetrics`, and private per-identity `penFightMetricsIdentity`. Pen’s deterministic provider proposes a legal flick; `processCrowdSchedule` validates the scheduled turn and invokes the same internal resolver as a human action.
-- Crowd: `matchCrowd`, `matchCrowdActivity`, `matchSpectator`, `spectatorCooldown`, `crowdEffect`, private `crowdSchedule`.
-- Metrics: public safe aggregate `melaMetrics`; private per-identity uniqueness guard `metricsIdentity`.
-- Public reducers: `onboard`, `createBookCricket`, `playBall`, `joinMatchAsSpectator`, `useCrowdPower`.
-- Private scheduled reducer: `processCrowdSchedule` for effect expiry, Crowd Energy regeneration, and autonomous MelaBot wake.
-
-## Validation evidence
-
-All rows below were produced during this pass. Rows describing the *previous*
-release are retained under "Prior release evidence" and are explicitly marked
-as no longer describing the current build.
-
-| Check | Status | Evidence |
-| --- | --- | --- |
-| Deterministic suite | Pass | `pnpm test`: **35/35** (was 25). New coverage: expectimax proof that no Book Cricket style is optimal in every state; MelaBot required-rate chase; a pen can reach and knock out the opponent from the start; force carries overshoot risk near an edge; no legal opening flick can end a round; contact point steers the struck pen; degenerate aim cannot produce an invalid position; desk-margin tiebreak; crowd swings are attributed. |
-| Design pass checks | Pass | After the design pass: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build`, `pnpm run build:pages`, and `prettier --check` on every touched file. |
-| Design pass browser loop | Pass | Local module republished (`--delete-data`, dev database only) and driven with three real clients (player Sreenath, spectator Nila on a second origin, fresh stranger Arjun on a third): cold-load splash, onboarding, game picker, Book Cricket played to completion twice with suspense/reveal, crowd BOOST attributed before and after the ball (gold banner), pen desk with legal flick + contact + MelaBot response, stage for Book Cricket and Pen Fight, and 390x844 passes for player, spectator and Pen Fight. No functional regressions observed: reducers, subscriptions, QR join, stage route, memory and metrics all behaved as before. |
-| Design pass production deploy | Pass | Pushed `3cae643` to `main`; GitHub Pages built and deployed it (deployed CSS/JS fingerprinted: tokens + desk-shake/teeter/qr-glow present, JS points at `maincloud.spacetimedb.com` / `mela-cah23`). Live smoke test on `https://sreenathmenon.com/mela/`: splash → onboarding as a fresh visitor (Priya) → picker → Book Cricket match 7 started, one BALANCED ball committed through Maincloud (1/0, ball strip and reveal rendered), stage route showed the match with QR beacon, latest-moment banner and ball chip. |
-| Full redesign (Daylight) checks | Pass | After the rewrite: `pnpm run typecheck`, `pnpm test` 34/34, `pnpm run build:pages`, prettier-clean. |
-| Full redesign (Daylight) browser loop | Pass | Local three-identity loop re-run on the new system: player scorebook with teal/rust dots and Fraunces numerals, AGGRESSIVE ball resolving to SIX with Nila's BOOST attributed in the inverted-ink stamp, honey crowd booth with power tickets, poster stage (live match + QR beacon), Pen Fight desk with the teal player pen, fresh-visitor landing, and 390x844 passes for the crowd booth (sticky honey energy header) and the desk. No functional regressions: the same reducer/subscription/QR/stage/memory behaviours as before. |
-| Full redesign (Daylight) production deploy | Pass | Pushed `eed3c41`; Pages deployed it (deployed CSS carries `--canvas`/`--teal`/`--honey` and Fraunces; index references the new fonts). Live smoke: returning visitor (Priya) reconnected to her live match 7 with the daylight scorebook and choices, Maincloud state intact; splash and landing render in the new identity. |
-| Module build | Pass | `pnpm run spacetime:build`. |
-| Frontend checks | Pass | `pnpm run typecheck`, `pnpm run build`, `pnpm run build:pages` (production host/database/origin). |
-| Book Cricket balance | Pass | Independent expectimax over the exact 100-roll joint distribution, cross-checked against a 200k-delivery LCG chain (avg 1.760 / 2.160 / 2.690; OUT 4.0% / 14.0% / 35.0%). Optimal policy: SAFE 4 states, BALANCED 2, AGGRESSIVE 6. Chase policy varies with required rate and wickets. |
-| Pen Fight physics | Pass | Force sweep from the start position: 20 falls short, 66 makes contact, 80+ knocks the opponent off. Exhaustive opening search (force x angle x contact x seed): max displacement 219 vs 260 needed — no instant win. Simulated rounds: KO 51–79%. Contact 0/50/100 deflects −496 / +7 / +454 units. |
-| MelaBot balance | Pass | 3,000 best-of-three matches per skill tier: human match win 36.3% (average) and 38.4% (sloppy). Mirror match at equal skill: KO 60.0%. |
-| Fresh-visitor flow | Pass | Cleared storage, cold load: branded splash, then a landing page explaining Mela, then name entry, then a working game picker. No black screen, no dead end. |
-| Routing trap fixed | Pass | The previously inert "Choose game" now returns to the picker; a new identity is never routed into a stranger's or a finished match. |
-| Concurrent matches | Pass | Arjun and Meera each started and played their own Book Cricket match at the same time on one database; each saw only their own, and each saw the other listed under "join a live crowd". |
-| Crowd attribution | Pass | Spectator Nila spent BOOST; the player saw "The crowd is with you. Nila played BOOST — it lands on this ball" *before* choosing, then "2 RUNS — Nila's BOOST turned 0 into 2". The stage showed the same attribution in gold. |
-| Pen Fight playthrough | Pass | Live local match: reached MelaBot's pen at force 66, exchanged contact, and won 2–0 with "Riya won with a desk-edge knockout." recorded as durable memory. |
-| Suspense and reveal | Pass | Ball commit shows an animated "The ball is on its way…" with the score withheld, then reveals "SIX!" with emphasis; a ball-by-ball strip renders alongside. |
-| Big screen | Pass | 1440x900: score/subtext collision fixed; crowd attribution and ball-by-ball strip render; QR and turn state readable from a distance. |
-| Mobile spectator | Pass | 390px viewport: score, situation, crowd attribution and ball strip all readable with no horizontal scroll; Crowd Energy sticks to the top of the crowd panel. |
-| Schema migration | **Blocked** | In-place publish aborts (new columns need default annotations; table reordering needs manual migration). Verified end to end on a local database seeded with the previous schema: `--delete-data` migrates cleanly. Production publish deliberately not performed — see "Deployment decision required". |
-| Pen Fight gesture (live) | Pass | Production: 0 sliders, power bar and 5 keyboard controls present, and a real drag committed a flick. |
-| Book Cricket book (live) | Pass | Production: ball one showed only OPEN THE BOOK; it resolved `page 252 -> 2 RUNS`, then PLAY IT SAFE / GO FOR IT appeared. No percentage anywhere on screen. |
-| Page digit honesty | Pass | Six consecutive balls read 252->2, 452->2, 130->OUT, 373->3, 56->SIX. Test asserts an exact match across 12,000 outcomes. |
-| Rivalry / regret | Pass | After two wins the picker showed "You lead MelaBot 2-0."; the regret line correctly stayed hidden on a win. |
-| Sound | **Partial** | 8/8 structural guarantees hold (lazy context, webkit fallback, silent failure, reduced-motion default, persisted mute, gain ceiling). Actual playback **could not be verified**: Chrome requires genuine user activation and CDP-synthesised clicks leave `navigator.userActivation.hasBeenActive` false. Needs a human ear — particularly whether flick and contact stay distinct mid-rally. |
-| Production smoke test | Pass | `https://sreenathmenon.com/mela/` on a cleared browser: splash → landing → onboarding → game picker. Book Cricket played to completion — went OUT on ball 1 to AGGRESSIVE (the 35% risk is real), then SAFE through to **Riya 12/1 vs MelaBot 14/1, decided by 2 runs**, with MelaBot losing a wicket mid-chase. Both ball-by-ball strips, the required-rate pressure line and the state-derived memory rendered. Pen Fight: reached and struck MelaBot's pen at force 64 — contact was impossible in the previous build. Stage route, "Mela home" and reconnect all verified live. |
-| Stage route regression | Fixed | The stage is a hash route; navigating to it from inside the app only changed the hash, and the route was read once at module load, so it rendered the player view instead. Caught during the production smoke test, made reactive to `hashchange`/`popstate`, and the in-app link now resolves against `BASE_URL` rather than the domain root. Re-verified live. |
-
-### Prior release evidence (previous build — does not describe the current code)
-
-The Book Cricket + Pen Fight release notes recorded before this pass remain in
-git history at commit `2022633`. They described a build in which a fresh visitor
-could not reach a playable state, only one match could exist world-wide, and
-neither game's central decision was mathematically meaningful. Do not cite those
-rows as evidence for the current build.
-
-## Deployment configuration
-
-- Maincloud host: `https://maincloud.spacetimedb.com`
-- Maincloud database: `mela-cah23`
-- Frontend target: `https://sreenathmenon.com/mela`
-- GitHub Pages deploys from `.github/workflows/deploy-pages.yml` on push to `main`.
-- **The live site serves the design-pass build (`3cae643`).** No module publish
-  was needed: the schema and module bindings are unchanged from the currently
-  published Maincloud module.
-
-## Known limitations
-
-- The display font loads from Google Fonts; offline, Mela falls back to the
-  system stack (Avenir Next/Trebuchet/system-ui), which is legible but less
-  distinctive. No font is bundled locally.
-- The "MELA" corner stamp on memory cards is CSS `::after` content, so it is
-  exposed to assistive tech as decorative text; it is hidden below 520px.
-- The published schema reset the world's prior demo data (approved). Any future
-  column addition will hit the same constraint until the SDK supports column
-  defaults.
-- Batting first is structurally disadvantaged in Book Cricket: the chaser knows
-  the exact target. With optimal play the human wins ~41% and MelaBot ~54% (4%
-  draws). Tuning the bot's chase bands barely moves this; closing it fully would
-  need a rules change (a third wicket brings it to ~44/50 but softens the
-  wicket tension that makes the choice matter). MelaBot being a modest favourite
-  is a deliberate choice — it should be worth beating.
-- The Pen Fight balance figures come from scripted opponents, not human
-  playtesters. A cautious scripted "human" that never attacks wins only ~17%;
-  that is a limitation of the model, not evidence about real players.
-- Crowd powers are still resolved per-spectator. A shared crowd-level goal
-  ("did the crowd swing this match?") is designed for but not implemented.
-- No sound. Four Pen Fight moments (flick, contact, edge teeter, fall) and two
-  Book Cricket moments (SIX, OUT) would benefit; deferred deliberately.
-- No external LLM, generic game engine, social graph, OAuth, Redis, Socket.IO,
-  separate backend, or high-frequency tick was introduced.
-- High-volume load testing remains out of scope.
-
-## Next task
-
-Run the planned multi-device production session — a real phone scanning the QR
-into a live match — to confirm crowd attribution and concurrent matches with
-genuine separate devices on the deployed design. After that, the
-highest-value remaining work is sound on the six moments that carry the games
-(Pen Fight: flick, contact, edge teeter, fall; Book Cricket: SIX, OUT) and a
-shared crowd-level goal so multiple spectators feel like one crowd.
-
-## Handoff notes
-
-Use [BOOK_CRICKET_DEMO_RUNBOOK.md](docs/BOOK_CRICKET_DEMO_RUNBOOK.md) for the
-judge flow. Read `AGENTS.md`, this file, and the architecture documents before
-future work. The balance numbers in both games are proven by tests — re-run
-those proofs before changing any of them.
+- This is an implemented design pass, not evidence of “best in the universe,” emotional attachment, retention, or virality. Those require real people playing voluntarily.
+- Pen appearance is a remembered preference on this browser, not shared persisted per-player equipment.
+- Native sharing depends on browser/OS support. Clipboard fallback is provided; per-result social preview images and automatic social posting are not implemented.
+- No new long-term character/rivalry schema, pen mastery/unlock system, or historical shot replay. Copy uses existing real match records.
+- Existing real-world/device limitations remain: physical QR scan and sound feel require human checking; scripted play is not evidence of human balance.
+- No manipulative streak loss, FOMO, notification spam, fake accomplishments, external LLM, social graph, OAuth, new game, generic engine, backend, or high-frequency tick.
+- **Next task:** run a short voluntary playtest with a first-time player and two phone spectators. Observe whether they can flick, explain the crowd effect, understand a loss, and choose to replay/share without prompting. Tune from that evidence, not fabricated engagement claims.

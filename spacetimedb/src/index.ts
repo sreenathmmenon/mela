@@ -1062,7 +1062,8 @@ function resolvePenFlick(
   // the crowd's interference has to stay hidden until it has been applied.
   for (const effect of actorEffects.rows) {
     if (effect.power === "guard") continue;
-    const label = effect.power === "tilt" ? "DESK TILT" : effect.power.toUpperCase();
+    const label =
+      effect.power === "tilt" ? "DESK TILT" : effect.power.toUpperCase();
     emit(
       ctx,
       match.id,
@@ -1212,7 +1213,8 @@ export const onboard = spacetimedb.reducer(
     // Validated server-side: the client can be bypassed by calling this
     // reducer directly, and this name is about to render on a projector.
     const check = checkDisplayName(name);
-    if (!check.ok) throw new Error(check.message ?? "That name cannot be used.");
+    if (!check.ok)
+      throw new Error(check.message ?? "That name cannot be used.");
     const old = ctx.db.playerProfile.identity.find(ctx.sender);
     if (old)
       ctx.db.playerProfile.identity.update({
@@ -1508,6 +1510,7 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
     const melaProfile = ensureMelaProfile(ctx, ctx.sender);
     ctx.db.melaProfile.identity.update({
       ...melaProfile,
+      crowdActions: melaProfile.crowdActions + 1,
       crowdInfluence: melaProfile.crowdInfluence + influence,
       updatedAt: ctx.timestamp,
     });
