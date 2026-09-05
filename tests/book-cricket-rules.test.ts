@@ -11,6 +11,10 @@ import {
   resolveBookCricketOutcome,
   resolveChaseWinner,
 } from "../spacetimedb/src/bookCricketRules";
+import {
+  DeterministicAIProvider,
+  shouldExecuteScheduledAIWake,
+} from "../spacetimedb/src/aiProvider";
 
 test("delivery scoring is deterministic and bounded by the selected style", () => {
   const first = resolveBookCricketOutcome(18n, "steady");
@@ -119,5 +123,54 @@ test("CHAOS uses a deterministic high-variance profile", () => {
   assert.deepEqual(
     resolveBookCricketOutcome(333n, "steady", true),
     resolveBookCricketOutcome(333n, "steady", true),
+  );
+});
+
+test("DeterministicAIProvider returns the same legal proposal for identical state", () => {
+  const provider = new DeterministicAIProvider();
+  const observation = { target: 16, botScore: 4, botBalls: 3, botWickets: 1 };
+  assert.deepEqual(
+    provider.decideAction(observation),
+    provider.decideAction(observation),
+  );
+  assert.match(provider.decideAction(observation).style, /^(steady|attack)$/);
+});
+
+test("scheduled AI wakes only execute for the exact active bot turn", () => {
+  assert.equal(
+    shouldExecuteScheduledAIWake({
+      matchStatus: "active",
+      turn: "bot",
+      botBalls: 2,
+      expectedBotBalls: 2,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldExecuteScheduledAIWake({
+      matchStatus: "complete",
+      turn: "bot",
+      botBalls: 2,
+      expectedBotBalls: 2,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldExecuteScheduledAIWake({
+      matchStatus: "active",
+      turn: "human",
+      botBalls: 2,
+      expectedBotBalls: 2,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldExecuteScheduledAIWake({
+      matchStatus: "active",
+      turn: "bot",
+      botBalls: 3,
+      expectedBotBalls: 2,
+    }),
+    false,
   );
 });

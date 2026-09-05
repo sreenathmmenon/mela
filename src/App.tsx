@@ -52,7 +52,11 @@ function App() {
   >([]);
   const onMatchEvent = useCallback(
     (event: { id: bigint; matchId: bigint; message: string }) =>
-      setMatchEvents((feed) => [...feed, event].slice(-16)),
+      setMatchEvents((feed) =>
+        feed.some((existing) => existing.id === event.id)
+          ? feed
+          : [...feed, event].slice(-16),
+      ),
     [],
   );
 
@@ -74,6 +78,7 @@ function App() {
   const [spectators] = useTable(tables.matchSpectator);
   const [cooldowns] = useTable(tables.spectatorCooldown);
   const [effects] = useTable(tables.crowdEffect);
+  const [aiCharacters] = useTable(tables.aiCharacter);
   useTable(tables.liveEvent, { onInsert: onMatchEvent });
 
   const me = useMemo(() => {
@@ -116,11 +121,13 @@ function App() {
   const result = displayedMatch
     ? history.find((row) => row.matchId === displayedMatch.id)
     : undefined;
+  const melaBot = aiCharacters.find(
+    (character) => character.characterKey === "melabot",
+  );
 
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
   const playBall = useReducer(reducers.playBall);
-  const runBot = useReducer(reducers.runMelaBotTurn);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
 
@@ -274,13 +281,19 @@ function App() {
                 </button>
               </div>
             )}
-            {ownsMatch && matchState.turn === "bot" && (
-              <button
-                className="primary"
-                onClick={() => runBot({ matchId: displayedMatch.id })}
-              >
-                Let MelaBot play
-              </button>
+            {matchState.turn === "bot" && (
+              <div className="ai-turn" role="status">
+                <span className="ai-pulse" aria-hidden="true" />
+                <div>
+                  <strong>
+                    {melaBot?.displayName ?? "MelaBot"} is making its move
+                  </strong>
+                  <p>
+                    {melaBot?.persona ??
+                      "Cool under pressure. Reckless when behind."}
+                  </p>
+                </div>
+              </div>
             )}
           </section>
 

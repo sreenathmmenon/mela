@@ -5,6 +5,7 @@ export const BOOK_CRICKET_RULES = {
   crowdEnergyMax: 60,
   crowdEnergyRegenAmount: 2,
   crowdEnergyRegenMicros: 12_000_000n,
+  aiWakeDelayMicros: 1_200_000n,
 } as const;
 
 export const CROWD_POWERS = {

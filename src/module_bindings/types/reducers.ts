@@ -10,7 +10,6 @@ import CreateBookCricketReducer from "../create_book_cricket_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
 import OnboardReducer from "../onboard_reducer";
 import PlayBallReducer from "../play_ball_reducer";
-import RunMelaBotTurnReducer from "../run_mela_bot_turn_reducer";
 import UseCrowdPowerReducer from "../use_crowd_power_reducer";
 
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
@@ -19,5 +18,4 @@ export type JoinMatchAsSpectatorParams = __Infer<
 >;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
-export type RunMelaBotTurnParams = __Infer<typeof RunMelaBotTurnReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;

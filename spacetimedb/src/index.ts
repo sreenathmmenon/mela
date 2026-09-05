@@ -5,13 +5,16 @@ import {
   type BookCricketStyle,
   type CrowdPower,
   applyCrowdDeliveryEffects,
-  chooseMelaBotStyle,
   crowdPowerResult,
   isInningsComplete,
   isCrowdPower,
   resolveBookCricketOutcome,
   resolveChaseWinner,
 } from "./bookCricketRules";
+import {
+  DeterministicAIProvider,
+  shouldExecuteScheduledAIWake,
+} from "./aiProvider";
 
 const WORLD_ID = 1n;
 
@@ -34,6 +37,15 @@ const spacetimedb = schema({
       name: t.string(),
       status: t.string(),
       createdAt: t.timestamp(),
+    },
+  ),
+  aiCharacter: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey(),
+      characterKey: t.string(),
+      displayName: t.string(),
+      persona: t.string(),
     },
   ),
   playerProfile: table(
@@ -199,6 +211,15 @@ const ensureWorld = (ctx: any) => {
       createdAt: ctx.timestamp,
     });
 };
+const ensureMelaBot = (ctx: any) => {
+  if (!ctx.db.aiCharacter.id.find(1n))
+    ctx.db.aiCharacter.insert({
+      id: 1n,
+      characterKey: "melabot",
+      displayName: "MelaBot",
+      persona: "Cool under pressure. Reckless when behind.",
+    });
+};
 const player = (ctx: any) => {
   const row = ctx.db.playerProfile.identity.find(ctx.sender);
   if (!row) throw new Error("Choose a display name first.");
@@ -253,6 +274,27 @@ const scheduleCrowdTask = (
     matchId,
     effectId,
   });
+};
+const scheduleMelaBotWake = (
+  ctx: any,
+  matchId: bigint,
+  expectedBotBalls: number,
+) => {
+  for (const task of ctx.db.crowdSchedule.iter()) {
+    if (
+      task.kind === "ai_wake" &&
+      task.matchId === matchId &&
+      task.effectId === BigInt(expectedBotBalls)
+    )
+      return;
+  }
+  scheduleCrowdTask(
+    ctx,
+    "ai_wake",
+    matchId,
+    BigInt(expectedBotBalls),
+    nowMicros(ctx) + BOOK_CRICKET_RULES.aiWakeDelayMicros,
+  );
 };
 
 function resolveDelivery(
@@ -310,6 +352,8 @@ function resolveDelivery(
       lastOutcome: "INNINGS BREAK",
     };
     emit(ctx, match.id, `MelaBot needs ${score + 1}`);
+    emit(ctx, match.id, "MelaBot is reading the field…");
+    scheduleMelaBotWake(ctx, match.id, state.botBalls);
   } else if (over) {
     const winner = resolveChaseWinner(score, state.target);
     ctx.db.match.id.update({
@@ -334,13 +378,21 @@ function resolveDelivery(
     emit(ctx, match.id, next.lastOutcome);
   } else {
     emit(ctx, match.id, `${human ? "Human" : "MelaBot"} → ${next.lastOutcome}`);
+    if (!human) {
+      emit(ctx, match.id, "MelaBot is weighing its next move…");
+      scheduleMelaBotWake(ctx, match.id, balls);
+    }
   }
   ctx.db.bookCricketState.matchId.update(next);
 }
 
-export const init = spacetimedb.init(ensureWorld);
+export const init = spacetimedb.init((ctx: any) => {
+  ensureWorld(ctx);
+  ensureMelaBot(ctx);
+});
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   ensureWorld(ctx);
+  ensureMelaBot(ctx);
   if (ctx.connectionId)
     ctx.db.connectionSession.insert({
       connectionId: ctx.connectionId,
@@ -394,6 +446,8 @@ export const onboard = spacetimedb.reducer(
 );
 export const createBookCricket = spacetimedb.reducer((ctx: any) => {
   const p = player(ctx);
+  ensureMelaBot(ctx);
+  const melaBot = ctx.db.aiCharacter.id.find(1n);
   const matchId = nextMatchId(ctx);
   ctx.db.match.insert({
     id: matchId,
@@ -419,7 +473,7 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     actorKind: "ai",
     role: "opponent",
     identity: undefined,
-    displayName: "MelaBot",
+    displayName: melaBot?.displayName ?? "MelaBot",
   });
   ctx.db.bookCricketState.insert({
     matchId,
@@ -466,23 +520,6 @@ export const playBall = spacetimedb.reducer(
     resolveDelivery(ctx, match, state, "human", style);
   },
 );
-export const runMelaBotTurn = spacetimedb.reducer(
-  { matchId: t.u64() },
-  (ctx: any, { matchId }: any) => {
-    const match = ctx.db.match.id.find(matchId);
-    const state = ctx.db.bookCricketState.matchId.find(matchId);
-    if (!match || !state || match.status !== "active" || state.turn !== "bot")
-      throw new Error("MelaBot is not ready.");
-    resolveDelivery(
-      ctx,
-      match,
-      state,
-      "bot",
-      chooseMelaBotStyle(state.target, state.botScore),
-    );
-  },
-);
-
 export const joinMatchAsSpectator = spacetimedb.reducer(
   { matchId: t.u64() },
   (ctx: any, { matchId }: any) => {
@@ -601,6 +638,29 @@ export const processCrowdSchedule = spacetimedb.reducer(
   (ctx: any, { arg }: any) => {
     const match = ctx.db.match.id.find(arg.matchId);
     if (!match || match.status !== "active") return;
+    if (arg.kind === "ai_wake") {
+      const state = ctx.db.bookCricketState.matchId.find(arg.matchId);
+      if (
+        !state ||
+        !shouldExecuteScheduledAIWake({
+          matchStatus: match.status,
+          turn: state.turn,
+          botBalls: state.botBalls,
+          expectedBotBalls: Number(arg.effectId),
+        })
+      )
+        return;
+      const proposal = new DeterministicAIProvider().decideAction({
+        target: state.target,
+        botScore: state.botScore,
+        botBalls: state.botBalls,
+        botWickets: state.botWickets,
+      });
+      emit(ctx, arg.matchId, proposal.rationale);
+      emit(ctx, arg.matchId, `MelaBot chose ${proposal.style.toUpperCase()}`);
+      resolveDelivery(ctx, match, state, "bot", proposal.style);
+      return;
+    }
     if (arg.kind === "effect_expiry") {
       const effect = ctx.db.crowdEffect.id.find(arg.effectId);
       if (effect && effect.expiresAtMicros <= nowMicros(ctx)) {

@@ -10,6 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const AiCharacter = __t.object("AiCharacter", {
+  id: __t.u64(),
+  characterKey: __t.string(),
+  displayName: __t.string(),
+  persona: __t.string(),
+});
+export type AiCharacter = __Infer<typeof AiCharacter>;
+
 export const BookCricketState = __t.object("BookCricketState", {
   matchId: __t.u64(),
   innings: __t.u32(),

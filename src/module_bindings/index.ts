@@ -38,12 +38,12 @@ import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import OnboardReducer from "./onboard_reducer";
 import PlayBallReducer from "./play_ball_reducer";
-import RunMelaBotTurnReducer from "./run_mela_bot_turn_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import AiCharacterRow from "./ai_character_table";
 import BookCricketStateRow from "./book_cricket_state_table";
 import CrowdEffectRow from "./crowd_effect_table";
 import LiveEventRow from "./live_event_table";
@@ -62,6 +62,23 @@ import WorldPresenceRow from "./world_presence_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  aiCharacter: __table(
+    {
+      name: "ai_character",
+      indexes: [
+        {
+          accessor: "id",
+          name: "ai_character_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "ai_character_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    AiCharacterRow,
+  ),
   bookCricketState: __table(
     {
       name: "book_cricket_state",
@@ -324,7 +341,6 @@ const reducersSchema = __reducers(
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("play_ball", PlayBallReducer),
-  __reducerSchema("run_mela_bot_turn", RunMelaBotTurnReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
 );
 
