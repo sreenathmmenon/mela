@@ -1,0 +1,896 @@
+/* ============================================================================
+   Mela — Pen Fight: the pens
+   ----------------------------------------------------------------------------
+   Four pens off an Indian school desk, drawn in pure CSS. Each one has to be
+   recognisable in a glance at thumb size, so the silhouette does the heavy
+   lifting and the materials sell it up close.
+
+   HOW THE SCALING WORKS (the load-bearing idea in this file)
+   ----------------------------------------------------------------------------
+   mela.css owns the pen's WIDTH and HEIGHT — it changes across breakpoints
+   (132x20 on desktop, 96x15 on small screens, 150x26 on the big screen) and is
+   a share of the desk. So nothing here may use a fixed px for pen geometry: a
+   nib that is 15px looks like a needle on a 150px pen and a traffic cone on a
+   56px one.
+
+   The fix is a size container. `container-type: size` on the pen root makes
+   `1cqh` mean "1% of THIS pen's height" and `1cqw` mean "1% of its width",
+   which gives one honest proportional unit for both axes. Every dimension
+   below is expressed in cqh (thickness, radii, bands, type size) or in % /
+   cqw along the length. Resize the pen and the whole drawing follows.
+
+   Size containment is safe here: the pen's children are all absolutely
+   positioned by this file, and PenFight.tsx does its pointer maths on the
+   ARENA, not on individual pens, so nothing depends on the pen's intrinsic
+   layout size.
+
+   WHAT WE'RE STYLING (markup is fixed)
+   ----------------------------------------------------------------------------
+     .pen-token            the whole pen, rotated by --pen-spin
+       ::before            the barrel
+       ::after             the nib / front section
+       i.pen-shadow        contact shadow on the paper
+       span                the cap end, holds the player's initial
+         span::before      the clip
+         span::after       the cap band / finial
+
+   COLOUR
+   ----------------------------------------------------------------------------
+   `.human` is the teal/blue family, `.bot` the red/orange family. Each pen
+   type sets its own --ink (body colour) and --ink-* stops per variant, and the
+   pen's STRUCTURE stays identical across variants — a Reynolds is a Reynolds
+   whether it is teal or rust.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- base ---- */
+/* Applies to both the desk pen and the big-screen pen. Everything here is
+   geometry-neutral; the per-pen classes below paint the materials. */
+.pen-token,
+.screen-pen-token {
+  /* The unit source for every measurement in this file. */
+  container-type: size;
+  /* Keeps the drawing inside the box so a clip or nib can never widen the
+     element and disturb layout or hit-testing. */
+  overflow: visible;
+}
+
+/* Reset mela.css's px-based pen so the designs below start from clean slate.
+   Only the four designer classes opt into the new drawing, so an unstyled
+   .pen-token keeps its old look rather than falling apart. */
+.pen-token.pen-reynolds::before,
+.screen-pen-token.pen-reynolds::before,
+.pen-token.pen-gel::before,
+.screen-pen-token.pen-gel::before,
+.pen-token.pen-metal::before,
+.screen-pen-token.pen-metal::before,
+.pen-token.pen-fountain::before,
+.screen-pen-token.pen-fountain::before,
+.pen-token.pen-reynolds::after,
+.screen-pen-token.pen-reynolds::after,
+.pen-token.pen-gel::after,
+.screen-pen-token.pen-gel::after,
+.pen-token.pen-metal::after,
+.screen-pen-token.pen-metal::after,
+.pen-token.pen-fountain::after,
+.screen-pen-token.pen-fountain::after {
+  border: 0;
+  width: auto;
+  height: auto;
+  background: none;
+  box-shadow: none;
+  filter: none;
+}
+.pen-token.pen-reynolds span,
+.screen-pen-token.pen-reynolds span,
+.pen-token.pen-gel span,
+.screen-pen-token.pen-gel span,
+.pen-token.pen-metal span,
+.screen-pen-token.pen-metal span,
+.pen-token.pen-fountain span,
+.screen-pen-token.pen-fountain span {
+  width: auto;
+  height: auto;
+  background: none;
+  box-shadow: none;
+}
+.pen-token.pen-reynolds span::after,
+.screen-pen-token.pen-reynolds span::after,
+.pen-token.pen-gel span::after,
+.screen-pen-token.pen-gel span::after,
+.pen-token.pen-metal span::after,
+.screen-pen-token.pen-metal span::after,
+.pen-token.pen-fountain span::after,
+.screen-pen-token.pen-fountain span::after {
+  width: auto;
+  height: auto;
+  background: none;
+}
+
+/* Shared skeleton for all four pens. The pen points LEFT (nib at left edge),
+   cap at the right, matching the original markup order and the aim maths. */
+.pen-token.pen-reynolds::before,
+.screen-pen-token.pen-reynolds::before,
+.pen-token.pen-gel::before,
+.screen-pen-token.pen-gel::before,
+.pen-token.pen-metal::before,
+.screen-pen-token.pen-metal::before,
+.pen-token.pen-fountain::before,
+.screen-pen-token.pen-fountain::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.pen-token.pen-reynolds::after,
+.screen-pen-token.pen-reynolds::after,
+.pen-token.pen-gel::after,
+.screen-pen-token.pen-gel::after,
+.pen-token.pen-metal::after,
+.screen-pen-token.pen-metal::after,
+.pen-token.pen-fountain::after,
+.screen-pen-token.pen-fountain::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* The initial sits ON the cap. Small, heavy, and shadowed so it reads as
+   printed/engraved on a curved surface rather than floating over it. */
+.pen-token.pen-reynolds span,
+.screen-pen-token.pen-reynolds span,
+.pen-token.pen-gel span,
+.screen-pen-token.pen-gel span,
+.pen-token.pen-metal span,
+.screen-pen-token.pen-metal span,
+.pen-token.pen-fountain span,
+.screen-pen-token.pen-fountain span {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  /* Type scales with the pen: ~44% of barrel height keeps it legible at 60px
+     wide and stops it ballooning at 220px. */
+  font-size: 44cqh;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  /* Counter-rotation is NOT applied: the initial riding with the pen's spin is
+     what makes it read as printed on the barrel. */
+  z-index: 3;
+}
+
+/* ------------------------------------------------------- contact shadow --- */
+/* Sells "resting on paper": tight and dark directly under the barrel, fading
+   out fast. Offset down-right to match the page's top-left key light. Every
+   dimension is in cqh/%, so the falloff stays proportional at any pen size
+   instead of turning into a hard slab when the pen is large. */
+.pen-token.pen-reynolds i.pen-shadow,
+.screen-pen-token.pen-reynolds i.pen-shadow,
+.pen-token.pen-gel i.pen-shadow,
+.screen-pen-token.pen-gel i.pen-shadow,
+.pen-token.pen-metal i.pen-shadow,
+.screen-pen-token.pen-metal i.pen-shadow,
+.pen-token.pen-fountain i.pen-shadow,
+.screen-pen-token.pen-fountain i.pen-shadow {
+  position: absolute;
+  /* Hugs the barrel rather than the full element box, so the shadow never
+     trails past the nib as a pale streak. */
+  left: 10%;
+  right: 12%;
+  top: 52cqh;
+  height: 58cqh;
+  border-radius: 50%;
+  /* The softness lives in the gradient's own falloff, NOT in a filter: this
+     element also carries the metal band and the fountain's trim ring on its
+     ::after, and a filter here would blur those too. */
+  background: radial-gradient(
+    ellipse 46% 42% at 50% 42%,
+    rgba(58, 38, 20, 0.38) 0%,
+    rgba(58, 38, 20, 0.22) 40%,
+    rgba(58, 38, 20, 0.08) 62%,
+    rgba(58, 38, 20, 0) 80%
+  );
+  /* mela.css blurs this element; we must clear it explicitly, or it smears
+     the crisp chrome band / trim ring drawn on the ::after below. */
+  filter: none;
+  /* Offset down-right: the page is lit from the top-left. */
+  transform: translate(2cqh, 14cqh);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   1. REYNOLDS — the 045. Translucent ivory barrel, ink tube visible inside,
+   thin coloured cap, fine dark nib cone. The cheap one everybody owned.
+   ========================================================================== */
+
+/* Barrel: warm off-white and TRANSLUCENT. The trick that reads as "clear
+   plastic" is that the barrel is pale and low-contrast, but carries a hard
+   bright specular line along the top and a warm bounce along the bottom —
+   light passing through rather than bouncing off. The ink tube is a dark core
+   drawn INSIDE the same element via a gradient band, so it looks suspended in
+   the plastic instead of painted on it. */
+.pen-token.pen-reynolds::before,
+.screen-pen-token.pen-reynolds::before {
+  left: 11%;
+  right: 21%;
+  border-radius: 8cqh 4cqh 4cqh 8cqh;
+  background:
+    /* the ink tube — a narrow dark core through the middle of the barrel */
+    linear-gradient(
+        180deg,
+        transparent 34%,
+        var(--tube, rgba(20, 60, 60, 0.85)) 40%,
+        var(--tube, rgba(20, 60, 60, 0.85)) 58%,
+        transparent 64%
+      )
+      no-repeat,
+    /* the plastic itself: bright top edge, warm ivory middle, shaded belly */
+      linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #fbf7ec 16%,
+        #efe7d6 46%,
+        #d9cdb6 78%,
+        #bdae95 100%
+      );
+  box-shadow:
+    /* crisp highlight riding the top curve = hard plastic, not matte */
+    inset 0 6cqh 6cqh -4cqh rgba(255, 255, 255, 0.95),
+    /* the barrel's own thickness read at the bottom edge */ inset 0 -7cqh 8cqh
+      -4cqh rgba(90, 72, 45, 0.5),
+    /* faint rim so the silhouette stays crisp on cream paper */
+      inset 0 0 0 1cqh rgba(120, 100, 70, 0.18);
+}
+
+/* Nib: a fine dark cone. Reynolds nibs are slim and metal-tipped, so this is
+   long and narrow with a bright fleck at the very tip. */
+.pen-token.pen-reynolds::after,
+.screen-pen-token.pen-reynolds::after {
+  left: 0;
+  width: 12%;
+  height: 46cqh;
+  /* the cone shape */
+  clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
+  background: linear-gradient(180deg, #5b5b66 0%, #2b2b33 55%, #17171c 100%);
+  filter: drop-shadow(0 2cqh 2cqh rgba(0, 0, 0, 0.35));
+}
+
+/* Cap: THIN — a Reynolds cap is barely wider than the barrel, which is a big
+   part of why the pen reads as cheap and light. */
+.pen-token.pen-reynolds span,
+.screen-pen-token.pen-reynolds span {
+  right: 0;
+  width: 21%;
+  height: 104cqh;
+  transform: translateY(-50%);
+  border-radius: 3cqh 9cqh 9cqh 3cqh;
+  background: linear-gradient(
+    180deg,
+    var(--cap-hi) 0%,
+    var(--cap) 45%,
+    var(--cap-lo) 100%
+  );
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1cqh 1cqh rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 6cqh 6cqh -4cqh rgba(255, 255, 255, 0.55),
+    inset 0 -6cqh 7cqh -4cqh rgba(0, 0, 0, 0.4);
+}
+
+/* Clip: the thin moulded strip. Same colour as the cap, lifted by its own
+   highlight so it separates from the body it lies on. */
+.pen-token.pen-reynolds span::before,
+.screen-pen-token.pen-reynolds span::before {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 30%;
+  top: -14cqh;
+  height: 26cqh;
+  border-radius: 4cqh 4cqh 2cqh 2cqh;
+  background: linear-gradient(180deg, var(--cap-hi), var(--cap-lo));
+  box-shadow:
+    inset 0 2cqh 2cqh rgba(255, 255, 255, 0.5),
+    0 2cqh 2cqh -1cqh rgba(0, 0, 0, 0.3);
+}
+
+/* The join where cap meets barrel — a thin dark seam reads as two mouldings
+   pushed together. */
+.pen-token.pen-reynolds span::after,
+.screen-pen-token.pen-reynolds span::after {
+  content: "";
+  position: absolute;
+  left: -3cqh;
+  top: 6%;
+  bottom: 6%;
+  width: 4cqh;
+  border-radius: 2cqh;
+  background: rgba(60, 45, 25, 0.35);
+}
+
+.pen-token.pen-reynolds.human,
+.screen-pen-token.pen-reynolds.human {
+  --tube: rgba(16, 70, 76, 0.9);
+  --cap: #12907f;
+  --cap-hi: #46c9b5;
+  --cap-lo: #08443d;
+}
+.pen-token.pen-reynolds.bot,
+.screen-pen-token.pen-reynolds.bot {
+  --tube: rgba(92, 34, 14, 0.9);
+  --cap: #cf5a2a;
+  --cap-hi: #ef9a72;
+  --cap-lo: #7a2b10;
+}
+
+/* ==========================================================================
+   2. GEL PEN — modern, chunky, glossy. Rubber grip section near the nib,
+   high-gloss coloured barrel, fat matching cap.
+   ========================================================================== */
+
+/* Barrel: saturated and GLOSSY. Gloss here is a narrow, high-contrast
+   highlight sitting well above centre with a hard falloff — a wide soft
+   highlight would read as satin. The lower half gets a strong bounce so the
+   barrel reads as a cylinder, not a flat stripe. */
+.pen-token.pen-gel::before,
+.screen-pen-token.pen-gel::before {
+  left: 8%;
+  right: 24%;
+  border-radius: 7cqh 5cqh 5cqh 7cqh;
+  background:
+    /* tight gloss band across the top third */
+    linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0) 8%,
+        rgba(255, 255, 255, 0.75) 17%,
+        rgba(255, 255, 255, 0.18) 30%,
+        rgba(255, 255, 255, 0) 38%
+      )
+      no-repeat,
+    /* body colour, darkening under the belly */
+      linear-gradient(
+        180deg,
+        var(--body-hi) 0%,
+        var(--body) 42%,
+        var(--body-lo) 82%,
+        var(--body-deep) 100%
+      );
+  box-shadow:
+    inset 0 -7cqh 8cqh -4cqh rgba(0, 0, 0, 0.45),
+    0 5cqh 6cqh -4cqh rgba(30, 18, 8, 0.4);
+}
+
+/* Rubber grip: darker, MATTE, and ridged. The material cue is the absence of
+   a specular highlight where the glossy barrel has one, plus a repeating-
+   gradient of fine ridges. The ridges are sized in cqw so they stay a
+   consistent count at any pen width instead of turning into mush. */
+.pen-token.pen-gel::after,
+.screen-pen-token.pen-gel::after {
+  left: 8%;
+  width: 26%;
+  height: 96cqh;
+  border-radius: 6cqh 3cqh 3cqh 6cqh;
+  background:
+    /* the ridges — soft-edged so they read as moulded rubber, not stripes */
+    repeating-linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.28) 0 1.6cqw,
+        rgba(255, 255, 255, 0.08) 1.6cqw 3.2cqw
+      )
+      no-repeat,
+    /* matte rubber body: flat mid, gentle shading, no bright top line */
+      linear-gradient(
+        180deg,
+        var(--grip-hi) 0%,
+        var(--grip) 45%,
+        var(--grip-lo) 100%
+      );
+  box-shadow:
+    inset 0 3cqh 4cqh -3cqh rgba(255, 255, 255, 0.22),
+    inset 0 -4cqh 5cqh -3cqh rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+/* The metal writing tip poking out of the grip, drawn on the shadow element
+   so the grip and cone can overlap correctly. */
+.pen-token.pen-gel .pen-shadow::after,
+.screen-pen-token.pen-gel .pen-shadow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 9%;
+  height: 34cqh;
+  transform: translateY(-50%);
+  clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
+  background: linear-gradient(180deg, #8d8d99, #3a3a44);
+  filter: none;
+  z-index: 2;
+}
+
+/* Cap: CHUNKY — noticeably taller than the barrel, which is the gel pen's
+   giveaway silhouette. */
+.pen-token.pen-gel span,
+.screen-pen-token.pen-gel span {
+  right: 0;
+  width: 24%;
+  height: 118cqh;
+  transform: translateY(-50%);
+  border-radius: 4cqh 11cqh 11cqh 4cqh;
+  background: linear-gradient(
+    180deg,
+    var(--body-hi) 0%,
+    var(--body) 40%,
+    var(--body-deep) 100%
+  );
+  color: #fff;
+  text-shadow: 0 1cqh 2cqh rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 7cqh 7cqh -5cqh rgba(255, 255, 255, 0.7),
+    inset 0 -7cqh 8cqh -5cqh rgba(0, 0, 0, 0.45);
+}
+
+/* Moulded plastic clip — thicker than the Reynolds one, with a rounded tail. */
+.pen-token.pen-gel span::before,
+.screen-pen-token.pen-gel span::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 26%;
+  top: -18cqh;
+  height: 32cqh;
+  border-radius: 5cqh 5cqh 3cqh 3cqh;
+  background: linear-gradient(180deg, var(--body-hi), var(--body-lo));
+  box-shadow:
+    inset 0 3cqh 3cqh rgba(255, 255, 255, 0.55),
+    0 2cqh 3cqh -1cqh rgba(0, 0, 0, 0.35);
+}
+
+/* Bright cap ring at the mouth — a single crisp light line that separates cap
+   from barrel and catches the eye at small sizes. */
+.pen-token.pen-gel span::after,
+.screen-pen-token.pen-gel span::after {
+  content: "";
+  position: absolute;
+  left: -2cqh;
+  top: 10%;
+  bottom: 10%;
+  width: 5cqh;
+  border-radius: 2cqh;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 255, 255, 0.25)
+  );
+}
+
+.pen-token.pen-gel.human,
+.screen-pen-token.pen-gel.human {
+  --body: #1f9ec4;
+  --body-hi: #74d8ee;
+  --body-lo: #12617d;
+  --body-deep: #0b4055;
+  --grip: #123f52;
+  --grip-hi: #2a6a83;
+  --grip-lo: #08222e;
+}
+.pen-token.pen-gel.bot,
+.screen-pen-token.pen-gel.bot {
+  --body: #e2683a;
+  --body-hi: #ffa87e;
+  --body-lo: #a53d16;
+  --body-deep: #6d2609;
+  --grip: #4a1f0d;
+  --grip-hi: #7a3a1c;
+  --grip-lo: #2a0f05;
+}
+
+/* ==========================================================================
+   3. METAL — the heavy one from dad's shirt pocket. Brushed gunmetal, a hard
+   specular line down the length, polished chrome band, weighty proportions.
+   ========================================================================== */
+
+/* Barrel: brushed metal is TWO things layered. (1) A vertical gradient with
+   several abrupt light/dark reversals — metal reflects its environment, so it
+   has a hard bright band and a hard dark band rather than a smooth ramp; that
+   discontinuity is the single strongest "this is metal" cue. (2) A very fine
+   lengthwise streak pattern for the brushed grain. Anodised colour is layered
+   over the top at low opacity so the metal still shows through, which is how
+   a coloured metal pen actually looks. */
+.pen-token.pen-metal::before,
+.screen-pen-token.pen-metal::before {
+  left: 9%;
+  right: 26%;
+  border-radius: 6cqh 4cqh 4cqh 6cqh;
+  background:
+    /* brushed grain, running along the barrel */
+    repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.05) 0 0.18cqw,
+        rgba(0, 0, 0, 0.05) 0.18cqw 0.36cqw
+      )
+      no-repeat,
+    /* the anodised tint, kept translucent so the metal reads through it */
+      linear-gradient(180deg, var(--tint) 0%, var(--tint-lo) 100%) no-repeat,
+    /* the metal itself: note the hard stops — highlight, then a sharp drop to
+       a dark reflection band, then a bounce. That's the specular signature. */
+      linear-gradient(
+        180deg,
+        #6e747e 0%,
+        #aeb6c1 12%,
+        #eef2f6 26%,
+        /* the hot specular line */ #c3cad4 33%,
+        #7c828d 46%,
+        #4a4f58 58%,
+        /* dark reflected band */ #6b717b 76%,
+        #9aa1ac 90%,
+        #5c626b 100%
+      );
+  box-shadow:
+    inset 0 0 0 1cqh rgba(255, 255, 255, 0.25),
+    inset 0 -6cqh 7cqh -4cqh rgba(0, 0, 0, 0.5),
+    0 6cqh 7cqh -4cqh rgba(25, 28, 34, 0.5);
+}
+
+/* Machined cone tip — steel, with the same hard highlight logic. */
+.pen-token.pen-metal::after,
+.screen-pen-token.pen-metal::after {
+  left: 0;
+  width: 11%;
+  height: 52cqh;
+  clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
+  background: linear-gradient(
+    180deg,
+    #9aa1ac 0%,
+    #e8edf2 28%,
+    #767c86 60%,
+    #3f444c 100%
+  );
+  filter: drop-shadow(0 2cqh 2cqh rgba(0, 0, 0, 0.4));
+}
+
+/* Polished CHROME BAND near the grip. Polished differs from brushed by having
+   no grain and a much tighter, brighter highlight — so this is a pure gradient
+   with hard stops and white at the peak. Drawn on .pen-shadow because the
+   pseudo-elements are already spent on barrel and tip. */
+.pen-token.pen-metal .pen-shadow::after,
+.screen-pen-token.pen-metal .pen-shadow::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  width: 9%;
+  /* .pen-shadow is offset down the page, so the band lifts back to the
+     barrel's centreline rather than hanging below it. */
+  top: -50cqh;
+  height: 100cqh;
+  border-radius: 2cqh;
+  background: linear-gradient(
+    180deg,
+    #7d838d 0%,
+    #ffffff 22%,
+    #d3d9e0 38%,
+    #6a707a 62%,
+    #b9c0c9 84%,
+    #555b64 100%
+  );
+  box-shadow:
+    inset 0 0 0 0.8cqh rgba(255, 255, 255, 0.4),
+    0 2cqh 3cqh -1cqh rgba(0, 0, 0, 0.4);
+  filter: none;
+  z-index: 2;
+}
+
+/* Cap: heavy and slightly barrel-shaped. Metal caps sit flush and thick. */
+.pen-token.pen-metal span,
+.screen-pen-token.pen-metal span {
+  right: 0;
+  width: 25%;
+  height: 112cqh;
+  transform: translateY(-50%);
+  border-radius: 3cqh 8cqh 8cqh 3cqh;
+  background:
+    linear-gradient(180deg, var(--tint) 0%, var(--tint-lo) 100%) no-repeat,
+    linear-gradient(
+      180deg,
+      #6e747e 0%,
+      #b6bdc7 14%,
+      #eef2f6 27%,
+      #8d939d 48%,
+      #4d525b 62%,
+      #858b95 84%,
+      #4a4f57 100%
+    );
+  color: #fff;
+  text-shadow: 0 1cqh 2cqh rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 0 0 1cqh rgba(255, 255, 255, 0.28),
+    inset 0 -6cqh 7cqh -4cqh rgba(0, 0, 0, 0.5);
+}
+
+/* Sprung steel clip — long, narrow, with a bright edge. This is the detail
+   that makes the pen look expensive at a glance. */
+.pen-token.pen-metal span::before,
+.screen-pen-token.pen-metal span::before {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 22%;
+  top: -20cqh;
+  height: 30cqh;
+  border-radius: 5cqh 5cqh 2cqh 2cqh;
+  background: linear-gradient(
+    180deg,
+    #f2f5f8 0%,
+    #b8bfc9 40%,
+    #6a707a 75%,
+    #454a53 100%
+  );
+  box-shadow:
+    inset 0 1.5cqh 2cqh rgba(255, 255, 255, 0.8),
+    0 2cqh 3cqh -1cqh rgba(0, 0, 0, 0.45);
+}
+
+/* Knurled ring at the cap mouth. */
+.pen-token.pen-metal span::after,
+.screen-pen-token.pen-metal span::after {
+  content: "";
+  position: absolute;
+  left: -3cqh;
+  top: 4%;
+  bottom: 4%;
+  width: 6cqh;
+  border-radius: 2cqh;
+  background:
+    repeating-linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.3) 0 0.15cqw,
+        rgba(255, 255, 255, 0.45) 0.15cqw 0.3cqw
+      )
+      no-repeat,
+    linear-gradient(180deg, #d8dee5, #5a6069);
+}
+
+/* Metal stays metal in both variants — only the anodised tint changes, which
+   is exactly how these pens are actually finished. */
+.pen-token.pen-metal.human,
+.screen-pen-token.pen-metal.human {
+  --tint: rgba(34, 132, 148, 0.2);
+  --tint-lo: rgba(8, 52, 62, 0.28);
+}
+.pen-token.pen-metal.bot,
+.screen-pen-token.pen-metal.bot {
+  --tint: rgba(178, 68, 26, 0.2);
+  --tint-lo: rgba(74, 24, 8, 0.28);
+}
+
+/* ==========================================================================
+   4. FOUNTAIN — the formal one. Deep lacquer, a real two-tone NIB with a slit
+   and breather hole, gold trim rings, prominent clip.
+   ========================================================================== */
+
+/* Barrel: LACQUER. The cue is depth — a very dark base with a narrow, sharp,
+   almost white highlight and a second weaker reflection lower down. Lacquer is
+   glassier than the gel pen's plastic, so the highlight is tighter and the
+   darks go much deeper (near black at the belly). */
+.pen-token.pen-fountain::before,
+.screen-pen-token.pen-fountain::before {
+  left: 13%;
+  right: 27%;
+  border-radius: 7cqh 4cqh 4cqh 7cqh;
+  background:
+    /* sharp lacquer highlight, high and narrow */
+    linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0) 10%,
+        rgba(255, 255, 255, 0.62) 18%,
+        rgba(255, 255, 255, 0.1) 27%,
+        rgba(255, 255, 255, 0) 34%,
+        /* secondary bounce off the desk, much weaker */
+          rgba(255, 255, 255, 0.14) 74%,
+        rgba(255, 255, 255, 0) 84%
+      )
+      no-repeat,
+    linear-gradient(
+      180deg,
+      var(--lacq-hi) 0%,
+      var(--lacq) 38%,
+      var(--lacq-lo) 74%,
+      #05070c 100%
+    );
+  box-shadow:
+    inset 0 -6cqh 8cqh -4cqh rgba(0, 0, 0, 0.65),
+    0 6cqh 8cqh -4cqh rgba(20, 14, 30, 0.5);
+}
+
+/* THE NIB. Not a cone — a proper fountain nib: a shouldered blade that tapers
+   to a point, with a slit down the centre and a breather hole at the top. The
+   clip-path gives the shouldered silhouette; the slit is a hairline gradient
+   down the middle; the two-tone is the darker plate over the gold. */
+.pen-token.pen-fountain::after,
+.screen-pen-token.pen-fountain::after {
+  left: 0;
+  width: 22%;
+  height: 64cqh;
+  /* shouldered nib: wide at the back, curving in to a fine point at the left */
+  clip-path: polygon(
+    0% 50%,
+    18% 26%,
+    45% 10%,
+    100% 0%,
+    100% 100%,
+    45% 90%,
+    18% 74%
+  );
+  background:
+    /* breather hole */
+    radial-gradient(
+        circle at 72% 50%,
+        var(--nib-dark) 0 9cqh,
+        transparent 9cqh
+      )
+      no-repeat,
+    /* the slit, dead centre, hairline */
+      linear-gradient(
+        180deg,
+        transparent 46%,
+        var(--nib-dark) 48%,
+        var(--nib-dark) 52%,
+        transparent 54%
+      )
+      no-repeat,
+    /* two-tone plating: darker mask over the back half of the nib */
+      linear-gradient(
+        90deg,
+        transparent 0 46%,
+        var(--nib-plate) 52% 100%
+      )
+      no-repeat,
+    /* the metal underneath */
+      linear-gradient(
+        180deg,
+        var(--nib-hi) 0%,
+        var(--nib) 40%,
+        var(--nib-lo) 100%
+      );
+  filter: drop-shadow(0 2cqh 2cqh rgba(0, 0, 0, 0.4));
+  z-index: 2;
+}
+
+/* Gold trim ring where the section meets the barrel — drawn on .pen-shadow.
+   A pair of thin rings reads as more expensive than one thick one. */
+.pen-token.pen-fountain .pen-shadow::after,
+.screen-pen-token.pen-fountain .pen-shadow::after {
+  content: "";
+  position: absolute;
+  left: 25%;
+  width: 7%;
+  top: -44cqh;
+  height: 102cqh;
+  border-radius: 2cqh;
+  background: linear-gradient(
+    180deg,
+    var(--trim-lo) 0%,
+    var(--trim-hi) 20%,
+    var(--trim) 45%,
+    var(--trim-lo) 70%,
+    var(--trim-hi) 92%,
+    var(--trim-lo) 100%
+  );
+  box-shadow: 0 2cqh 3cqh -1cqh rgba(0, 0, 0, 0.45);
+  filter: none;
+  z-index: 2;
+}
+
+/* Cap: the tallest and most formal of the four, with a domed finial end. */
+.pen-token.pen-fountain span,
+.screen-pen-token.pen-fountain span {
+  right: 0;
+  width: 26%;
+  height: 116cqh;
+  transform: translateY(-50%);
+  border-radius: 3cqh 12cqh 12cqh 3cqh;
+  background:
+    linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0) 10%,
+        rgba(255, 255, 255, 0.5) 19%,
+        rgba(255, 255, 255, 0) 32%
+      )
+      no-repeat,
+    linear-gradient(
+      180deg,
+      var(--lacq-hi) 0%,
+      var(--lacq) 38%,
+      var(--lacq-lo) 76%,
+      #05070c 100%
+    );
+  color: var(--trim-hi);
+  text-shadow: 0 1cqh 2cqh rgba(0, 0, 0, 0.8);
+  box-shadow:
+    inset 0 -6cqh 8cqh -4cqh rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1cqh rgba(255, 255, 255, 0.1);
+}
+
+/* PROMINENT gold clip — long, with a rolled ball at the tip. On a fountain pen
+   this is the loudest piece of jewellery, so it gets the brightest metal. */
+.pen-token.pen-fountain span::before,
+.screen-pen-token.pen-fountain span::before {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 20%;
+  top: -22cqh;
+  height: 34cqh;
+  border-radius: 6cqh 6cqh 3cqh 3cqh;
+  background: linear-gradient(
+    180deg,
+    var(--trim-hi) 0%,
+    var(--trim) 42%,
+    var(--trim-lo) 100%
+  );
+  box-shadow:
+    inset 0 2cqh 2cqh rgba(255, 255, 255, 0.75),
+    0 2cqh 3cqh -1cqh rgba(0, 0, 0, 0.5);
+}
+
+/* Gold cap band at the mouth — the counterpart to the clip, and the detail
+   that stops the cap reading as a plain dark block at small sizes. */
+.pen-token.pen-fountain span::after,
+.screen-pen-token.pen-fountain span::after {
+  content: "";
+  position: absolute;
+  left: -3cqh;
+  top: 6%;
+  bottom: 6%;
+  width: 7cqh;
+  border-radius: 2cqh;
+  background: linear-gradient(
+    180deg,
+    var(--trim-lo) 0%,
+    var(--trim-hi) 25%,
+    var(--trim) 55%,
+    var(--trim-lo) 100%
+  );
+  box-shadow: 0 1cqh 2cqh rgba(0, 0, 0, 0.4);
+}
+
+/* Human = navy lacquer with silver-gold trim; bot = oxblood/maroon with warm
+   gold. Both stay dark and formal so the pen TYPE never changes. */
+.pen-token.pen-fountain.human,
+.screen-pen-token.pen-fountain.human {
+  --lacq: #1b3a63;
+  --lacq-hi: #3f6ea6;
+  --lacq-lo: #0d1f38;
+  --trim: #d8c07a;
+  --trim-hi: #f7ebc0;
+  --trim-lo: #8d7434;
+  --nib: #d8c07a;
+  --nib-hi: #f7ebc0;
+  --nib-lo: #8d7434;
+  --nib-plate: rgba(38, 44, 60, 0.78);
+  --nib-dark: #23283a;
+}
+.pen-token.pen-fountain.bot,
+.screen-pen-token.pen-fountain.bot {
+  --lacq: #5e1f22;
+  --lacq-hi: #a03f3c;
+  --lacq-lo: #2e0d10;
+  --trim: #e0b464;
+  --trim-hi: #ffe9b8;
+  --trim-lo: #91642a;
+  --nib: #e0b464;
+  --nib-hi: #ffe9b8;
+  --nib-lo: #91642a;
+  --nib-plate: rgba(58, 34, 28, 0.78);
+  --nib-dark: #2c1a14;
+}
+/* ------------------------------------------------------------- motion ----- */
+/* The shadow is a child of the token, so it inherits the token's rotation and
+   slide for free — nothing here animates independently of the pen.
+   It also intentionally uses a gradient falloff rather than a blur filter:
+   this element carries the metal band and the fountain's trim ring on its
+   ::after, and a filter would blur those decorations along with the shadow.
+   That also means there is no per-frame filter cost to back off under
+   prefers-reduced-motion. */

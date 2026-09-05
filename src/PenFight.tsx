@@ -3,6 +3,22 @@ import { QRCodeSVG } from "qrcode.react";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
 import { playSound } from "./sound";
+import "./pens.css";
+
+/**
+ * Four pens off a school desk. They are purely cosmetic — every pen has exactly
+ * the same physics. Simulation showed that giving pens different mass or
+ * friction makes one strictly dominant (the heavy pen won 100% of matchups),
+ * and real pen fight's worst quality is that the richest pen wins. Here the pen
+ * is who you are, not how hard you hit.
+ */
+const PENS = [
+  ["pen-reynolds", "Reynolds", "The one everybody had"],
+  ["pen-gel", "Gel", "Smooth grip, bright barrel"],
+  ["pen-metal", "Steel", "Heavy in the hand"],
+  ["pen-fountain", "Ink pen", "Your dad's good one"],
+] as const;
+const PEN_KEY = "mela.pen";
 
 const powers = [
   ["nudge", "NUDGE", 14, "Give your side's next flick a small extra push."],
@@ -50,6 +66,21 @@ export function PenFight({
   const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [myPen, setMyPen] = useState<string>(() => {
+    try {
+      return localStorage.getItem(PEN_KEY) ?? PENS[0][0];
+    } catch {
+      return PENS[0][0];
+    }
+  });
+  const choosePen = (id: string) => {
+    setMyPen(id);
+    try {
+      localStorage.setItem(PEN_KEY, id);
+    } catch {
+      // Private mode: the choice simply lasts for this session.
+    }
+  };
   const [target, setTarget] = useState<"human" | "melabot">("human");
   const [note, setNote] = useState("");
   const [aiming, setAiming] = useState(false);
@@ -213,6 +244,35 @@ export function PenFight({
     }
   };
 
+  // MelaBot's intent, derived from the same public board state its own policy
+  // reads. Its reasoning already reaches the event feed, but that scrolls away
+  // from where the player is looking — the desk. This puts it on the desk.
+  const edgeOf = (x: number, y: number) =>
+    Math.min(x, y, 1000 - x, 1000 - y);
+  const myMargin = state ? edgeOf(state.humanX, state.humanY) : 500;
+  const botMargin = state ? edgeOf(state.botX, state.botY) : 500;
+  const gap = state
+    ? Math.hypot(state.botX - state.humanX, state.botY - state.humanY)
+    : 999;
+  const botPlan = !state
+    ? ""
+    : myMargin < 150
+      ? "You are near the edge — MelaBot is going for the knockout."
+      : botMargin < 150
+        ? "MelaBot is cornered. It has to play its way back in."
+        : gap < 260
+          ? "You are in range. MelaBot is lining up a hit."
+          : "Too far to reach — MelaBot is closing the gap.";
+  const myPlan = !state
+    ? ""
+    : myMargin < 150
+      ? "You are on the rim. A soft flick back to safety, or risk it?"
+      : botMargin < 150
+        ? "MelaBot is on the rim. One good hit ends the round."
+        : gap < 260
+          ? "In range. Pull back and aim through its middle."
+          : "Out of reach. Pull further to close the gap.";
+
   const actor = state.turn === "human" ? human : "MelaBot";
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
@@ -252,8 +312,8 @@ export function PenFight({
             {completed
               ? state.lastOutcome
               : state.turn === "human"
-                ? "Aim at the other pen, set force, then flick."
-                : "MelaBot is reading the desk…"}
+                ? myPlan
+                : botPlan}
           </span>
         </div>
         <div
@@ -284,7 +344,7 @@ export function PenFight({
           <i className="notebook-line l3" />
           <div className="danger-zone">EDGE</div>
           <div
-            className={`pen-token human ${humanTeeter ? "teeter" : ""}`}
+            className={`pen-token human ${myPen} ${humanTeeter ? "teeter" : ""}`}
             style={{
               left: `${state.humanX / 10}%`,
               top: `${state.humanY / 10}%`,
@@ -295,7 +355,7 @@ export function PenFight({
             <span>{human.slice(0, 1).toUpperCase()}</span>
           </div>
           <div
-            className={`pen-token bot ${botTeeter ? "teeter" : ""}`}
+            className={`pen-token bot pen-metal ${botTeeter ? "teeter" : ""}`}
             style={{
               left: `${state.botX / 10}%`,
               top: `${state.botY / 10}%`,
@@ -336,6 +396,28 @@ export function PenFight({
           )}
         </div>
       </section>
+      {owns && !completed && (
+        <section className="pen-picker" aria-label="Choose your pen">
+          <p className="eyebrow">YOUR PEN</p>
+          <div className="pen-swatches">
+            {PENS.map(([id, name, blurb]) => (
+              <button
+                key={id}
+                className={`pen-swatch ${id} ${myPen === id ? "chosen" : ""}`}
+                onClick={() => choosePen(id)}
+                aria-pressed={myPen === id}
+                title={`${name} — ${blurb}`}
+              >
+                <i aria-hidden="true" />
+                <span>{name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="pen-note">
+            Every pen plays exactly the same. Pick the one that feels like yours.
+          </p>
+        </section>
+      )}
       {owns && !completed && state.turn === "human" && (
         <section className="flick-controls">
           <p className="eyebrow">

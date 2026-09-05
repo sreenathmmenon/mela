@@ -1749,8 +1749,12 @@ button:disabled {
    contact shadow so it sits ON the paper rather than floating above it. */
 .pen-token {
   position: absolute;
-  width: 132px;
-  height: 20px;
+  /* Sized as a share of the desk, never in fixed pixels. A real 145mm pen on a
+     600mm desk is about a quarter of its width; at a fixed 132px the same pen
+     was 13% of a laptop desk (a token) and 41% of a 390px one (unplayable). */
+  width: 22%;
+  height: 3.4%;
+  min-height: 13px;
   transform: translate(-50%, -50%) rotate(var(--pen-spin, -8deg));
   /* Launch fast, then bleed off speed like a pen sliding on paper. */
   transition:
@@ -3042,4 +3046,79 @@ button:disabled {
   font-size: 0.94rem;
   font-style: italic;
   opacity: 0.82;
+}
+
+/* ---------- Pen picker ---------- */
+/* Small swatches under the desk. The pen is identity, never advantage — the
+   note says so plainly, because "which pen is best" is the first question
+   anyone asks and the honest answer is "none of them". */
+.pen-picker {
+  margin: 14px 0;
+}
+.pen-swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pen-swatch {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 9px 12px 8px;
+  border-radius: 13px;
+  border: 2px solid transparent;
+  background: rgba(0, 0, 0, 0.04);
+  min-width: 74px;
+}
+.pen-swatch i {
+  display: block;
+  width: 42px;
+  height: 9px;
+  border-radius: 2px 4px 4px 2px;
+  position: relative;
+}
+/* Each swatch shows a slice of the real pen so the choice is visual, not a
+   colour code — you recognise your pen before you read its name. */
+.pen-swatch.pen-reynolds i {
+  background: linear-gradient(180deg, #fdfaf0, #e6dcc4 55%, #cbbfa2);
+}
+.pen-swatch.pen-gel i {
+  background: linear-gradient(180deg, #57c4d8, #2f8fa8 55%, #1a5e73);
+}
+.pen-swatch.pen-metal i {
+  background: linear-gradient(180deg, #eef1f4, #aab4bd 45%, #6f7a85);
+}
+.pen-swatch.pen-fountain i {
+  background: linear-gradient(180deg, #3a4d78, #22304f 55%, #131c31);
+}
+.pen-swatch span {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
+.pen-swatch.chosen {
+  border-color: var(--ink, #241a12);
+  background: rgba(0, 0, 0, 0.07);
+}
+.pen-swatch.chosen span {
+  opacity: 1;
+}
+.pen-note {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+@media (max-width: 640px) {
+  .pen-swatch {
+    min-width: 0;
+    flex: 1;
+    padding: 8px 6px;
+  }
+  .pen-swatch i {
+    width: 100%;
+  }
+  .pen-swatch span {
+    font-size: 0.68rem;
+  }
 }
