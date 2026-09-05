@@ -34,13 +34,19 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import JoinWorldReducer from "./join_world_reducer";
-import LeaveWorldReducer from "./leave_world_reducer";
+import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import OnboardReducer from "./onboard_reducer";
+import PlayBallReducer from "./play_ball_reducer";
+import RunMelaBotTurnReducer from "./run_mela_bot_turn_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import BookCricketStateRow from "./book_cricket_state_table";
+import LiveEventRow from "./live_event_table";
+import MatchRow from "./match_table";
+import MatchHistoryRow from "./match_history_table";
+import MatchParticipantRow from "./match_participant_table";
 import PlayerProfileRow from "./player_profile_table";
 import WorldRow from "./world_table";
 import WorldActivityRow from "./world_activity_table";
@@ -50,62 +56,192 @@ import WorldPresenceRow from "./world_presence_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
-  playerProfile: __table({
-    name: 'player_profile',
-    indexes: [
-      { accessor: 'identity', name: 'player_profile_identity_idx_btree', algorithm: 'btree', columns: [
-        'identity',
-      ] },
-    ],
-    constraints: [
-      { name: 'player_profile_identity_key', constraint: 'unique', columns: ['identity'] },
-    ],
-  }, PlayerProfileRow),
-  world: __table({
-    name: 'world',
-    indexes: [
-      { accessor: 'id', name: 'world_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'world_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, WorldRow),
-  worldActivity: __table({
-    name: 'world_activity',
-    indexes: [
-      { accessor: 'id', name: 'world_activity_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'world_activity_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, WorldActivityRow),
-  worldPresence: __table({
-    name: 'world_presence',
-    indexes: [
-      { accessor: 'identity', name: 'world_presence_identity_idx_btree', algorithm: 'btree', columns: [
-        'identity',
-      ] },
-    ],
-    constraints: [
-      { name: 'world_presence_identity_key', constraint: 'unique', columns: ['identity'] },
-    ],
-  }, WorldPresenceRow),
+  bookCricketState: __table(
+    {
+      name: "book_cricket_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "book_cricket_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "book_cricket_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    BookCricketStateRow,
+  ),
+  liveEvent: __table(
+    {
+      name: "live_event",
+      indexes: [
+        {
+          accessor: "id",
+          name: "live_event_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "live_event_id_key", constraint: "unique", columns: ["id"] },
+      ],
+      event: true,
+    },
+    LiveEventRow,
+  ),
+  match: __table(
+    {
+      name: "match",
+      indexes: [
+        {
+          accessor: "id",
+          name: "match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "match_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    MatchRow,
+  ),
+  matchHistory: __table(
+    {
+      name: "match_history",
+      indexes: [
+        {
+          accessor: "id",
+          name: "match_history_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "match_history_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    MatchHistoryRow,
+  ),
+  matchParticipant: __table(
+    {
+      name: "match_participant",
+      indexes: [
+        {
+          accessor: "id",
+          name: "match_participant_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        {
+          name: "match_participant_id_key",
+          constraint: "unique",
+          columns: ["id"],
+        },
+      ],
+    },
+    MatchParticipantRow,
+  ),
+  playerProfile: __table(
+    {
+      name: "player_profile",
+      indexes: [
+        {
+          accessor: "identity",
+          name: "player_profile_identity_idx_btree",
+          algorithm: "btree",
+          columns: ["identity"],
+        },
+      ],
+      constraints: [
+        {
+          name: "player_profile_identity_key",
+          constraint: "unique",
+          columns: ["identity"],
+        },
+      ],
+    },
+    PlayerProfileRow,
+  ),
+  world: __table(
+    {
+      name: "world",
+      indexes: [
+        {
+          accessor: "id",
+          name: "world_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "world_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    WorldRow,
+  ),
+  worldActivity: __table(
+    {
+      name: "world_activity",
+      indexes: [
+        {
+          accessor: "id",
+          name: "world_activity_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        {
+          name: "world_activity_id_key",
+          constraint: "unique",
+          columns: ["id"],
+        },
+      ],
+    },
+    WorldActivityRow,
+  ),
+  worldPresence: __table(
+    {
+      name: "world_presence",
+      indexes: [
+        {
+          accessor: "identity",
+          name: "world_presence_identity_idx_btree",
+          algorithm: "btree",
+          columns: ["identity"],
+        },
+      ],
+      constraints: [
+        {
+          name: "world_presence_identity_key",
+          constraint: "unique",
+          columns: ["identity"],
+        },
+      ],
+    },
+    WorldPresenceRow,
+  ),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("join_world", JoinWorldReducer),
-  __reducerSchema("leave_world", LeaveWorldReducer),
+  __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("onboard", OnboardReducer),
+  __reducerSchema("play_ball", PlayBallReducer),
+  __reducerSchema("run_mela_bot_turn", RunMelaBotTurnReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
-const proceduresSchema = __procedures(
-);
+const proceduresSchema = __procedures();
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
 const REMOTE_MODULE = {
@@ -122,10 +258,13 @@ const REMOTE_MODULE = {
 >;
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */
-export const tables: __QueryBuilder<typeof tablesSchema.schemaType> = __makeQueryBuilder(tablesSchema.schemaType);
+export const tables: __QueryBuilder<typeof tablesSchema.schemaType> =
+  __makeQueryBuilder(tablesSchema.schemaType);
 
 /** The reducers available in this remote SpacetimeDB module. */
-export const reducers = __convertToAccessorMap(reducersSchema.reducersType.reducers);
+export const reducers = __convertToAccessorMap(
+  reducersSchema.reducersType.reducers,
+);
 
 /** The procedures available in this remote SpacetimeDB module. */
 export const procedures = __convertToAccessorMap(proceduresSchema.procedures);
@@ -133,16 +272,22 @@ export const procedures = __convertToAccessorMap(proceduresSchema.procedures);
 /** The context type returned in callbacks for all possible events. */
 export type EventContext = __EventContextInterface<typeof REMOTE_MODULE>;
 /** The context type returned in callbacks for reducer events. */
-export type ReducerEventContext = __ReducerEventContextInterface<typeof REMOTE_MODULE>;
+export type ReducerEventContext = __ReducerEventContextInterface<
+  typeof REMOTE_MODULE
+>;
 /** The context type returned in callbacks for subscription events. */
-export type SubscriptionEventContext = __SubscriptionEventContextInterface<typeof REMOTE_MODULE>;
+export type SubscriptionEventContext = __SubscriptionEventContextInterface<
+  typeof REMOTE_MODULE
+>;
 /** The context type returned in callbacks for error events. */
 export type ErrorContext = __ErrorContextInterface<typeof REMOTE_MODULE>;
 /** The subscription handle type to manage active subscriptions created from a {@link SubscriptionBuilder}. */
 export type SubscriptionHandle = __SubscriptionHandleImpl<typeof REMOTE_MODULE>;
 
 /** Builder class to configure a new subscription to the remote SpacetimeDB instance. */
-export class SubscriptionBuilder extends __SubscriptionBuilderImpl<typeof REMOTE_MODULE> {}
+export class SubscriptionBuilder extends __SubscriptionBuilderImpl<
+  typeof REMOTE_MODULE
+> {}
 
 /** Builder class to configure a new database connection to the remote SpacetimeDB instance. */
 export class DbConnectionBuilder extends __DbConnectionBuilder<DbConnection> {}
@@ -151,7 +296,11 @@ export class DbConnectionBuilder extends __DbConnectionBuilder<DbConnection> {}
 export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
   /** Creates a new {@link DbConnectionBuilder} to configure and connect to the remote SpacetimeDB instance. */
   static builder = (): DbConnectionBuilder => {
-    return new DbConnectionBuilder(REMOTE_MODULE, (config: __DbConnectionConfig<typeof REMOTE_MODULE>) => new DbConnection(config));
+    return new DbConnectionBuilder(
+      REMOTE_MODULE,
+      (config: __DbConnectionConfig<typeof REMOTE_MODULE>) =>
+        new DbConnection(config),
+    );
   };
 
   /** Creates a new {@link SubscriptionBuilder} to configure a subscription to the remote SpacetimeDB instance. */
@@ -159,4 +308,3 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
-

@@ -10,12 +10,68 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const BookCricketState = __t.object("BookCricketState", {
+  matchId: __t.u64(),
+  innings: __t.u32(),
+  turn: __t.string(),
+  humanScore: __t.u32(),
+  botScore: __t.u32(),
+  humanBalls: __t.u32(),
+  botBalls: __t.u32(),
+  humanWickets: __t.u32(),
+  botWickets: __t.u32(),
+  target: __t.u32(),
+  lastOutcome: __t.string(),
+  seed: __t.u64(),
+});
+export type BookCricketState = __Infer<typeof BookCricketState>;
+
 export const ConnectionSession = __t.object("ConnectionSession", {
   connectionId: __t.connectionId(),
   identity: __t.identity(),
   connectedAt: __t.timestamp(),
 });
 export type ConnectionSession = __Infer<typeof ConnectionSession>;
+
+export const LiveEvent = __t.object("LiveEvent", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  message: __t.string(),
+  occurredAt: __t.timestamp(),
+});
+export type LiveEvent = __Infer<typeof LiveEvent>;
+
+export const Match = __t.object("Match", {
+  id: __t.u64(),
+  worldId: __t.u64(),
+  gameKind: __t.string(),
+  playerIdentity: __t.identity(),
+  status: __t.string(),
+  winner: __t.string(),
+  createdAt: __t.timestamp(),
+  endedAt: __t.option(__t.timestamp()),
+});
+export type Match = __Infer<typeof Match>;
+
+export const MatchHistory = __t.object("MatchHistory", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  winner: __t.string(),
+  humanScore: __t.u32(),
+  botScore: __t.u32(),
+  occurredAt: __t.timestamp(),
+});
+export type MatchHistory = __Infer<typeof MatchHistory>;
+
+export const MatchParticipant = __t.object("MatchParticipant", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  actorKind: __t.string(),
+  role: __t.string(),
+  identity: __t.option(__t.identity()),
+  displayName: __t.string(),
+});
+export type MatchParticipant = __Infer<typeof MatchParticipant>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),
@@ -52,4 +108,3 @@ export const WorldPresence = __t.object("WorldPresence", {
   lastSeenAt: __t.timestamp(),
 });
 export type WorldPresence = __Infer<typeof WorldPresence>;
-

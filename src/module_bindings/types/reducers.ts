@@ -6,11 +6,12 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
-import JoinWorldReducer from "../join_world_reducer";
-import LeaveWorldReducer from "../leave_world_reducer";
+import CreateBookCricketReducer from "../create_book_cricket_reducer";
 import OnboardReducer from "../onboard_reducer";
+import PlayBallReducer from "../play_ball_reducer";
+import RunMelaBotTurnReducer from "../run_mela_bot_turn_reducer";
 
-export type JoinWorldParams = __Infer<typeof JoinWorldReducer>;
-export type LeaveWorldParams = __Infer<typeof LeaveWorldReducer>;
+export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
-
+export type PlayBallParams = __Infer<typeof PlayBallReducer>;
+export type RunMelaBotTurnParams = __Infer<typeof RunMelaBotTurnReducer>;
