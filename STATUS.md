@@ -5,7 +5,7 @@
 - Date/time: 2026-09-05, Asia/Kolkata
 - Agent/provider: Codex (GPT-5)
 - Branch: `main`
-- Delivery state: Gameplay and game-loop finalization committed, pushed, and deployed to Maincloud plus GitHub Pages.
+- Delivery state: Book Cricket final productization committed, pushed, published to Maincloud, and verified on GitHub Pages.
 
 ## Complete Book Cricket experience
 
@@ -19,6 +19,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 - On every Human ball, the player chooses **SAFE** (5% OUT, 0–3), **BALANCED** (10% OUT, 0–4), or **AGGRESSIVE** (20% OUT, boundary-heavy 0/2/4/6). The browser submits only the choice; the server applies a match-seeded deterministic outcome.
 - MelaBot observes the same authoritative score, balls, wickets, target, and active crowd effects. It returns one of those same three styles to the common resolver—there is no AI-only scoring path.
 - The chase ends immediately on target reached, innings exhaustion, or when the remaining legal maximum cannot even tie. This makes score, balls left, wickets left, and required runs visible stakes rather than decoration.
+- The UI now turns those facts into situational language: `1 wicket left`, `5 runs from 2 balls`, a latest-moment outcome, clear player/crowd confirmation, and a stage tension state. An expired QR gives a recoverable plain-language message rather than surfacing a reducer error.
 
 ## Delivered capabilities
 
@@ -30,6 +31,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 - [x] Public QR join flow: `?join=<match-id>` carries only a non-secret match id. A fresh phone uses scan → display name → server-validated spectator admission.
 - [x] Dedicated read-only big-screen route (`/#/screen?match=<match-id>`): shared score, turn state, Crowd Energy/effects, major events, result, and QR. It has no player/spectator controls or privileged mutation path.
 - [x] Post-match story with result, score, crowd contribution, profile/form updates, recent memory, and replay CTA.
+- [x] Safe, authoritative usage-metrics projection: aggregate starts/completions, distinct player/crowd identities, participations, crowd actions, replays, and spectator-to-player conversion. It is derived from persisted world data/reducers, never reloads or connections; private identity flags protect uniqueness.
 - [x] GitHub Pages deployment workflow configured for `https://sreenathmenon.com/mela` and the live Maincloud module. The production route and hash stage route work on static hosting without server rewrites.
 
 ## Authoritative schema and reducers
@@ -37,6 +39,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 - World/identity: `world`, `playerProfile`, `melaProfile`, `worldPresence`, `worldActivity`, private `connectionSession`.
 - Match/game: `match`, `matchParticipant`, `bookCricketState`, `matchHistory`, `matchMemory`, `bookCricketRecord`, event `liveEvent`, `aiCharacter`.
 - Crowd: `matchCrowd`, `matchCrowdActivity`, `matchSpectator`, `spectatorCooldown`, `crowdEffect`, private `crowdSchedule`.
+- Metrics: public safe aggregate `melaMetrics`; private per-identity uniqueness guard `metricsIdentity`.
 - Public reducers: `onboard`, `createBookCricket`, `playBall`, `joinMatchAsSpectator`, `useCrowdPower`.
 - Private scheduled reducer: `processCrowdSchedule` for effect expiry, Crowd Energy regeneration, and autonomous MelaBot wake.
 
@@ -44,7 +47,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 
 | Check                       | Status | Evidence                                                                                                                                                                                                                                                                                                                     |
 | --------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deterministic suite         | Pass   | `pnpm test`: **18/18** passing after the gameplay finalization. Includes bounded/deterministic SAFE/BALANCED/AGGRESSIVE outcomes, wickets, innings/target/chase closure, shared Human/AI resolution, AI scheduling, crowd energy/effects, progression, and durable memory construction. |
+| Deterministic suite         | Pass   | `pnpm test`: **20/20** passing after final productization. Includes bounded/deterministic strategy outcomes, explicit strategy-risk differentiation over 10,000 deterministic seeds, wickets/innings/target/chase closure, shared Human/AI resolution, AI scheduling, crowd energy/effects, progression/memory, and metrics semantics. |
 | Module build                | Pass   | `pnpm run spacetime:build` on 2026-09-05 after the gameplay finalization.                                                                                                                                                                                                                                                   |
 | Frontend checks             | Pass   | `pnpm run typecheck`, `pnpm run build`, and `pnpm run build:pages` passed after the gameplay finalization.                                                                                                                                                                                                                     |
 | Maincloud publish           | Pass   | Published the gameplay-finalized `mela-cah23` module to Maincloud. Database identity: `c200fad7d7acce35e4289bd2d998b2eedfd145f765f58cb2c86534d67d844d3a`; dashboard: `https://spacetimedb.com/mela-cah23`.                                                                                                                  |
@@ -58,13 +61,16 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 | UX validation               | Pass   | Desktop player: clear start, action, QR, AI/crowd feedback, match story, and rematch. Mobile spectator at 390×844: scan/name/join, score, Crowd Energy, target/powers/cooldowns, event feedback, final story/profile/memory are readable. Big screen: no private controls; clear score/turn/QR/crowd/event/result hierarchy. |
 | Gameplay-loop realtime      | Pass   | Fresh local match #7: Tactical Player chose SAFE/BALANCED/AGGRESSIVE across six balls; independent Field A and Field B crowd clients plus the stage received the same `18/0` vs `21/0`, target `19`, MelaBot win, energy `32/60`, and durable crowd story. Field A's BOOST appeared on the player and the other spectator before its target delivery. |
 | Mobile/stage check          | Pass   | A fresh QR spectator was exercised at `390×844`; it showed match stakes, target picker, timing-specific power explanations, cost/cooldown state, and live result. The separate `1440×900` stage showed QR, target, score, crowd state, event feed, and final story. |
+| Final productization realtime | Pass | Fresh local match #9: Final Player plus independent Final Asha/Final Nila mobile crowd clients and a `1440×900` stage converged on `2/2` vs `3/0`, target `3`, MelaBot win, energy `4/60`, two committed effects, the same crowd story, and the same completed memory. Asha/Nila submitted BOOST/CHAOS concurrently; both effects committed atomically and were visible everywhere. Nila reloaded after activation and recovered the same crowd state. |
+| Expired QR recovery | Pass | A fresh local identity opened completed-match QR `?join=9`; the client showed `That match has ended. Start a fresh match or scan a live crowd QR.` with no raw fatal-error surface and no power controls. |
+| Operator metrics view | Pass | Local `?operator=metrics` rendered only safe aggregate counters (completed matches, unique players/crowd members, conversions), with no identity/session data. |
 
 ## Deployment configuration
 
 - Maincloud host: `https://maincloud.spacetimedb.com`
 - Maincloud database: `mela-cah23`
 - Frontend target: `https://sreenathmenon.com/mela`
-- GitHub Pages is enabled and live through `.github/workflows/deploy-pages.yml`; gameplay finalization workflow run `33963941846` succeeded. A fresh production browser loaded `https://sreenathmenon.com/mela/`, connected to the live world, and the served bundle contained the new choice heading/SAFE copy with no legacy `steady` choice.
+- GitHub Pages is enabled and live through `.github/workflows/deploy-pages.yml`; final productization workflow run `33964926328` succeeded. A fresh production mobile browser loaded `https://sreenathmenon.com/mela/?operator=metrics`, connected to Maincloud, rendered the safe metrics route, and loaded the new crowd-context/expired-QR recovery bundle.
 
 ## Known limitations
 
@@ -74,7 +80,7 @@ The locked thesis remains unchanged: players play, spectators influence, AI part
 
 ## Next task
 
-Publish this focused gameplay finalization, then collect playtest feedback on the SAFE/BALANCED/AGGRESSIVE balance. Do not begin a new product phase without explicit approval.
+Publish this final Book Cricket productization, then collect real-player tuning feedback on the SAFE/BALANCED/AGGRESSIVE balance. Do not begin a new product phase without explicit approval.
 
 ## Handoff notes
 

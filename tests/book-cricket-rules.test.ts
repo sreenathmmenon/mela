@@ -25,6 +25,12 @@ import {
   playerProgressAfterMatch,
   spectatorProgressAfterMatch,
 } from "../spacetimedb/src/melaMemory";
+import {
+  completedMatchDelta,
+  crowdActionDelta,
+  playerMatchStartDelta,
+  spectatorJoinDelta,
+} from "../spacetimedb/src/melaMetrics";
 
 test("delivery scoring is deterministic and bounded by each selected strategy", () => {
   const first = resolveBookCricketOutcome(18n, "balanced");
@@ -223,6 +229,20 @@ test("safe, balanced, and aggressive make the risk trade-off explicit", () => {
   assert.equal(Math.max(...BOOK_CRICKET_STYLES.aggressive.runs), 6);
 });
 
+test("strategy profiles create measurably different bounded OUT risk", () => {
+  const wickets = new Map<keyof typeof BOOK_CRICKET_STYLES, number>();
+  for (const style of Object.keys(BOOK_CRICKET_STYLES) as Array<
+    keyof typeof BOOK_CRICKET_STYLES
+  >) {
+    let count = 0;
+    for (let seed = 1n; seed <= 10_000n; seed += 1n)
+      if (resolveBookCricketOutcome(seed, style).wicket) count += 1;
+    wickets.set(style, count);
+  }
+  assert.ok(wickets.get("safe")! < wickets.get("balanced")!);
+  assert.ok(wickets.get("balanced")! < wickets.get("aggressive")!);
+});
+
 test("Mela progression rewards player participation, wins, and crowd presence separately", () => {
   assert.deepEqual(playerProgressAfterMatch(20, false), {
     progressPoints: 30,
@@ -260,4 +280,29 @@ test("durable memory tells a crowd story without depending on transient events",
     notableCrowdMoment(2, "Asha", "boost"),
     "Asha made the crowd matter with BOOST.",
   );
+});
+
+test("authoritative metrics distinguish people, participation, replay, and conversion", () => {
+  assert.deepEqual(
+    playerMatchStartDelta({
+      hasPlayed: false,
+      hasSpectated: true,
+      completedPlayerMatches: 1,
+    }),
+    {
+      matchesStarted: 1,
+      matchesCompleted: 0,
+      uniquePlayerIdentities: 1,
+      uniqueSpectatorIdentities: 0,
+      totalParticipants: 1,
+      crowdActions: 0,
+      completedPlayerMatches: 0,
+      replayedMatches: 1,
+      spectatorToPlayerConversions: 1,
+    },
+  );
+  assert.equal(spectatorJoinDelta(false).uniqueSpectatorIdentities, 1);
+  assert.equal(spectatorJoinDelta(true).uniqueSpectatorIdentities, 0);
+  assert.equal(completedMatchDelta().matchesCompleted, 1);
+  assert.equal(crowdActionDelta().crowdActions, 1);
 });

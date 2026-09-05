@@ -154,6 +154,21 @@ export const MatchSpectator = __t.object("MatchSpectator", {
 });
 export type MatchSpectator = __Infer<typeof MatchSpectator>;
 
+export const MelaMetrics = __t.object("MelaMetrics", {
+  id: __t.u64(),
+  matchesStarted: __t.u64(),
+  matchesCompleted: __t.u64(),
+  uniquePlayerIdentities: __t.u64(),
+  uniqueSpectatorIdentities: __t.u64(),
+  totalParticipants: __t.u64(),
+  crowdActions: __t.u64(),
+  completedPlayerMatches: __t.u64(),
+  replayedMatches: __t.u64(),
+  spectatorToPlayerConversions: __t.u64(),
+  updatedAt: __t.timestamp(),
+});
+export type MelaMetrics = __Infer<typeof MelaMetrics>;
+
 export const MelaProfile = __t.object("MelaProfile", {
   identity: __t.identity(),
   melaLevel: __t.u32(),
@@ -166,6 +181,14 @@ export const MelaProfile = __t.object("MelaProfile", {
   updatedAt: __t.timestamp(),
 });
 export type MelaProfile = __Infer<typeof MelaProfile>;
+
+export const MetricsIdentity = __t.object("MetricsIdentity", {
+  identity: __t.identity(),
+  hasPlayed: __t.u32(),
+  hasSpectated: __t.u32(),
+  completedPlayerMatches: __t.u32(),
+});
+export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),

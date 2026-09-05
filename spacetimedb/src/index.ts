@@ -23,6 +23,13 @@ import {
   playerProgressAfterMatch,
   spectatorProgressAfterMatch,
 } from "./melaMemory";
+import {
+  type MelaMetricDelta,
+  completedMatchDelta,
+  crowdActionDelta,
+  playerMatchStartDelta,
+  spectatorJoinDelta,
+} from "./melaMetrics";
 
 const WORLD_ID = 1n;
 
@@ -107,6 +114,33 @@ const spacetimedb = schema({
       connectionId: t.connectionId().primaryKey(),
       identity: t.identity(),
       connectedAt: t.timestamp(),
+    },
+  ),
+  /** Safe aggregate counters for operators; no identity or session data. */
+  melaMetrics: table(
+    { public: true },
+    {
+      id: t.u64().primaryKey(),
+      matchesStarted: t.u64(),
+      matchesCompleted: t.u64(),
+      uniquePlayerIdentities: t.u64(),
+      uniqueSpectatorIdentities: t.u64(),
+      totalParticipants: t.u64(),
+      crowdActions: t.u64(),
+      completedPlayerMatches: t.u64(),
+      replayedMatches: t.u64(),
+      spectatorToPlayerConversions: t.u64(),
+      updatedAt: t.timestamp(),
+    },
+  ),
+  /** Private identity flags prevent reconnects from changing aggregate counts. */
+  metricsIdentity: table(
+    { public: false },
+    {
+      identity: t.identity().primaryKey(),
+      hasPlayed: t.u32(),
+      hasSpectated: t.u32(),
+      completedPlayerMatches: t.u32(),
     },
   ),
   match: table(
@@ -301,6 +335,123 @@ const ensureMelaProfile = (ctx: any, identity: any) => {
   ctx.db.melaProfile.insert(profile);
   return profile;
 };
+const identityKey = (identity: any) => identity.toHexString();
+const historicalMetricSnapshot = (ctx: any) => {
+  const matches = Array.from(ctx.db.match.iter()) as any[];
+  const playerIds = new Set(
+    matches.map((match) => identityKey(match.playerIdentity)),
+  );
+  const spectatorRows = Array.from(ctx.db.matchSpectator.iter()) as any[];
+  const spectatorIds = new Set(
+    spectatorRows.map((row) => identityKey(row.identity)),
+  );
+  const histories = Array.from(ctx.db.matchHistory.iter()) as any[];
+  const crowdActions = (
+    Array.from(ctx.db.matchCrowdActivity.iter()) as any[]
+  ).reduce((sum, activity) => sum + activity.actions, 0);
+  const firstSpectatorAt = new Map<string, bigint>();
+  for (const spectator of spectatorRows) {
+    const key = identityKey(spectator.identity);
+    const at = spectator.joinedAt.microsSinceUnixEpoch;
+    if (at < (firstSpectatorAt.get(key) ?? at)) firstSpectatorAt.set(key, at);
+  }
+  const orderedMatches = matches
+    .slice()
+    .sort((a, b) =>
+      a.createdAt.microsSinceUnixEpoch < b.createdAt.microsSinceUnixEpoch
+        ? -1
+        : 1,
+    );
+  const completedBefore = new Set<string>();
+  let replayedMatches = 0;
+  let spectatorToPlayerConversions = 0;
+  const countedConversion = new Set<string>();
+  for (const match of orderedMatches) {
+    const key = identityKey(match.playerIdentity);
+    if (completedBefore.has(key)) replayedMatches += 1;
+    const spectatorAt = firstSpectatorAt.get(key);
+    if (
+      spectatorAt !== undefined &&
+      spectatorAt < match.createdAt.microsSinceUnixEpoch &&
+      !countedConversion.has(key)
+    ) {
+      spectatorToPlayerConversions += 1;
+      countedConversion.add(key);
+    }
+    if (match.endedAt) completedBefore.add(key);
+  }
+  return {
+    matchesStarted: matches.length,
+    matchesCompleted: histories.length,
+    uniquePlayerIdentities: playerIds.size,
+    uniqueSpectatorIdentities: spectatorIds.size,
+    totalParticipants: matches.length + spectatorRows.length,
+    crowdActions,
+    completedPlayerMatches: histories.length,
+    replayedMatches,
+    spectatorToPlayerConversions,
+  };
+};
+const ensureMetrics = (ctx: any) => {
+  const existing = ctx.db.melaMetrics.id.find(1n);
+  if (existing) return existing;
+  const snapshot = historicalMetricSnapshot(ctx);
+  const metrics = {
+    id: 1n,
+    matchesStarted: BigInt(snapshot.matchesStarted),
+    matchesCompleted: BigInt(snapshot.matchesCompleted),
+    uniquePlayerIdentities: BigInt(snapshot.uniquePlayerIdentities),
+    uniqueSpectatorIdentities: BigInt(snapshot.uniqueSpectatorIdentities),
+    totalParticipants: BigInt(snapshot.totalParticipants),
+    crowdActions: BigInt(snapshot.crowdActions),
+    completedPlayerMatches: BigInt(snapshot.completedPlayerMatches),
+    replayedMatches: BigInt(snapshot.replayedMatches),
+    spectatorToPlayerConversions: BigInt(snapshot.spectatorToPlayerConversions),
+    updatedAt: ctx.timestamp,
+  };
+  ctx.db.melaMetrics.insert(metrics);
+  return metrics;
+};
+const metricsIdentityFor = (ctx: any, identity: any) => {
+  const existing = ctx.db.metricsIdentity.identity.find(identity);
+  if (existing) return existing;
+  let hasPlayed = 0;
+  let hasSpectated = 0;
+  let completedPlayerMatches = 0;
+  for (const match of ctx.db.match.iter())
+    if (match.playerIdentity.isEqual(identity)) {
+      hasPlayed = 1;
+      if (match.status === "complete") completedPlayerMatches += 1;
+    }
+  for (const spectator of ctx.db.matchSpectator.iter())
+    if (spectator.identity.isEqual(identity)) hasSpectated = 1;
+  const row = { identity, hasPlayed, hasSpectated, completedPlayerMatches };
+  ctx.db.metricsIdentity.insert(row);
+  return row;
+};
+const applyMetricDelta = (ctx: any, delta: MelaMetricDelta) => {
+  const metrics = ensureMetrics(ctx);
+  ctx.db.melaMetrics.id.update({
+    ...metrics,
+    matchesStarted: metrics.matchesStarted + BigInt(delta.matchesStarted),
+    matchesCompleted: metrics.matchesCompleted + BigInt(delta.matchesCompleted),
+    uniquePlayerIdentities:
+      metrics.uniquePlayerIdentities + BigInt(delta.uniquePlayerIdentities),
+    uniqueSpectatorIdentities:
+      metrics.uniqueSpectatorIdentities +
+      BigInt(delta.uniqueSpectatorIdentities),
+    totalParticipants:
+      metrics.totalParticipants + BigInt(delta.totalParticipants),
+    crowdActions: metrics.crowdActions + BigInt(delta.crowdActions),
+    completedPlayerMatches:
+      metrics.completedPlayerMatches + BigInt(delta.completedPlayerMatches),
+    replayedMatches: metrics.replayedMatches + BigInt(delta.replayedMatches),
+    spectatorToPlayerConversions:
+      metrics.spectatorToPlayerConversions +
+      BigInt(delta.spectatorToPlayerConversions),
+    updatedAt: ctx.timestamp,
+  });
+};
 const player = (ctx: any) => {
   const row = ctx.db.playerProfile.identity.find(ctx.sender);
   if (!row) throw new Error("Choose a display name first.");
@@ -384,6 +535,7 @@ function completeMatch(ctx: any, match: any, state: any, winner: string) {
   const human = ctx.db.playerProfile.identity.find(match.playerIdentity);
   if (!human) throw new Error("Match player profile is unavailable.");
   const humanProgress = ensureMelaProfile(ctx, match.playerIdentity);
+  const humanMetrics = metricsIdentityFor(ctx, match.playerIdentity);
   const playerUpdate = playerProgressAfterMatch(
     humanProgress.progressPoints,
     winner === "human",
@@ -470,6 +622,11 @@ function completeMatch(ctx: any, match: any, state: any, winner: string) {
       crowdActivity.lastPower,
     ),
     completedAt: ctx.timestamp,
+  });
+  applyMetricDelta(ctx, completedMatchDelta());
+  ctx.db.metricsIdentity.identity.update({
+    ...humanMetrics,
+    completedPlayerMatches: humanMetrics.completedPlayerMatches + 1,
   });
 }
 
@@ -571,10 +728,15 @@ function resolveDelivery(
 export const init = spacetimedb.init((ctx: any) => {
   ensureWorld(ctx);
   ensureMelaBot(ctx);
+  ensureMetrics(ctx);
 });
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   ensureWorld(ctx);
   ensureMelaBot(ctx);
+  // Module init is not replayed for every in-place Maincloud migration. This
+  // makes the first post-migration connection seed a truthful snapshot from
+  // the persisted match tables, then normal reducers maintain it incrementally.
+  ensureMetrics(ctx);
   if (ctx.db.playerProfile.identity.find(ctx.sender))
     ensureMelaProfile(ctx, ctx.sender);
   if (ctx.connectionId)
@@ -631,6 +793,27 @@ export const onboard = spacetimedb.reducer(
 );
 export const createBookCricket = spacetimedb.reducer((ctx: any) => {
   const p = player(ctx);
+  for (const existingMatch of ctx.db.match.iter())
+    if (
+      existingMatch.gameKind === "book_cricket" &&
+      existingMatch.status === "active"
+    )
+      throw new Error(
+        "A Book Cricket match is already live. Join the crowd or finish it first.",
+      );
+  const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
+  applyMetricDelta(
+    ctx,
+    playerMatchStartDelta({
+      hasPlayed: participantMetrics.hasPlayed === 1,
+      hasSpectated: participantMetrics.hasSpectated === 1,
+      completedPlayerMatches: participantMetrics.completedPlayerMatches,
+    }),
+  );
+  ctx.db.metricsIdentity.identity.update({
+    ...participantMetrics,
+    hasPlayed: 1,
+  });
   ensureMelaBot(ctx);
   const melaBot = ctx.db.aiCharacter.id.find(1n);
   const matchId = nextMatchId(ctx);
@@ -725,6 +908,15 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
     if (match.playerIdentity.isEqual(ctx.sender))
       throw new Error("The player is already in this match.");
     if (spectatorFor(ctx, matchId, ctx.sender)) return;
+    const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
+    applyMetricDelta(
+      ctx,
+      spectatorJoinDelta(participantMetrics.hasSpectated === 1),
+    );
+    ctx.db.metricsIdentity.identity.update({
+      ...participantMetrics,
+      hasSpectated: 1,
+    });
     ctx.db.matchSpectator.insert({
       id: nextId(ctx.db.matchSpectator.iter()),
       matchId,
@@ -801,6 +993,7 @@ export const useCrowdPower = spacetimedb.reducer(
       });
 
     const profile = player(ctx);
+    applyMetricDelta(ctx, crowdActionDelta());
     const melaProfile = ensureMelaProfile(ctx, ctx.sender);
     ctx.db.melaProfile.identity.update({
       ...melaProfile,

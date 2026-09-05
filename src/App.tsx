@@ -56,6 +56,10 @@ const PLAY_CHOICES = [
   },
 ] as const;
 
+function plural(value: number, singular: string, pluralWord = `${singular}s`) {
+  return `${value} ${value === 1 ? singular : pluralWord}`;
+}
+
 function secondsRemaining(readyAtMicros: bigint | undefined, now: number) {
   if (!readyAtMicros) return 0;
   return Math.max(0, Math.ceil((Number(readyAtMicros / 1000n) - now) / 1000));
@@ -75,6 +79,9 @@ function joinUrlFor(matchId: bigint) {
 function App() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingStyle, setPendingStyle] = useState<string | null>(null);
+  const [creatingMatch, setCreatingMatch] = useState(false);
   const [pendingPower, setPendingPower] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<"human" | "melabot">(
     "human",
@@ -84,6 +91,11 @@ function App() {
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
   const requestedJoinMatchId = useMemo(matchIdFromJoinLink, []);
+  const showOperatorMetrics = useMemo(
+    () =>
+      new URLSearchParams(window.location.search).get("operator") === "metrics",
+    [],
+  );
   const onMatchEvent = useCallback(
     (event: { id: bigint; matchId: bigint; message: string }) =>
       setMatchEvents((feed) =>
@@ -116,6 +128,7 @@ function App() {
   const [cooldowns] = useTable(tables.spectatorCooldown);
   const [effects] = useTable(tables.crowdEffect);
   const [aiCharacters] = useTable(tables.aiCharacter);
+  const [melaMetrics] = useTable(tables.melaMetrics);
   useTable(tables.liveEvent, { onInsert: onMatchEvent });
 
   const me = useMemo(() => {
@@ -210,6 +223,15 @@ function App() {
       (humanBallsLeft <= 2 || humanWicketsLeft <= 1)) ||
       (matchState.innings === 2 && (botBallsLeft <= 2 || botWicketsLeft <= 1))),
   );
+  const spectatorSituation =
+    matchState?.turn === "human"
+      ? humanWicketsLeft === 1
+        ? `${humanName} has one wicket left with ${plural(humanBallsLeft, "ball")} to set a target.`
+        : `${humanName} has ${plural(humanBallsLeft, "ball")} to set MelaBot a target.`
+      : matchState?.turn === "bot"
+        ? `MelaBot needs ${plural(botRunsNeeded, "run")} from ${plural(botBallsLeft, "ball")}.`
+        : "This match is now part of Mela memory.";
+  const currentMetrics = melaMetrics[0];
 
   const onboard = useReducer(reducers.onboard);
   const createMatch = useReducer(reducers.createBookCricket);
@@ -222,13 +244,65 @@ function App() {
     if (!name.trim() || !connected) return;
     try {
       await onboard({ displayName: name });
-      if (requestedJoinMatchId)
+      if (requestedJoinMatchId) {
+        const requestedMatch = matches.find(
+          (match) => match.id === requestedJoinMatchId,
+        );
+        if (!requestedMatch || requestedMatch.status !== "active")
+          throw new Error(
+            "That match has ended. Start a fresh match or scan a live crowd QR.",
+          );
         await joinSpectator({ matchId: requestedJoinMatchId });
+      }
       setError(null);
+      setFeedback(
+        requestedJoinMatchId
+          ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
+          : "You are in Mela. Start a match or join the live crowd.",
+      );
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to join Mela.",
       );
+    }
+  };
+
+  const startMatch = async () => {
+    setCreatingMatch(true);
+    try {
+      await createMatch();
+      setError(null);
+      setFeedback(
+        "Your match is live. Set a target in six balls—every choice carries risk.",
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to start a match.",
+      );
+    } finally {
+      setCreatingMatch(false);
+    }
+  };
+
+  const playDelivery = async (
+    style: (typeof PLAY_CHOICES)[number]["style"],
+  ) => {
+    if (!displayedMatch) return;
+    setPendingStyle(style);
+    try {
+      await playBall({ matchId: displayedMatch.id, style });
+      setError(null);
+      setFeedback(
+        `${style.toUpperCase()} locked in. The world has resolved your ball.`,
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "That ball could not be played.",
+      );
+    } finally {
+      setPendingStyle(null);
     }
   };
 
@@ -244,6 +318,9 @@ function App() {
         target: selectedTarget,
       });
       setError(null);
+      setFeedback(
+        `${power.toUpperCase()} is committed for ${selectedTarget === "human" ? humanName : "MelaBot"}'s next ball. Everyone watching can see it now.`,
+      );
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Power could not be used.",
@@ -301,6 +378,11 @@ function App() {
           {error}
         </p>
       )}
+      {feedback && (
+        <p className="feedback success" role="status">
+          {feedback}
+        </p>
+      )}
 
       {me && (
         <section className="identity">
@@ -314,8 +396,14 @@ function App() {
         </section>
       )}
       {me && !activeMatch && (
-        <button className="primary start" onClick={() => createMatch()}>
-          Start Book Cricket vs MelaBot
+        <button
+          className="primary start"
+          onClick={startMatch}
+          disabled={creatingMatch}
+        >
+          {creatingMatch
+            ? "Starting the live match…"
+            : "Start Book Cricket vs MelaBot"}
         </button>
       )}
 
@@ -350,7 +438,7 @@ function App() {
             </div>
             <p className={`match-state ${isTenseFinish ? "tension" : ""}`}>
               {matchState.turn === "human"
-                ? `${humanBallsLeft} balls and ${humanWicketsLeft} wickets left to set MelaBot a target.`
+                ? `${plural(humanBallsLeft, "ball")} and ${plural(humanWicketsLeft, "wicket")} left to set MelaBot a target.`
                 : matchState.turn === "bot"
                   ? `MelaBot needs ${botRunsNeeded} run${botRunsNeeded === 1 ? "" : "s"} from ${botBallsLeft} ball${botBallsLeft === 1 ? "" : "s"}.`
                   : `Target ${matchState.target} · match complete.`}
@@ -364,7 +452,7 @@ function App() {
                 <span>
                   {matchState.lastOutcome.includes("OUT")
                     ? `${wicketsLeftForCurrentInnings ? "The innings continues while wickets remain." : "No wickets remain."}`
-                    : "Authoritative delivery result"}
+                    : "The score, target, and next decision have updated for everyone."}
                 </span>
               </div>
             )}
@@ -390,16 +478,16 @@ function App() {
                     <button
                       className={`choice-card ${choice.style}`}
                       key={choice.style}
-                      onClick={() =>
-                        playBall({
-                          matchId: displayedMatch.id,
-                          style: choice.style,
-                        })
-                      }
+                      disabled={pendingStyle !== null}
+                      onClick={() => playDelivery(choice.style)}
                     >
                       <strong>{choice.title}</strong>
                       <span>{choice.risk}</span>
-                      <small>{choice.copy}</small>
+                      <small>
+                        {pendingStyle === choice.style
+                          ? "Resolving your choice…"
+                          : choice.copy}
+                      </small>
                     </button>
                   ))}
                 </div>
@@ -511,8 +599,8 @@ function App() {
                 </div>
               </div>
               <p className="crowd-note">
-                Every power changes the next delivery, not the final result.
-                Save shared energy for the moment that matters.
+                {spectatorSituation} The crowd changes the next delivery—not the
+                final result. Spend together when the situation calls for it.
               </p>
               {matchEffects.length > 0 && (
                 <div className="active-effects">
@@ -579,6 +667,15 @@ function App() {
                             </span>
                           </div>
                           <p>{card.copy}</p>
+                          <small className="power-why">
+                            {card.power === "boost"
+                              ? "Useful when a few runs change the chase."
+                              : card.power === "chaos"
+                                ? "Use when the match needs a swing."
+                                : card.power === "shield"
+                                  ? "Most valuable when a wicket would end an innings."
+                                  : "Use to unlock a stronger crowd move."}
+                          </small>
                           <button
                             disabled={blocked}
                             onClick={() => activatePower(card.power)}
@@ -701,6 +798,45 @@ function App() {
                   </p>
                 )}
               </article>
+            </section>
+          )}
+          {showOperatorMetrics && currentMetrics && (
+            <section
+              className="operator-metrics"
+              aria-label="Mela operator metrics"
+            >
+              <div className="feed-header">
+                <h2>Mela pulse</h2>
+                <span>Authoritative aggregates</span>
+              </div>
+              <p>
+                Safe totals for demo operators—identities and sessions stay
+                private.
+              </p>
+              <div>
+                <span>
+                  <strong>{currentMetrics.matchesCompleted.toString()}</strong>{" "}
+                  completed matches
+                </span>
+                <span>
+                  <strong>
+                    {currentMetrics.uniquePlayerIdentities.toString()}
+                  </strong>{" "}
+                  unique players
+                </span>
+                <span>
+                  <strong>
+                    {currentMetrics.uniqueSpectatorIdentities.toString()}
+                  </strong>{" "}
+                  unique crowd members
+                </span>
+                <span>
+                  <strong>
+                    {currentMetrics.spectatorToPlayerConversions.toString()}
+                  </strong>{" "}
+                  crowd-to-player conversions
+                </span>
+              </div>
             </section>
           )}
         </>

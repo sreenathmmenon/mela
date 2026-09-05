@@ -55,6 +55,7 @@ import MatchHistoryRow from "./match_history_table";
 import MatchMemoryRow from "./match_memory_table";
 import MatchParticipantRow from "./match_participant_table";
 import MatchSpectatorRow from "./match_spectator_table";
+import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
 import PlayerProfileRow from "./player_profile_table";
 import SpectatorCooldownRow from "./spectator_cooldown_table";
@@ -298,6 +299,23 @@ const tablesSchema = __schema({
       ],
     },
     MatchSpectatorRow,
+  ),
+  melaMetrics: __table(
+    {
+      name: "mela_metrics",
+      indexes: [
+        {
+          accessor: "id",
+          name: "mela_metrics_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "mela_metrics_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    MelaMetricsRow,
   ),
   melaProfile: __table(
     {

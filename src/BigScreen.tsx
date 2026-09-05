@@ -107,6 +107,12 @@ export default function BigScreen() {
   const botRunsNeeded = Math.max(0, state.target - state.botScore);
   const botBallsLeft = Math.max(0, 6 - state.botBalls);
   const humanBallsLeft = Math.max(0, 6 - state.humanBalls);
+  const humanWicketsLeft = Math.max(0, 2 - state.humanWickets);
+  const botWicketsLeft = Math.max(0, 2 - state.botWickets);
+  const tense =
+    state.turn !== "complete" &&
+    ((state.innings === 1 && (humanBallsLeft <= 2 || humanWicketsLeft <= 1)) ||
+      (state.innings === 2 && (botBallsLeft <= 2 || botWicketsLeft <= 1)));
 
   return (
     <main className="screen-shell">
@@ -131,8 +137,7 @@ export default function BigScreen() {
             {state.humanScore}/{state.humanWickets}
           </strong>
           <small>
-            Ball {state.humanBalls}/6 · {Math.max(0, 2 - state.humanWickets)}{" "}
-            wickets left
+            Ball {state.humanBalls}/6 · {humanWicketsLeft} wickets left
           </small>
         </div>
         <div className="screen-versus">
@@ -148,13 +153,14 @@ export default function BigScreen() {
             {state.botScore}/{state.botWickets}
           </strong>
           <small>
-            Ball {state.botBalls}/6 · {Math.max(0, 2 - state.botWickets)}{" "}
-            wickets left
+            Ball {state.botBalls}/6 · {botWicketsLeft} wickets left
           </small>
         </div>
       </section>
 
-      <section className={`screen-turn ${completed ? "complete" : ""}`}>
+      <section
+        className={`screen-turn ${completed ? "complete" : ""} ${tense ? "tension" : ""}`}
+      >
         {completed ? (
           <>
             <p className="eyebrow">MATCH REMEMBERED</p>
@@ -168,8 +174,14 @@ export default function BigScreen() {
         ) : state.turn === "bot" ? (
           <>
             <p className="eyebrow">MELABOT’S TURN</p>
-            <h2>MelaBot is making its move.</h2>
-            <p>Every action resolves in the same authoritative world.</p>
+            <h2>
+              MelaBot needs {botRunsNeeded} from {botBallsLeft}.
+            </h2>
+            <p>
+              {botWicketsLeft === 1
+                ? "One wicket remains. The crowd can still shape this ball."
+                : "MelaBot is choosing an approach in the same shared world."}
+            </p>
           </>
         ) : (
           <>
@@ -177,12 +189,25 @@ export default function BigScreen() {
             <h2>{humanName} has the book.</h2>
             <p>
               {state.innings === 1
-                ? `${humanBallsLeft} balls remain to set the target. The crowd can shape the next delivery.`
-                : `MelaBot needs ${botRunsNeeded} from ${botBallsLeft} balls.`}
+                ? `${humanBallsLeft} balls and ${humanWicketsLeft} wickets remain to set the target.`
+                : `The chase is live: MelaBot needs ${botRunsNeeded} from ${botBallsLeft}.`}
             </p>
           </>
         )}
       </section>
+
+      {state.lastOutcome !== "START" && (
+        <section
+          className={`screen-outcome ${state.lastOutcome.includes("OUT") ? "out" : ""}`}
+          aria-label="Latest authoritative match outcome"
+        >
+          <span>LATEST MOMENT</span>
+          <strong>{state.lastOutcome}</strong>
+          <small>
+            {tense ? "Pressure is on." : "The whole world just updated."}
+          </small>
+        </section>
+      )}
 
       <section className="screen-lower">
         <article className="screen-crowd">

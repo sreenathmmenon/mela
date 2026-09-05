@@ -78,3 +78,27 @@ Event tables deliver immediate moment-to-moment drama and are not durable table 
 ## P0 tuning assumptions
 
 The numerical values in this document are game-design defaults, not architectural constraints. Change them only through the centralized configuration with deterministic tests and an accompanying STATUS.md decision/update. The intended outcome is a match that feels fast and strategic without requiring traditional Book Cricket’s full rule complexity.
+
+## Trustworthy Mela usage metrics
+
+`mela_metrics` is a public, identity-safe aggregate projection for demo
+operators. It is updated only by authoritative reducers and completed-match
+resolution; it never reads browser storage, page views, reloads, or connection
+sessions.
+
+| Metric                            | Exact definition                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `matches_started`                 | A successful authoritative `createBookCricket` reducer commit.                                                            |
+| `matches_completed`               | A match whose final result/history is committed once.                                                                     |
+| `unique_player_identities`        | Distinct SpacetimeDB identities that have successfully started at least one match.                                        |
+| `unique_spectator_identities`     | Distinct identities admitted as a spectator at least once.                                                                |
+| `total_participants`              | Player-match participations plus first spectator admissions per match; this is a participation count, not a people count. |
+| `crowd_actions`                   | Successful, paid crowd-power activations only. Rejections do not count.                                                   |
+| `completed_player_matches`        | Completed matches credited to a human player.                                                                             |
+| `replayed_matches`                | A match start by an identity that already completed a prior player match.                                                 |
+| `spectator_to_player_conversions` | An identity’s first successful player match after it was previously admitted as a spectator.                              |
+
+The aggregate excludes `connectionId` data and private per-identity flags. A
+reconnect or refresh therefore changes none of these values. Operators may use
+the safe aggregate view at `?operator=metrics`; it deliberately exposes no
+names or individual histories.

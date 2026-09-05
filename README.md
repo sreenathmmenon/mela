@@ -4,6 +4,11 @@ Mela is Flux’s persistent realtime gaming world: players play, spectators infl
 
 Book Cricket is the first complete vertical slice: one human bats first against MelaBot, the crowd uses shared energy to affect the match, and the result becomes durable Mela memory.
 
+Every ball is a meaningful choice: SAFE favors wickets and small runs,
+BALANCED is the all-round option, and AGGRESSIVE offers boundary-heavy outcomes
+at greater OUT risk. Scores, wickets, balls, targets, crowd effects, and
+MelaBot decisions are resolved only by SpacetimeDB reducers.
+
 ## Run locally
 
 Prerequisites: Node 22+, pnpm 10+, and SpacetimeDB CLI 2.10+.
@@ -33,6 +38,14 @@ VITE_PUBLIC_APP_URL=https://<your-frontend-origin>
 ```
 
 The production client defaults to the Maincloud host when no host override is supplied. `VITE_PUBLIC_APP_URL` ensures QR codes point to the public HTTPS frontend rather than a local origin. The stage uses a hash route so it works on static hosting without a server-side rewrite.
+
+## Operator metrics
+
+Append `?operator=metrics` to the player URL for the safe aggregate Mela pulse.
+It exposes only authoritative totals (completed matches, distinct player/crowd
+identities, and spectator-to-player conversions), never names, tokens, sessions,
+or browser analytics. Exact metric definitions live in
+[the Book Cricket rules](docs/MELA_P0_Game_Rules.md#trustworthy-mela-usage-metrics).
 
 ## Verify
 

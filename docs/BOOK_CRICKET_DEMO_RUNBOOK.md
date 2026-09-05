@@ -14,10 +14,12 @@ The frontend is a static GitHub Pages deployment. The authoritative runtime is t
 2. Choose a display name and select **Start Book Cricket vs MelaBot**.
 3. Open the in-game stage link. The stage displays the score, turn, Crowd Energy, recent moments, and a QR code.
 4. Scan the QR from one or more phones. Each guest enters a display name and joins the crowd without an account or password.
-5. On a phone, select a target and use a crowd power. The player, every spectator, and the stage receive the same committed effect and energy state.
-6. Play the human innings. The stage communicates the innings break and MelaBot turn; MelaBot advances automatically through server-side scheduled wakes.
+5. On a phone, select a target and use a crowd power. The player, every spectator, and the stage receive the same committed effect and energy state. The phone explains when the power is most useful, so invite the crowd to decide whether to spend now or save Energy.
+6. Play the human innings. On every ball choose SAFE, BALANCED, or AGGRESSIVE and call out the visible trade-off. The stage communicates balls, wickets, target pressure, the innings break, and MelaBot’s turn; MelaBot advances automatically through server-side scheduled wakes.
 7. At completion, show the narrated result, crowd moment, durable recent memory, Mela profile change, and Book Cricket form.
 8. Choose **Play again vs MelaBot** to begin the next shared match.
+
+For the demo operator’s aggregate pulse, open `https://sreenathmenon.com/mela/?operator=metrics`. It contains only safe, authoritative totals—no identities or session data.
 
 ## Safety checks
 
