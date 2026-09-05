@@ -23,6 +23,7 @@
 - Accessibility/Chrome DevTools skill checks caught rivalry contrast and missing QR text alternative; fixed both. Mobile Lighthouse accessibility improved **95 → 100**, best practices **100**. Reports parsed for failures. Remaining non-accessibility audit findings concern the local dev fallback for robots/llms files and navigation layout shift; this is not a claim of comprehensive WCAG or physical-device certification. Final audit JSON: `/var/folders/vr/ttsdq38s06l357twx77l57rm0000gn/T/chrome-devtools-mcp-Kvg2Lm/report.json`.
 - Book Cricket browser regression: local match 14, **Asha 13/1–MelaBot 15/0**, target 14, normal automatic three-ball chase and completed result. No Book Cricket code or server code changed.
 - Release is frontend-only through existing Pages workflow. No Maincloud module publication, migration, backend, new game or economy change.
+- Released implementation `ac8c126dbf8a67be04846d21e5591965cb9b0293`, committed/pushed as Sreenath without co-author attribution. Pages run `33992553316` succeeded. Read-only production browser verification of existing memory 4 loaded `/mela/assets/index-DsXROmU3.js`, rendered `three-webgl`, retained the completed human-win result and exposed the labelled revisit QR. No production gameplay writes were used for this smoke check.
 
 ### Remaining limits and next task
 
