@@ -14,7 +14,7 @@
 ### Evidence for this pass
 
 - **71/71 tests passed.** Added edge/diagonal angle preservation across hundreds of positions/directions, invalid aim rejection, full-pen hit-area coverage, wrong-pen rejection and timed hit/miss/save cue tests. Existing Book Cricket, AI, crowd, history and motion tests remain passing.
-- Frontend typecheck, standard build, Pages production build, SpacetimeDB module build, changed-file formatting and whitespace checks passed. Existing lazy WebGL scene chunk-size warning remains (~133kB gzip).
+- Frontend typecheck, standard build, Railway production build, SpacetimeDB module build, changed-file formatting and whitespace checks passed. Existing lazy WebGL scene chunk-size warning remains (~133kB gzip).
 - Independent Asha/Nila clients, local `mela-pen-feel-0906`: match 11 completed **Asha 2–1 MelaBot**, matching in both clients. Both captured the same exact cue sequence for `1:2:1207168774` (human flick → contact → off edge) and `2:0:3578598518` (MelaBot flick → miss). Both then showed human `(260,500)`, bot `(192,601)`, and default aim `(192,601)`.
 - Match 12: grabbing the visible tip (rather than the centre) produced a 67% strength gesture and committed `1:0:3468182620`. Nila's NUDGE subsequently changed the human flick; both clients converged at `(260,500)` / `(198,577)` after automatic AI sequence `2:0:455780638`. Completed **Asha 2–0 MelaBot**, matching in both clients.
 - Real keyboard path: slider Home=20, End=100, desk ArrowDown=92; left/right aim then Space committed sequence `1:2:1207168774`.
@@ -22,8 +22,8 @@
 - Mobile 390×844 and 320×740 checked. At 320px: no horizontal overflow; four direction/strength buttons were 48×48, central flick 61×48. Screenshots: `output/playwright/pen-tip-grab.png`, `pen-game-feel-final-mobile.png` (ignored local artifacts).
 - Accessibility/Chrome DevTools skill checks caught rivalry contrast and missing QR text alternative; fixed both. Mobile Lighthouse accessibility improved **95 → 100**, best practices **100**. Reports parsed for failures. Remaining non-accessibility audit findings concern the local dev fallback for robots/llms files and navigation layout shift; this is not a claim of comprehensive WCAG or physical-device certification. Final audit JSON: `/var/folders/vr/ttsdq38s06l357twx77l57rm0000gn/T/chrome-devtools-mcp-Kvg2Lm/report.json`.
 - Book Cricket browser regression: local match 14, **Asha 13/1–MelaBot 15/0**, target 14, normal automatic three-ball chase and completed result. No Book Cricket code or server code changed.
-- Release is frontend-only through existing Pages workflow. No Maincloud module publication, migration, backend, new game or economy change.
-- Released implementation `ac8c126dbf8a67be04846d21e5591965cb9b0293`, committed/pushed as Sreenath without co-author attribution. Pages run `33992553316` succeeded. Read-only production browser verification of existing memory 4 loaded `/mela/assets/index-DsXROmU3.js`, rendered `three-webgl`, retained the completed human-win result and exposed the labelled revisit QR. No production gameplay writes were used for this smoke check.
+- Release is frontend-only through Railway. No Maincloud module publication, migration, backend, new game or economy change.
+- Released implementation `ac8c126dbf8a67be04846d21e5591965cb9b0293`, committed/pushed as Sreenath without co-author attribution. Railway production deployment `83e930d6-6116-48ae-b85d-a767d7166308` completed successfully; `https://mela-web-production.up.railway.app/` served the Railway-built `index-BQ_i29TU.js`. No production gameplay writes were used for this smoke check. An obsolete GitHub Pages workflow had also deployed the same commit to a personal-site path; it is not Mela's release target and has been removed from the repository.
 
 ### Remaining limits and next task
 
@@ -163,10 +163,10 @@
 ## Deployment
 
 - Maincloud: `https://maincloud.spacetimedb.com`, database `mela-cah23`.
-- Frontend: https://sreenathmenon.com/mela/
-- GitHub Pages deploys on main through `.github/workflows/deploy-pages.yml`.
+- Frontend: https://mela-web-production.up.railway.app/
+- Railway project `mela`, production service `mela-web`. Deployment uses the repository `Dockerfile`; GitHub Pages is not a release target.
 - Actual server release command: `spacetime publish --module-path spacetimedb --server maincloud mela-cah23 --yes`. Result: updated existing database successfully, empty migration plan.
-- Production browser smoke: fresh visitor opened `/mela/?memory=4`, connected to Maincloud, and saw the existing RailwayCheck 2–0 MelaBot memory with share and next-action controls, without onboarding. No production match was created or played during this smoke check. Screenshot: `output/playwright/pen-production-memory.png`.
+- Production browser smoke: fresh visitor opened `/?memory=4`, connected to Maincloud, and saw the existing RailwayCheck 2–0 MelaBot memory with share and next-action controls, without onboarding. No production match was created or played during this smoke check. Screenshot: `output/playwright/pen-production-memory.png`.
 - Commits must be Sreenath <sreenathmmmenon@gmail.com>, without co-author attribution.
 
 ## Known limits and next task

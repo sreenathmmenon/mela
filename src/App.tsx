@@ -131,7 +131,7 @@ function joinUrlFor(matchId: bigint) {
 
 /**
  * The stage lives under the app's own base path, not the domain root — on a
- * static host like GitHub Pages the app is served from a subdirectory.
+ * static host the app may be served from a subdirectory.
  */
 function screenUrlFor(matchId: bigint) {
   const base = import.meta.env.BASE_URL || "/";

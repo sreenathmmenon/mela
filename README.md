@@ -37,6 +37,10 @@ VITE_SPACETIMEDB_DB_NAME=<your-maincloud-database>
 VITE_PUBLIC_APP_URL=https://<your-frontend-origin>
 ```
 
+Mela's production frontend is deployed on Railway. The current Railway service
+uses the repository's `Dockerfile`; deploy and verify the Railway service rather
+than publishing a separate static-host copy.
+
 The production client defaults to the Maincloud host when no host override is supplied. `VITE_PUBLIC_APP_URL` ensures QR codes point to the public HTTPS frontend rather than a local origin. The stage uses a hash route so it works on static hosting without a server-side rewrite.
 
 ## Operator metrics

@@ -2,11 +2,11 @@
 
 ## Live surfaces
 
-- Player / crowd: `https://sreenathmenon.com/mela/`
-- Shared stage: `https://sreenathmenon.com/mela/#/screen?match=<match-id>`
+- Player / crowd: `https://mela-web-production.up.railway.app/`
+- Shared stage: `https://mela-web-production.up.railway.app/#/screen?match=<match-id>`
 - Authoritative database dashboard: `https://spacetimedb.com/mela-cah23`
 
-The frontend is a static GitHub Pages deployment. The authoritative runtime is the `mela-cah23` SpacetimeDB Maincloud database. The stage is read-only; it has no privileged controls.
+The frontend is deployed on Railway. The authoritative runtime is the `mela-cah23` SpacetimeDB Maincloud database. The stage is read-only; it has no privileged controls.
 
 ## Three-minute demo
 
@@ -19,7 +19,7 @@ The frontend is a static GitHub Pages deployment. The authoritative runtime is t
 7. At completion, show the narrated result, crowd moment, durable recent memory, Mela profile change, and Book Cricket form.
 8. Choose **Play again vs MelaBot** to begin the next shared match.
 
-For the demo operator’s aggregate pulse, open `https://sreenathmenon.com/mela/?operator=metrics`. It contains only safe, authoritative totals—no identities or session data.
+For the demo operator’s aggregate pulse, open `https://mela-web-production.up.railway.app/?operator=metrics`. It contains only safe, authoritative totals—no identities or session data.
 
 ## Safety checks
 
