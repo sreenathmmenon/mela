@@ -12,6 +12,7 @@ import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
 import { PenFight } from "./PenFight";
 import { signOut } from "./identity";
+import { isMuted, playSound, toggleMuted } from "./sound";
 
 const POWER_CARDS = [
   {
@@ -136,6 +137,8 @@ function App() {
   const [pendingStyle, setPendingStyle] = useState<string | null>(null);
   const [creatingMatch, setCreatingMatch] = useState(false);
   const [showHome, setShowHome] = useState(false);
+  // Reduced-motion visitors start muted, so they need a visible way back in.
+  const [muted, setMuted] = useState(isMuted);
   // A scanned QR pins the match it names: the visitor lands in THAT game,
   // not whichever one they happened to play or watch last time.
   const [pinnedMatchId, setPinnedMatchId] = useState<bigint | null>(null);
@@ -329,6 +332,36 @@ function App() {
       : matchState?.turn === "bot"
         ? `MelaBot needs ${plural(botRunsNeeded, "run")} from ${plural(botBallsLeft, "ball")}.`
         : "This match is now part of Mela memory.";
+  // Rivalry is the reason to come back tomorrow: every match currently starts
+  // from nothing, so there is never a score to settle. The record already
+  // exists — it was simply never said out loud.
+  const rivalry = (() => {
+    const played = myBookCricketRecord?.matchesPlayed ?? 0;
+    if (played < 1) return null;
+    const wins = myBookCricketRecord?.wins ?? 0;
+    const losses = Math.max(0, played - wins);
+    if (wins > losses)
+      return `You lead MelaBot ${wins}\u2013${losses}.`;
+    if (losses > wins)
+      return `MelaBot leads you ${losses}\u2013${wins}.`;
+    return `You and MelaBot are level at ${wins}\u2013${losses}.`;
+  })();
+
+  // Regret is the reason to play one more: a loss only stings usefully if you
+  // know which of your own choices cost you.
+  const regretLine = (() => {
+    if (!matchState || !memory || memory.winner === "human") return null;
+    const balls = (matchState.humanTimeline || "").split(",").filter(Boolean);
+    const lastWicket = balls.lastIndexOf("W");
+    if (lastWicket >= 0 && lastWicket >= balls.length - 2)
+      return "You went for it with the innings on the line.";
+    if (matchState.humanWickets >= 2)
+      return "Both wickets gone \u2014 the innings ended before the overs did.";
+    const margin = Math.abs(memory.botScore - memory.humanScore);
+    if (margin <= 2) return `${margin} short. One more ball either way.`;
+    return null;
+  })();
+
   const currentMetrics = melaMetrics[0];
   // The crowd's own game: is this the moment, or should they hold energy? The
   // advice is derived from live match state, never a fixed string.
@@ -377,6 +410,10 @@ function App() {
           swing: liveSwing,
           ball: ballsBowled,
         });
+        // Sound lands with the reveal, not the commit: the moment is the
+        // number appearing, not the tap that asked for it.
+        if (liveOutcome.includes("OUT")) playSound("out");
+        else if (liveOutcome.startsWith("6")) playSound("six");
       },
       dramatic ? 950 : 550,
     );
@@ -674,6 +711,18 @@ function App() {
             Mela
             <button
               className="link-back"
+              onClick={() => {
+                const next = toggleMuted();
+                setMuted(next);
+                if (!next) playSound("flick");
+              }}
+              aria-pressed={!muted}
+              title={muted ? "Turn sound on" : "Turn sound off"}
+            >
+              {muted ? "Sound off" : "Sound on"}
+            </button>
+            <button
+              className="link-back"
               onClick={signOut}
               title="Leave Mela on this device and re-enter with a new name"
             >
@@ -685,6 +734,7 @@ function App() {
       {me && !displayedMatch && (
         <section className="game-picker">
           <p className="eyebrow">PICK A GAME · PLAY MELABOT</p>
+          {rivalry && <p className="rivalry-line">{rivalry}</p>}
           <div className="game-cards">
             <button
               className="game-card cricket"
@@ -1019,6 +1069,7 @@ function App() {
                   : `${memory.winner === "human" ? memory.humanName : memory.aiName} takes the story.`}
               </h2>
               <p className="memory-story">{memory.notableMoment}</p>
+              {regretLine && <p className="regret-line">{regretLine}</p>}
               <div className="memory-facts">
                 <span>
                   {memory.humanName} {memory.humanScore}/{memory.humanWickets}

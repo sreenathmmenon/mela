@@ -1,7 +1,8 @@
-import { useEffect, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
+import { playSound } from "./sound";
 
 const powers = [
   ["nudge", "NUDGE", 14, "Give your side's next flick a small extra push."],
@@ -133,6 +134,9 @@ export function PenFight({
       return;
     const round =
       lastOutcome.includes("TAKES ROUND") || lastOutcome.includes("WINS");
+    // A knocked-off pen is the round ending; anything else that moved is a hit.
+    if (round) playSound("fall");
+    else if (lastOutcome.includes("CONTACT")) playSound("contact");
     setDeskFx({ impact: true, round });
     const timer = window.setTimeout(
       () => setDeskFx({ impact: false, round: false }),
@@ -149,6 +153,13 @@ export function PenFight({
     state && (nearEdge(state.botX) || nearEdge(state.botY)),
   );
   const edgeDanger = humanTeeter || botTeeter;
+  // The teeter tone sustains for ~385ms, so it fires once on ENTERING danger
+  // and stays quiet while a pen sits there — otherwise it smears every frame.
+  const wasInDanger = useRef(false);
+  useEffect(() => {
+    if (edgeDanger && !wasInDanger.current) playSound("teeter");
+    wasInDanger.current = edgeDanger;
+  }, [edgeDanger]);
   if (!match)
     return (
       <section className="pen-empty">
@@ -185,6 +196,7 @@ export function PenFight({
     });
   };
   const commitFlick = async () => {
+    playSound("flick");
     try {
       await flick({
         matchId: match.id,
