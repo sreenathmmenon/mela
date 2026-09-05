@@ -13,7 +13,7 @@ import "./mela.css";
 import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
 import { EmailRecap } from "./EmailRecap";
-import { signOut, AUTH_TOKEN_KEY } from "./identity";
+import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
 import { isMuted, playSound, toggleMuted } from "./sound";
 
@@ -207,7 +207,7 @@ function App() {
 
   const conn = useSpacetimeDB();
   const { isActive: connected } = conn;
-  const [profiles] = useTable(tables.playerProfile);
+  const [profiles, profilesReady] = useTable(tables.playerProfile);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [presence] = useTable(tables.worldPresence);
   const [matches] = useTable(tables.match);
@@ -568,7 +568,12 @@ function App() {
 
   const submitOnboarding = async (event: FormEvent) => {
     event.preventDefault();
-    if (!name.trim() || !connected || joinBusy.current) return;
+    if (!name.trim() || !connected || !profilesReady || joinBusy.current)
+      return;
+    if (me) {
+      setError(null);
+      return;
+    }
     // The reducer is the real gate — it runs even if this is bypassed. This
     // check exists only to tell the player WHY a name was refused: SpacetimeDB
     // does not surface reducer error text, so a server rejection reaches the
@@ -582,17 +587,22 @@ function App() {
       joinBusy.current = true;
       setJoining(true);
       setError(null);
+      // Use THIS live connection's credentials, never another tab's most
+      // recently saved localStorage token.
+      const token = conn.getConnection()?.token;
+      if (!token)
+        throw new Error("Still connecting. Please try again in a moment.");
       const result = await fetch("/api/welcome", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY) || ""}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ name, email, consent: true }),
         signal: AbortSignal.timeout(25000),
       });
       const body = await result.json();
-      if (!result.ok || body.accepted !== true)
+      if (!result.ok || (body.accepted !== true && body.existing !== true))
         throw new Error(
           body.error || "Could not send your welcome email. Please retry.",
         );
@@ -600,9 +610,11 @@ function App() {
       // The QR effect handles joining once the profile subscription arrives.
       setError(null);
       setFeedback(
-        requestedJoinMatchId
-          ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
-          : "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game.",
+        body.existing
+          ? "Welcome back. Your games and memories are ready."
+          : requestedJoinMatchId
+            ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
+            : "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game.",
       );
     } catch (reason) {
       setError(
@@ -795,7 +807,13 @@ function App() {
         </div>
       </header>
 
-      {!me && (
+      {!me && (!connected || !profilesReady) && (
+        <section className="join-card" role="status">
+          <h2>Opening Mela…</h2>
+          <p>Getting your place ready.</p>
+        </section>
+      )}
+      {!me && connected && profilesReady && (
         <form className="join-card" onSubmit={submitOnboarding}>
           <p className="eyebrow">
             {requestedJoinMatchId

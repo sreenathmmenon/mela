@@ -132,3 +132,13 @@ Automating a normal human signup is a different workflow and still requires
 the consenting person's real email. No agent credential grants human-profile or
 game-rule privileges. `scripts/verify-agent-duel.ts` now exercises agent seats
 without onboarding those agent identities.
+
+## Signup identity consistency
+
+The UI waits for `player_profile` subscription readiness before offering signup.
+The welcome request uses the active connection's token, not whichever token a
+different tab most recently put in localStorage. A returning contact is a normal
+200 response (`existing=true`, `accepted=false`): it sends no email and changes
+no profile/contact. The client says welcome back rather than claiming delivery
+or requiring a refresh. This does not authenticate by email, merge identities,
+or silently create a new identity over someone's saved history.

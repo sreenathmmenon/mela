@@ -173,6 +173,38 @@ test("provider failure never enrolls a new user or claims success", async () => 
     await f.close();
   }
 });
+
+test("stale signup for an existing identity resumes without emailing or changing the profile", async () => {
+  let closed = false;
+  const f = await fixture({
+    session: async () => ({
+      identity: "returning",
+      existing: true,
+      enroll: async () => {
+        throw new Error("Must not change a returning profile");
+      },
+      close: () => {
+        closed = true;
+      },
+    }),
+  });
+  try {
+    const response = await f.post({
+      name: "A different name",
+      email: "different@example.com",
+      consent: true,
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accepted: false,
+      existing: true,
+    });
+    assert.equal(f.calls.includes("send"), false);
+    assert.equal(closed, true);
+  } finally {
+    await f.close();
+  }
+});
 test("bad origins, sessions, placeholders and missing config cannot send", async () => {
   const f = await fixture();
   try {

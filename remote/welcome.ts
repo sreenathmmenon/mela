@@ -38,6 +38,7 @@ export function welcomeMessage(origin: string) {
 
 type Session = {
   identity: string;
+  existing?: boolean;
   enroll: () => Promise<void>;
   close: () => void;
 };
@@ -76,21 +77,9 @@ export function welcomeSession(
             const contact = Array.from(connection.db.myEmailContact.iter())[0];
             done = true;
             clearTimeout(timer);
-            if (
-              contact &&
-              (contact.source !== "user_supplied" || contact.email !== email)
-            ) {
-              connection.disconnect();
-              reject(
-                new RecapError(
-                  409,
-                  "Your existing profile is ready. Refresh to rejoin; no email is needed.",
-                ),
-              );
-              return;
-            }
             resolve({
               identity: identity.toHexString(),
+              existing: Boolean(contact),
               enroll: () =>
                 connection.reducers.onboardWithEmail({
                   displayName: name,
@@ -189,6 +178,12 @@ export function createWelcomeHandler(options: Options) {
       pending.add(key);
       active++;
       session = await (options.session || welcomeSession)(token, name, email);
+      // A stale signup form must not turn a valid returning identity into an
+      // error, replace its contact, or send mail to newly typed details.
+      if (session.existing) {
+        json(200, { accepted: false, existing: true });
+        return true;
+      }
       take(`identity:${hash(session.identity)}`, 5, 86400000);
       for (const [k, until] of accepted) if (until <= now()) accepted.delete(k);
       if (!accepted.has(key)) {

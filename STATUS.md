@@ -1,6 +1,14 @@
 # MELA STATUS
 
-## Current pass — welcome signup and legacy contact migration
+## Current pass — signup identity/initial-loading fix
+
+- Sreenath reported a genuinely new person receiving “Your existing profile is ready. Refresh to rejoin; no email is needed.” The message came from a server contact mismatch check; the person's exact browser/session sequence is not established. Do not label the person an existing user based only on that error.
+- Fixed two concrete race paths: signup waits for the initial profile subscription (connection-ready is not profile-ready), and its HTTP request uses the active connection's token instead of shared localStorage that another tab can overwrite. No identity reset, profile merging, email replacement or game-rule/schema change.
+- Existing-contact retries now return a normal existing-profile outcome without emailing, enrolling, renaming or overwriting anything. UI distinguishes this from provider acceptance and does not falsely announce an email. New identities still receive normal welcome/signup; agents remain separate and email-free.
+- **92/92 tests pass**, frontend typecheck/build, transport build, explicit server typecheck and module build pass. Real local browser reproduction deliberately replaced a fresh tab's stored token with a separately registered identity: FreshFriend still enrolled under its own live identity, not OtherTabQA. Subsequent differing-name/email request returned 200 existing=true and left FreshFriend unchanged; refresh restored the same profile without a signup form. Local delivery was captured, not sent.
+- Next task: release this focused Railway-only fix and verify fresh production signup. No Maincloud publication is needed because server module/schema are unchanged.
+
+## Previous pass — welcome signup and legacy contact migration
 
 - Sreenath approved required name + real email for new signups, an immediate welcome email, and no email collection from existing people. This supersedes name-only onboarding for new UI users; passwords/OAuth/email-verification walls remain out of scope.
 - New `/api/welcome` delivery flow validates the SpacetimeDB session, sends a fixed one-time Resend welcome, then enrolls through `onboard_with_email` and shared internal profile logic. Provider failure leaves a retryable form, not a claimed success. Duplicate/concurrent requests are bounded and use provider idempotency.
