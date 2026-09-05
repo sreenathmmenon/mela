@@ -1,30 +1,43 @@
-import { useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { tables, reducers } from './module_bindings';
 import { useSpacetimeDB, useTable, useReducer } from 'spacetimedb/react';
 
 function App() {
   const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const conn = useSpacetimeDB();
   const { isActive: connected } = conn;
 
-  // Subscribe to all people in the database
-  const [people] = useTable(tables.person);
+  const [worlds] = useTable(tables.world);
+  const [profiles] = useTable(tables.playerProfile);
+  const [presence] = useTable(tables.worldPresence);
+  const [activity] = useTable(tables.worldActivity);
+  const me = useMemo(
+    () => {
+      const identity = conn.identity;
+      return identity ? profiles.find(profile => profile.identity.isEqual(identity)) : undefined;
+    },
+    [profiles, conn.identity]
+  );
 
-  const addReducer = useReducer(reducers.add);
+  const onboard = useReducer(reducers.onboard);
 
-  const addPerson = (e: React.FormEvent) => {
+  const submitOnboarding = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !connected) return;
-
-    // Call the add reducer
-    addReducer({ name: name });
-    setName('');
+    try {
+      await onboard({ displayName: name });
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to join Mela.');
+    }
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>SpacetimeDB React App</h1>
+    <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem', fontFamily: 'system-ui' }}>
+      <p style={{ letterSpacing: 2, color: '#7c3aed' }}>MELA • LIVING PLAYGROUND</p>
+      <h1>{worlds[0]?.name ?? 'Mela Commons'}</h1>
 
       <div style={{ marginBottom: '1rem' }}>
         Status:{' '}
@@ -33,10 +46,11 @@ function App() {
         </strong>
       </div>
 
-      <form onSubmit={addPerson} style={{ marginBottom: '2rem' }}>
+      {!me && <form onSubmit={submitOnboarding} style={{ marginBottom: '2rem' }}>
+        <h2>Enter the world</h2>
         <input
           type="text"
-          placeholder="Enter name"
+          placeholder="Choose your display name"
           value={name}
           onChange={e => setName(e.target.value)}
           style={{ padding: '0.5rem', marginRight: '0.5rem' }}
@@ -47,23 +61,19 @@ function App() {
           style={{ padding: '0.5rem 1rem' }}
           disabled={!connected}
         >
-          Add Person
+          Join Mela
         </button>
-      </form>
+        {error && <p role="alert">{error}</p>}
+      </form>}
 
-      <div>
-        <h2>People ({people.length})</h2>
-        {people.length === 0 ? (
-          <p>No people yet. Add someone above!</p>
-        ) : (
-          <ul>
-            {people.map((person, index) => (
-              <li key={index}>{person.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+      {me && <p>Welcome back, <strong>{me.displayName}</strong>. Your Mela identity persists across reloads.</p>}
+      <section><h2>In Mela now ({presence.filter(row => row.state === 'online').length})</h2>
+        <ul>{profiles.map(profile => <li key={profile.identity.toHexString()}>{profile.displayName}</li>)}</ul>
+      </section>
+      <section><h2>Live world activity</h2>
+        <ul>{activity.slice(-8).reverse().map(item => <li key={item.id.toString()}>{item.message}</li>)}</ul>
+      </section>
+    </main>
   );
 }
 

@@ -10,8 +10,46 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export const Person = __t.object("Person", {
-  name: __t.string(),
+export const ConnectionSession = __t.object("ConnectionSession", {
+  connectionId: __t.connectionId(),
+  identity: __t.identity(),
+  connectedAt: __t.timestamp(),
 });
-export type Person = __Infer<typeof Person>;
+export type ConnectionSession = __Infer<typeof ConnectionSession>;
+
+export const PlayerProfile = __t.object("PlayerProfile", {
+  identity: __t.identity(),
+  displayName: __t.string(),
+  createdAt: __t.timestamp(),
+  lastSeenAt: __t.timestamp(),
+  melaLevel: __t.u32(),
+  crowdInfluence: __t.u32(),
+});
+export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const World = __t.object("World", {
+  id: __t.u64(),
+  name: __t.string(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type World = __Infer<typeof World>;
+
+export const WorldActivity = __t.object("WorldActivity", {
+  id: __t.u64(),
+  worldId: __t.u64(),
+  kind: __t.string(),
+  message: __t.string(),
+  occurredAt: __t.timestamp(),
+});
+export type WorldActivity = __Infer<typeof WorldActivity>;
+
+export const WorldPresence = __t.object("WorldPresence", {
+  identity: __t.identity(),
+  worldId: __t.u64(),
+  state: __t.string(),
+  joinedAt: __t.timestamp(),
+  lastSeenAt: __t.timestamp(),
+});
+export type WorldPresence = __Infer<typeof WorldPresence>;
 

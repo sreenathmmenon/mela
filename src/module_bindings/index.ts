@@ -34,31 +34,73 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddReducer from "./add_reducer";
-import SayHelloReducer from "./say_hello_reducer";
+import JoinWorldReducer from "./join_world_reducer";
+import LeaveWorldReducer from "./leave_world_reducer";
+import OnboardReducer from "./onboard_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
-import PersonRow from "./person_table";
+import PlayerProfileRow from "./player_profile_table";
+import WorldRow from "./world_table";
+import WorldActivityRow from "./world_activity_table";
+import WorldPresenceRow from "./world_presence_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
-  person: __table({
-    name: 'person',
+  playerProfile: __table({
+    name: 'player_profile',
     indexes: [
+      { accessor: 'identity', name: 'player_profile_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
     ],
     constraints: [
+      { name: 'player_profile_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
-  }, PersonRow),
+  }, PlayerProfileRow),
+  world: __table({
+    name: 'world',
+    indexes: [
+      { accessor: 'id', name: 'world_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldRow),
+  worldActivity: __table({
+    name: 'world_activity',
+    indexes: [
+      { accessor: 'id', name: 'world_activity_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_activity_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldActivityRow),
+  worldPresence: __table({
+    name: 'world_presence',
+    indexes: [
+      { accessor: 'identity', name: 'world_presence_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_presence_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, WorldPresenceRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("add", AddReducer),
-  __reducerSchema("say_hello", SayHelloReducer),
+  __reducerSchema("join_world", JoinWorldReducer),
+  __reducerSchema("leave_world", LeaveWorldReducer),
+  __reducerSchema("onboard", OnboardReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
