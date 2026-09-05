@@ -3,7 +3,11 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-RUN corepack enable
+# Pin pnpm to the major that .github/workflows/deploy-pages.yml uses. Letting
+# corepack pick "latest" pulled pnpm 12, whose minimumReleaseAge supply-chain
+# policy rejects the lockfile: spacetimedb 2.10.0 is newer than its quarantine
+# window, so the build failed on a policy the rest of the project does not use.
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 # Install against the lockfile first so this layer caches across source edits.
 # pnpm, with the same --frozen-lockfile as .github/workflows/deploy-pages.yml.
