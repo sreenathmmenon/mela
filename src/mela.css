@@ -1777,3 +1777,52 @@ button:disabled {
   color: #8d84a8;
   letter-spacing: 0.06em;
 }
+
+/* ---------- Mobile spectator ---------- */
+@media (max-width: 640px) {
+  .mela-shell {
+    padding: 18px 13px 44px;
+  }
+  /* Keep shared energy in view: it is the resource every crowd decision
+     depends on, and it otherwise scrolls away above the power cards. */
+  .crowd-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 10px 12px;
+    margin: 0 -13px;
+    border-radius: 0 0 14px 14px;
+    background: rgba(21, 14, 40, 0.94);
+    backdrop-filter: blur(8px);
+  }
+  .power-grid {
+    grid-template-columns: 1fr;
+  }
+  .power-card button {
+    min-height: 46px;
+  }
+  .target-picker button {
+    min-height: 44px;
+    flex: 1;
+  }
+  .choice-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .choice-card {
+    min-height: 0;
+    padding: 13px 15px;
+  }
+  .game-cards {
+    grid-template-columns: 1fr;
+  }
+  .ball-strip-label {
+    min-width: 100%;
+  }
+  .delivery-result.reveal.big strong {
+    font-size: 1.7rem;
+  }
+  .screen-timeline div {
+    gap: 10px;
+  }
+}

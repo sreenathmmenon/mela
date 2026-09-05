@@ -24,9 +24,18 @@ decision in the fast six-ball format; it is not a decorative animation.
 
 | Choice         | OUT risk | Possible non-OUT runs | Tactical use                                  |
 | -------------- | -------: | --------------------- | --------------------------------------------- |
-| **SAFE**       |       5% | 0–3                   | Protect a wicket or defend a small lead.      |
-| **BALANCED**   |      10% | 0–4                   | Default, measured scoring.                    |
-| **AGGRESSIVE** |      20% | 0, 2, 4, 6            | Chase a difficult target or make a late push. |
+| **SAFE**       |       4% | 0, 1, 2, 3            | Protect a wicket or defend a small lead.      |
+| **BALANCED**   |      14% | 0, 1, 2, 4            | Default, measured scoring.                    |
+| **AGGRESSIVE** |      35% | 0, 3, 4, 6            | Chase a difficult target or make a late push. |
+
+These numbers are load-bearing, not decorative. The earlier table priced
+aggression at 4x the wicket risk for 2x the runs, which made AGGRESSIVE the
+optimal choice in all twelve (balls left x wickets left) states — the
+three-way decision was cosmetic. At the current values risk outruns reward
+(8.75x risk for 1.53x runs) and the expectimax-optimal first-innings policy is
+SAFE in 4 states, BALANCED in 2 and AGGRESSIVE in 6, with wickets in hand
+changing the right answer. `pnpm test` proves this; re-run that proof before
+changing any of these numbers.
 
 The client submits only the requested style. The server selects and resolves the outcome using a match-owned deterministic seed and delivery sequence; no client can submit a score, wicket, random value, or outcome.
 

@@ -10,8 +10,15 @@ AI, history, QR, stage, and metrics layers with Book Cricket.
   edge exit, round, or winner.
 - Knock a pen beyond the notebook boundary to take the round. At eight exchanges,
   the pen closest to desk centre wins the round, preventing stalemates.
-- Opening force is capped at 65; later flicks use 24–100. Aim, force, and contact
+- Opening force is capped at 66; later flicks use 20–100. Aim, force, and contact
   dominate; only bounded deterministic deflection adds uncertainty.
+- Travel scales with force, and whatever travel is left after contact transfers
+  to the struck pen. Hitting hard near an edge knocks the opponent off — and can
+  carry you off too, because your own pen leaving the desk is resolved first.
+  That is the risk that makes force a real decision rather than a slider.
+- At eight exchanges the round goes to the pen with more desk under it (its
+  distance to the nearest edge), not the one nearest the centre: a teetering pen
+  should lose. This is a rare tiebreak — most rounds end in a knockout.
 - Crowd powers are NUDGE, DESK TILT, GUARD, and CHEER. They alter the next legal
   flick’s conditions, never directly award a knockout.
 
