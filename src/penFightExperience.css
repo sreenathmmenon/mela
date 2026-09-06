@@ -9,6 +9,7 @@
 .pen-shell .pen-top h1 {
   font-size: clamp(1.8rem, 4.5vw, 3.1rem);
   line-height: 1.06;
+  text-wrap: balance;
 }
 .pen-shell .pen-top p {
   margin-bottom: 0;
@@ -134,6 +135,42 @@
   margin-top: 8px;
 }
 @media (max-width: 640px) {
+  .pen-shell .pen-top h1 {
+    font-size: 28px;
+    line-height: 1.12;
+  }
+  .pen-shell .pen-top > div > p:not(.eyebrow) {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .pen-shell .pen-join-visible {
+    display: flex;
+    flex-direction: row;
+    text-align: left;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+  }
+  .pen-shell .pen-join-visible > svg {
+    width: 96px;
+    height: 96px;
+    flex: 0 0 96px;
+  }
+  .pen-shell .pen-join-visible > div {
+    min-width: 0;
+  }
+  .pen-shell .pen-join-visible strong {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .pen-shell .pen-join-visible span {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .pen-shell .pen-join-visible a {
+    font-size: 13px;
+    padding: 6px 0;
+  }
   .pen-shell {
     padding: 16px 12px 32px;
   }
@@ -148,11 +185,29 @@
     margin: 4px 0 8px;
   }
   .pen-shell .pen-score {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 8px;
     padding: 12px 8px;
   }
   .pen-shell .pen-score > span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    font-size: 12px;
     overflow-wrap: anywhere;
+  }
+  .pen-shell .pen-score > span strong {
+    order: -1;
+    line-height: 1;
+  }
+  .pen-shell .pen-score > b {
+    max-width: 10ch;
+    font-size: 10px;
+    line-height: 1.5;
+    text-align: center;
   }
   .pen-shell .pen-turn {
     padding: 12px;

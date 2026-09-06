@@ -182,12 +182,10 @@ export function AccountControls({ children }: { children: ReactNode }) {
       {me && completed && !recoverable && !dismissed && (
         <aside className="save-invitation">
           <div>
-            <strong>A good game deserves a memory.</strong>
-            <span>
-              Keep your progress on any device. Playing stays free of sign-up.
-            </span>
+            <strong>Keep this going.</strong>
+            <span>Save your progress on any device.</span>
           </div>
-          <button onClick={openAccount}>Keep my progress</button>
+          <button onClick={openAccount}>Save progress</button>
           <button
             className="quiet"
             onClick={() => {
@@ -223,16 +221,13 @@ export function AccountControls({ children }: { children: ReactNode }) {
         >
           ×
         </button>
-        <p className="eyebrow">YOUR PLACE IN MELA</p>
-        <h2 id="mela-account-title">
-          {me ? "Make yourself at home." : "Bring your progress back."}
-        </h2>
+        <h2 id="mela-account-title">{me ? "Your Mela." : "Welcome back."}</h2>
         <p>
           {recoverable
-            ? "Your profile is protected. Use email sign-in to return on another device."
+            ? "Saved. Sign in with email on any device."
             : me
-              ? "Your games are remembered in this browser. Save them across devices whenever you're ready."
-              : "Already saved your profile? Sign in to restore it. Just here to play? No account needed."}
+              ? "Your progress lives in this browser. Save it to play on any device."
+              : "Sign in to restore your saved progress."}
         </p>
         {me && (
           <form
@@ -287,14 +282,13 @@ export function AccountControls({ children }: { children: ReactNode }) {
             {busy
               ? "Opening secure sign-in…"
               : me
-                ? "Keep my progress on any device"
+                ? "Save my progress"
                 : "Restore with email"}
           </button>
         )}
         {!protectedAccount && (
           <p className="account-note">
-            One email link. No password. No newsletter. You can always keep
-            playing without it.
+            One email link. No password or newsletter.
           </p>
         )}
         {message && (
@@ -317,10 +311,13 @@ export function AccountControls({ children }: { children: ReactNode }) {
           </button>
         )}
         {!me && (
-          <p className="account-note">
-            Used Mela before without saving? Open that original browser to
-            protect its progress. An old welcome email alone is not a sign-in.
-          </p>
+          <details className="account-note">
+            <summary>Played before, but never saved?</summary>
+            <p>
+              Open your original browser to save its progress. A welcome email
+              alone cannot restore it.
+            </p>
+          </details>
         )}
         <button className="quiet" onClick={() => setOpen(false)}>
           {me ? "Back to the game" : "Just let me play"}

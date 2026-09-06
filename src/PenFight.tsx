@@ -524,9 +524,9 @@ export function PenFight({
                 ? "A desk to remember."
                 : owns
                   ? "Your pen. Your move."
-                  : `${human}’s desk. Your influence.`}
+                  : "You’re in the crowd."}
           </h1>
-          <p>Knock the other pen off. First to two rounds wins.</p>
+          <p>Knock your rival off. First to two rounds.</p>
         </div>
         <button className="secondary" onClick={onBack}>
           Choose game
@@ -540,10 +540,9 @@ export function PenFight({
         </button>
       </header>
       <AgentDuelPanel matchId={match.id} />
-      {owns && (
+      {owns && (record?.matchesPlayed ?? 0) > 0 && (
         <p className="pen-rivalry">
           {rivalry(record?.wins ?? 0, record?.matchesPlayed ?? 0)}{" "}
-          <span>Your {penName} is ready.</span>
         </p>
       )}
       {!conn.isActive && (
@@ -555,7 +554,7 @@ export function PenFight({
         <a className="pen-crowd-shortcut" href="#pen-crowd">
           {spectating
             ? `Shape the next flick · ${crowd?.energy ?? 0} shared Energy ↓`
-            : "Join the crowd. Make a difference ↓"}
+            : "Join the crowd ↓"}
         </a>
       )}
       <section className="pen-score">
@@ -581,13 +580,11 @@ export function PenFight({
           }
         />
         <div>
-          <strong>
-            {completed ? "THIS WAS OUR DESK" : "SCAN · JOIN THE CROWD"}
-          </strong>
+          <strong>{completed ? "KEEP THIS MATCH" : "INVITE YOUR CROWD"}</strong>
           <span>
             {completed
               ? "Scan to revisit this duel."
-              : "Friends can watch live and change the next flick."}
+              : "Scan to watch. Tap to influence."}
           </span>
           <a href={url(match.id, completed)}>
             {completed ? "Open remembered duel" : "Open crowd link"}
@@ -603,7 +600,7 @@ export function PenFight({
               }
             }}
           >
-            Copy desk link
+            Copy invite
           </button>
         </div>
       </section>
@@ -840,10 +837,7 @@ export function PenFight({
                 </button>
               );
             })}
-            <small>
-              Choose a spot, then adjust strength and flick. Side contacts can
-              glance.
-            </small>
+            <small>Side hits can glance.</small>
           </fieldset>
           <p className="eyebrow">
             {moving
@@ -1116,9 +1110,8 @@ export function PenFight({
           <p>
             {crowdCount
               ? `${crowdCount} in your crowd.`
-              : "An empty chair for your friends. Invite someone with the link below."}{" "}
-            You will not see what they chose until it lands — watch the feed
-            after each flick.
+              : "Invite a friend with the QR above."}{" "}
+            Crowd moves reveal after your flick.
           </p>
           {/* Deliberately no list of pending effects here. The player finds
               out what the crowd did once it has landed, never before. */}

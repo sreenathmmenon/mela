@@ -5,7 +5,7 @@ export const HOME_GAMES = [
     kind: "pen_fight",
     name: "Pen Fight",
     tag: "THE SCHOOL-DESK SHOWDOWN",
-    copy: "Aim. Flick. Knock MelaBot off the desk.",
+    copy: "Flick your rival off the desk.",
     crowd: "The crowd can tilt the odds.",
     art: "pens",
   },
@@ -13,7 +13,7 @@ export const HOME_GAMES = [
     kind: "book_cricket",
     name: "Book Cricket",
     tag: "ONE BOOK. A WHOLE STADIUM.",
-    copy: "Six balls. Two wickets. One score to chase.",
+    copy: "Six balls. Make them count.",
     crowd: "Every cheer can change the next ball.",
     art: "book",
   },
@@ -21,7 +21,7 @@ export const HOME_GAMES = [
     kind: "dots_boxes",
     name: "Dots & Boxes",
     tag: "JUST ONE MORE SQUARE",
-    copy: "Join the dots. Close a box. Keep the pencil.",
+    copy: "Join the dots. Claim the boxes.",
     crowd: "Watch out for a crowd chain break.",
     art: "dots",
   },
@@ -29,7 +29,7 @@ export const HOME_GAMES = [
     kind: "gilli_danda",
     name: "Gilli Danda",
     tag: "BACK TO THE COURTYARD",
-    copy: "Lift the gilli. Time your strike. Send it flying.",
+    copy: "Time your hit. Send it flying.",
     crowd: "A drumbeat or a heckle changes the hit.",
     art: "gilli",
   },
@@ -37,7 +37,7 @@ export const HOME_GAMES = [
     kind: "four_row",
     name: "Four in a Row",
     tag: "MAKE A LITTLE CONNECTION",
-    copy: "Drop a disc. Connect four before MelaBot.",
+    copy: "Connect four before your rival.",
     crowd: "A sidewind can change where it lands.",
     art: "four",
   },
@@ -45,7 +45,7 @@ export const HOME_GAMES = [
     kind: "last_stick",
     name: "Last Stick",
     tag: "SMALL PILE. BIG MIND GAME.",
-    copy: "Take one, two or three. The last stick wins.",
+    copy: "Take the last stick to win.",
     crowd: "One crowd spark changes the arithmetic.",
     art: "sticks",
   },
@@ -56,49 +56,45 @@ export function HomeDiscovery({
   onSignIn,
   live,
   busy = false,
+  returning = false,
 }: {
   onChoose: (name: string) => void;
   onSignIn: () => void;
   busy?: boolean;
+  returning?: boolean;
   live: Array<{ id: bigint; host: string; game: string; watching: number }>;
 }) {
   return (
     <div className="home-discovery">
-      <section className="home-invitation" aria-labelledby="home-promise">
-        <p className="eyebrow">SIX GAMES. ONE SHARED PLAYGROUND.</p>
-        <h2 id="home-promise">
-          Come for a game.
-          <br />
-          <em>Stay for the crowd.</em>
-        </h2>
-        <p>
-          Challenge MelaBot. Pull your friends into the crowd. Their moves
-          change yours—and Mela remembers the result.
-        </p>
-        <div className="home-actions">
-          <a className="primary" href="#explore-games">
-            Find your game ↓
-          </a>
-          <button className="secondary" onClick={onSignIn}>
-            Restore my progress
-          </button>
-        </div>
-        <div className="home-principles">
-          <span>YOU PLAY</span>
-          <span>FRIENDS INFLUENCE</span>
-          <span>MELABOT PLAYS BACK</span>
-        </div>
-      </section>
+      {!returning && (
+        <section className="home-invitation" aria-labelledby="home-promise">
+          <p className="eyebrow">THE PLAYGROUND IS OPEN</p>
+          <h2 id="home-promise">
+            Little games.
+            <br />
+            <em>Big rivalries.</em>
+          </h2>
+          <p>You vs MelaBot. Friends in the crowd. Every match remembered.</p>
+          <div className="home-actions">
+            <a className="primary" href="#explore-games">
+              Let’s play ↓
+            </a>
+            <button className="secondary" onClick={onSignIn}>
+              Saved your progress?
+            </button>
+          </div>
+        </section>
+      )}
       <section
         id="explore-games"
         className="home-games"
         aria-labelledby="home-games-title"
       >
         <div className="home-section-heading">
-          <h2 id="home-games-title">What are we playing?</h2>
-          <p>
-            Pick a game. Play straight away. No name, email or password needed.
-          </p>
+          <h2 id="home-games-title">
+            {returning ? "One more game?" : "Pick your game"}
+          </h2>
+          <p>No signup. Just play.</p>
         </div>
         <div className="home-game-grid">
           {HOME_GAMES.map((game) => (
@@ -151,49 +147,44 @@ export function HomeDiscovery({
                 )}
               </span>
               <span className="home-game-copy">
-                <small>{game.tag}</small>
                 <strong>{game.name}</strong>
                 <span>{game.copy}</span>
-                <em>{game.crowd}</em>
-                <b>{busy ? "Getting ready…" : "Play now →"}</b>
+                <b>{busy ? "Opening…" : "Play →"}</b>
               </span>
             </button>
           ))}
         </div>
       </section>
-      <section className="home-live" aria-labelledby="home-live-title">
-        <p className="eyebrow">PLAYING IS ONLY HALF THE FUN</p>
-        <h2 id="home-live-title">There’s a place in the crowd, too.</h2>
-        <p>
-          Join a live match. Choose a side. Spend shared Crowd Energy to
-          influence the next move.
-        </p>
-        {live.length ? (
-          <ul>
-            {live.map((match) => (
-              <li key={match.id.toString()}>
-                <span>
-                  <strong>{match.host}</strong>
+      {!returning && (
+        <section className="home-live" aria-labelledby="home-live-title">
+          <h2 id="home-live-title">Better with a crowd.</h2>
+          <p>Pick a side. Change the next move.</p>
+          {live.length ? (
+            <ul>
+              {live.map((match) => (
+                <li key={match.id.toString()}>
                   <span>
-                    {match.game} · {match.watching} watching
+                    <strong>{match.host}</strong>
+                    <span>
+                      {match.game} · {match.watching} watching
+                    </span>
                   </span>
-                </span>
-                <a
-                  href={`?join=${match.id}`}
-                  aria-label={`Join ${match.host}'s ${match.game} crowd`}
-                >
-                  Join crowd →
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="home-empty">
-            Your match could start the next crowd. Pick a game, then share its
-            QR with a friend.
-          </p>
-        )}
-      </section>
+                  <a
+                    href={`?join=${match.id}`}
+                    aria-label={`Join ${match.host}'s ${match.game} crowd`}
+                  >
+                    Join crowd →
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="home-empty">
+              Start a game. Invite a friend with its QR.
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

@@ -1,10 +1,10 @@
 .home-invitation {
-  padding: 36px 0 30px;
+  padding: 36px 0 40px;
   max-width: 780px;
 }
 .home-invitation h2 {
   font:
-    900 clamp(36px, 6vw, 68px)/1.04 Georgia,
+    900 clamp(40px, 6vw, 72px)/1.06 Georgia,
     serif;
   letter-spacing: -2px;
   margin: 14px 0 20px;
@@ -14,9 +14,9 @@
   font-style: normal;
 }
 .home-invitation > p:not(.eyebrow) {
-  max-width: 590px;
+  max-width: 38ch;
   font-size: 18px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: #62543c;
 }
 .home-actions {
@@ -61,7 +61,7 @@
 .home-game-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 24px;
 }
 .home-game {
   padding: 0;
@@ -85,7 +85,7 @@
   outline-offset: 5px;
 }
 .home-art {
-  height: 170px;
+  height: 160px;
   width: 100%;
   display: grid;
   place-items: center;
@@ -97,7 +97,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 10px;
+  gap: 12px;
 }
 .home-game-copy small {
   font-size: 9px;
@@ -316,17 +316,17 @@
 }
 @media (max-width: 520px) {
   .home-invitation {
-    padding: 22px 0;
+    padding: 24px 0 28px;
   }
   .home-game-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
   }
   .home-art {
-    height: 160px;
+    height: 112px;
   }
   .home-game-copy {
-    padding: 18px;
+    padding: 14px 12px;
   }
   .home-live {
     padding: 20px;
@@ -335,11 +335,161 @@
     font-size: 16px;
   }
   .home-actions {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 8px;
+    margin: 20px 0 0;
   }
   .home-actions a {
     justify-content: center;
+  }
+}
+.home-discovery {
+  min-width: 0;
+}
+.home-extra {
+  margin: 24px 0;
+  color: var(--ink-soft);
+}
+.home-extra summary {
+  cursor: pointer;
+  padding: 12px 0;
+  min-height: 44px;
+  font-size: 14px;
+}
+.home-extra summary:focus-visible {
+  outline: 3px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+.home-return-picker .watch-live > ul {
+  margin: 16px 0;
+}
+.home-return-picker .watch-live li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.home-discovery h2 {
+  text-wrap: balance;
+}
+.home-game-copy > span {
+  font-weight: 450;
+  color: #62543c;
+}
+.home-game:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+.home-live li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.home-live a {
+  flex-shrink: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.home-actions .secondary {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #4c5e51;
+  font-size: 14px;
+}
+.home-return-picker {
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+.home-return-picker .duel-launch {
+  margin-top: 24px;
+}
+@media (max-width: 520px) {
+  .home-invitation h2 {
+    letter-spacing: -1.6px;
+    margin: 12px 0 16px;
+  }
+  .home-invitation > p:not(.eyebrow) {
+    max-width: 30ch;
+    margin-bottom: 0;
+  }
+  .home-section-heading h2,
+  .home-live h2 {
+    font-size: 25px;
+  }
+  .home-section-heading p {
+    font-size: 13px;
+    margin: 8px 0 20px;
+  }
+  .home-game-copy {
+    gap: 9px;
+  }
+  .home-game-copy strong {
+    font-size: clamp(18px, 5vw, 22px);
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+  }
+  .home-game-copy > span {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .home-game-copy b {
+    font-size: 13px;
+    padding-top: 6px;
+  }
+  .home-book {
+    width: 100px;
+    height: 74px;
+    font-size: 32px;
+  }
+  .home-pen {
+    height: 88px;
+    width: 11px;
+  }
+  .home-pen.one {
+    top: 0;
+  }
+  .home-pen.two {
+    top: 13px;
+  }
+  .home-chalk {
+    font-size: 8px;
+    bottom: 8px;
+    left: 9px;
+  }
+  .home-dot-board {
+    grid-template-columns: repeat(3, 29px);
+  }
+  .home-dot-board i {
+    height: 29px;
+    font-size: 23px;
+  }
+  .home-disc-board {
+    grid-template-columns: repeat(7, 13px);
+    gap: 4px;
+    padding: 9px;
+  }
+  .home-disc-board i {
+    width: 13px;
+    height: 13px;
+  }
+  .home-wood {
+    transform: rotate(12deg) scale(0.72);
+    gap: 11px;
+  }
+  .home-live {
+    margin: 32px 0;
+    padding: 18px 14px;
+  }
+  .home-live li {
+    padding: 12px;
+    gap: 8px;
+  }
+  .home-live li strong {
+    font-size: 14px;
+  }
+  .home-live a {
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -359,6 +509,9 @@
   margin: 0;
 }
 .home-landing .hero-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   flex-direction: row;
   align-items: center;
 }

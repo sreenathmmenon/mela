@@ -617,9 +617,7 @@ function App() {
     try {
       await createMatch();
       setError(null);
-      setFeedback(
-        "Your match is live. Set a target in six balls—every choice carries risk.",
-      );
+      setFeedback("Your innings. Set the target.");
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to start a match.",
@@ -865,17 +863,14 @@ function App() {
 
   return (
     <main
-      className={`mela-shell ${!me && !requestedJoinMatchId ? "home-landing" : ""}`}
+      className={`mela-shell ${!displayedMatch && !requestedJoinMatchId ? "home-landing" : ""}`}
     >
       <header className="hero">
         <p className="eyebrow">MELA · LIVE PLAYGROUND</p>
         <div className="hero-row">
           <div>
             <h1>Mela</h1>
-            <p className="subtitle">
-              Play a quick game against MelaBot — and whoever is watching can
-              change what happens next.
-            </p>
+            <p className="subtitle">You play. The crowd changes the game.</p>
           </div>
           <span className={`status ${connected ? "online" : "offline"}`}>
             {connected ? "● Live" : "● Reconnecting"}
@@ -918,10 +913,7 @@ function App() {
               ? `Join the ${GAME_LABELS[matches.find((m) => m.id === requestedJoinMatchId)!.gameKind] ?? "Mela"} crowd.`
               : "Catch the next moment."}
           </h2>
-          <p>
-            Watch the match. Choose a side. Change the next move with shared
-            Crowd Energy.
-          </p>
+          <p>Pick a side. Change the next move.</p>
           {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
           "active" ? (
             <button
@@ -939,9 +931,7 @@ function App() {
               </a>
             </>
           )}
-          <p className="recap-privacy">
-            No email. No password. A nickname is ready for you.
-          </p>
+          <p className="recap-privacy">No signup needed.</p>
           <button className="link-back" onClick={openAccount}>
             Restore my progress
           </button>
@@ -963,13 +953,10 @@ function App() {
         </p>
       )}
 
-      {me && (
+      {me && displayedMatch && (
         <section className="identity">
           <span>
             Playing as <strong>{me.displayName}</strong>
-            <button className="link-back" onClick={openAccount}>
-              Your profile
-            </button>
             {displayedMatch && (
               <button
                 className="link-back"
@@ -1001,152 +988,82 @@ function App() {
             >
               {muted ? "Sound off" : "Sound on"}
             </button>
-            <button
-              className="link-back"
-              onClick={openAccount}
-              title="Leave Mela on this device"
-            >
-              Profile & progress
-            </button>
           </span>
         </section>
       )}
       {me && !displayedMatch && (
-        <section className="game-picker">
-          <p className="eyebrow">PICK A GAME · PLAY MELABOT</p>
-          {rivalry && <p className="rivalry-line">{rivalry}</p>}
-          <div className="game-cards">
-            <button
-              className="game-card cricket"
-              onClick={startMatch}
-              disabled={creatingMatch}
-            >
-              <span className="game-art" aria-hidden="true">
-                <b className="bat" />
-                <b className="ball" />
-              </span>
-              <strong>Book Cricket</strong>
-              <em>6 balls. 2 wickets. Beat MelaBot’s score.</em>
-              <span className="game-go">
-                {creatingMatch ? "Starting…" : "Play →"}
-              </span>
-            </button>
-            <button
-              className="game-card pen"
-              onClick={startPenFight}
-              disabled={creatingMatch}
-            >
-              <span className="game-art" aria-hidden="true">
-                <b className="pen-a" />
-                <b className="pen-b" />
-              </span>
-              <strong>Pen Fight</strong>
-              <em>Flick your pen. Knock MelaBot’s off the desk.</em>
-              <span className="game-go">
-                {creatingMatch ? "Setting up…" : "Play →"}
-              </span>
-            </button>
-            <button
-              className="game-card dots"
-              onClick={() => startExperimentalGame("dots")}
-              disabled={creatingMatch}
-            >
-              <span className="game-art dots-art" aria-hidden="true">
-                · · ·<br />· · ·<br />· · ·
-              </span>
-              <strong>Dots &amp; Boxes</strong>
-              <em>Draw lines. Claim squares. Keep a capture chain alive.</em>
-              <span className="game-go">
-                {creatingMatch ? "Opening…" : "Play →"}
-              </span>
-            </button>
-            <button
-              className="game-card gilli"
-              onClick={() => startExperimentalGame("gilli")}
-              disabled={creatingMatch}
-            >
-              <span className="game-art gilli-art" aria-hidden="true">
-                ╱ ─
-              </span>
-              <strong>Gilli Danda</strong>
-              <em>Lift the gilli. Find the sweet spot. Send it flying.</em>
-              <span className="game-go">
-                {creatingMatch ? "Marking chalk…" : "Play →"}
-              </span>
-            </button>
-          </div>
-          <div className="game-cards strategy-cards">
-            <button
-              className="game-card"
-              disabled={creatingMatch}
-              onClick={() => startExperimentalGame("four")}
-            >
-              <span className="game-art strategy-art" aria-hidden="true">
-                ● ◆ ● ◆
-              </span>
-              <strong>Four in a Row</strong>
-              <em>Drop a disc. Build a line. Outsmart MelaBot.</em>
-              <span className="game-go">
-                {creatingMatch ? "Setting up…" : "Play →"}
-              </span>
-            </button>
-            <button
-              className="game-card"
-              disabled={creatingMatch}
-              onClick={() => startExperimentalGame("stick")}
-            >
-              <span className="game-art strategy-art" aria-hidden="true">
-                ╱ ╱ ╱
-              </span>
-              <strong>Last Stick</strong>
-              <em>Take one, two or three. Make the last one yours.</em>
-              <span className="game-go">
-                {creatingMatch ? "Setting up…" : "Play →"}
-              </span>
-            </button>
-          </div>
-          <div className="duel-launch">
-            <button
-              className="secondary"
-              disabled={creatingMatch}
-              onClick={async () => {
-                setCreatingMatch(true);
-                try {
-                  await createAgentDuel({ mode: "melabot" });
-                  setShowHome(false);
-                  setPinnedMatchId(null);
-                } catch (e) {
-                  setError(
-                    e instanceof Error ? e.message : "Unable to open duel.",
-                  );
-                } finally {
-                  setCreatingMatch(false);
-                }
-              }}
-            >
-              Host Agent vs MelaBot →
-            </button>
-            <button
-              className="secondary"
-              disabled={creatingMatch}
-              onClick={async () => {
-                setCreatingMatch(true);
-                try {
-                  await createAgentDuel({ mode: "duel" });
-                  setShowHome(false);
-                  setPinnedMatchId(null);
-                } catch (e) {
-                  setError(
-                    e instanceof Error ? e.message : "Unable to open duel.",
-                  );
-                } finally {
-                  setCreatingMatch(false);
-                }
-              }}
-            >
-              Host two agents →
-            </button>
-          </div>
+        <section className="game-picker home-return-picker">
+          <HomeDiscovery
+            returning
+            onSignIn={openAccount}
+            live={[]}
+            busy={creatingMatch || !connected}
+            onChoose={(kind) => {
+              if (kind === "book_cricket") void startMatch();
+              else if (kind === "pen_fight") void startPenFight();
+              else
+                void startExperimentalGame(
+                  kind === "dots_boxes"
+                    ? "dots"
+                    : kind === "gilli_danda"
+                      ? "gilli"
+                      : kind === "four_row"
+                        ? "four"
+                        : "stick",
+                );
+            }}
+          />
+          {rivalry && (
+            <details className="home-extra">
+              <summary>Your rivalry</summary>
+              <p>{rivalry}</p>
+            </details>
+          )}
+          <details className="home-extra">
+            <summary>Let your AI agent play Pen Fight</summary>
+            <div className="duel-launch">
+              <button
+                className="secondary"
+                disabled={creatingMatch}
+                onClick={async () => {
+                  setCreatingMatch(true);
+                  try {
+                    await createAgentDuel({ mode: "melabot" });
+                    setShowHome(false);
+                    setPinnedMatchId(null);
+                  } catch (e) {
+                    setError(
+                      e instanceof Error ? e.message : "Unable to open duel.",
+                    );
+                  } finally {
+                    setCreatingMatch(false);
+                  }
+                }}
+              >
+                Host Agent vs MelaBot →
+              </button>
+              <button
+                className="secondary"
+                disabled={creatingMatch}
+                onClick={async () => {
+                  setCreatingMatch(true);
+                  try {
+                    await createAgentDuel({ mode: "duel" });
+                    setShowHome(false);
+                    setPinnedMatchId(null);
+                  } catch (e) {
+                    setError(
+                      e instanceof Error ? e.message : "Unable to open duel.",
+                    );
+                  } finally {
+                    setCreatingMatch(false);
+                  }
+                }}
+              >
+                Host two agents →
+              </button>
+            </div>
+          </details>
           {liveMatchesToWatch.length > 0 && (
             <div className="watch-live">
               <p className="eyebrow">OR JOIN A LIVE CROWD</p>
@@ -1423,9 +1340,7 @@ function App() {
                 <div>
                   <p className="eyebrow">BRING IN THE CROWD</p>
                   <strong>Scan to join this match</strong>
-                  <span>
-                    Guests choose a name, then influence the same live world.
-                  </span>
+                  <span>Scan to watch and influence. No signup.</span>
                   <a
                     href={screenUrlFor(activeMatch.id)}
                     target="_blank"
@@ -1601,8 +1516,7 @@ function App() {
               )}
               {ownsMatch && (
                 <p className="player-crowd-hint">
-                  Player view: spectator powers and active effects appear here
-                  in real time.
+                  Your crowd can change the next ball.
                 </p>
               )}
             </section>
@@ -1610,8 +1524,7 @@ function App() {
 
           <section className="feed">
             <div className="feed-header">
-              <h2>Live match moments</h2>
-              <span>Authoritative</span>
+              <h2>Match moments</h2>
             </div>
             <ul>
               {matchEvents
@@ -1632,90 +1545,97 @@ function App() {
             </ul>
           </section>
 
-          {me && myMelaProfile && (
-            <section className="profile-glance" aria-label="Your Mela profile">
-              <div>
-                <p className="eyebrow">YOUR MELA STORY</p>
-                <h2>
-                  Level {myMelaProfile.melaLevel} · {me.displayName}
-                </h2>
-                <p>
-                  {myMelaProfile.matchesPlayed} played ·{" "}
-                  {myMelaProfile.matchesWatched} watched ·{" "}
-                  {myMelaProfile.crowdInfluence} Crowd Influence
-                </p>
-              </div>
-              <div
-                className="progress-orbit"
-                aria-label={`${myMelaProfile.progressPoints} progress points`}
+          <details
+            className="home-extra"
+            open={displayedMatch.status === "complete" || undefined}
+          >
+            <summary>Your progress & recent memories</summary>
+            {me && myMelaProfile && (
+              <section
+                className="profile-glance"
+                aria-label="Your Mela profile"
               >
-                <strong>{myMelaProfile.progressPoints}</strong>
-                <span>progress</span>
-              </div>
-            </section>
-          )}
-
-          {me && (
-            <section className="memory-grid" aria-label="Mela memory">
-              <article className="recent-history">
-                <div className="feed-header">
-                  <h2>Recent memories</h2>
-                  <span>Remembered</span>
-                </div>
-                {recentMemories.length === 0 ? (
-                  <p>Your next match will start a story worth returning to.</p>
-                ) : (
-                  <ul>
-                    {recentMemories.map((entry) => (
-                      <li key={entry.matchId.toString()}>
-                        <strong>
-                          {entry.humanName} {entry.humanScore}/
-                          {entry.humanWickets} · {entry.aiName} {entry.botScore}
-                          /{entry.botWickets}
-                        </strong>
-                        <span>
-                          {entry.winner === "draw"
-                            ? "Draw"
-                            : `${entry.winner === "human" ? entry.humanName : entry.aiName} won`}
-                          {entry.crowdActions > 0
-                            ? ` · ${entry.crowdActions} crowd moves`
-                            : " · crowd present"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </article>
-              <article className="leaderboard-card">
-                <div className="feed-header">
-                  <h2>Book Cricket form</h2>
-                  <span>Game skill</span>
-                </div>
-                {leaderboard.length === 0 ? (
-                  <p>The first completed innings writes the board.</p>
-                ) : (
-                  <ol>
-                    {leaderboard.map((entry, index) => (
-                      <li key={entry.identity.toHexString()}>
-                        <span>{index + 1}</span>
-                        <strong>{entry.displayName}</strong>
-                        <small>
-                          {entry.wins} wins · {entry.runsScored} runs
-                        </small>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                {myBookCricketRecord && (
-                  <p className="personal-form">
-                    Your form: {myBookCricketRecord.wins} wins from{" "}
-                    {myBookCricketRecord.matchesPlayed} matches · best{" "}
-                    {myBookCricketRecord.highestScore}
+                <div>
+                  <p className="eyebrow">YOUR MELA STORY</p>
+                  <h2>
+                    Level {myMelaProfile.melaLevel} · {me.displayName}
+                  </h2>
+                  <p>
+                    {myMelaProfile.matchesPlayed} played ·{" "}
+                    {myMelaProfile.matchesWatched} watched ·{" "}
+                    {myMelaProfile.crowdInfluence} Crowd Influence
                   </p>
-                )}
-              </article>
-            </section>
-          )}
+                </div>
+                <div
+                  className="progress-orbit"
+                  aria-label={`${myMelaProfile.progressPoints} progress points`}
+                >
+                  <strong>{myMelaProfile.progressPoints}</strong>
+                  <span>progress</span>
+                </div>
+              </section>
+            )}
+
+            {me && (
+              <section className="memory-grid" aria-label="Mela memory">
+                <article className="recent-history">
+                  <div className="feed-header">
+                    <h2>Recent memories</h2>
+                  </div>
+                  {recentMemories.length === 0 ? (
+                    <p>Your first result will appear here.</p>
+                  ) : (
+                    <ul>
+                      {recentMemories.map((entry) => (
+                        <li key={entry.matchId.toString()}>
+                          <strong>
+                            {entry.humanName} {entry.humanScore}/
+                            {entry.humanWickets} · {entry.aiName}{" "}
+                            {entry.botScore}/{entry.botWickets}
+                          </strong>
+                          <span>
+                            {entry.winner === "draw"
+                              ? "Draw"
+                              : `${entry.winner === "human" ? entry.humanName : entry.aiName} won`}
+                            {entry.crowdActions > 0
+                              ? ` · ${entry.crowdActions} crowd moves`
+                              : " · crowd present"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+                <article className="leaderboard-card">
+                  <div className="feed-header">
+                    <h2>Book Cricket form</h2>
+                  </div>
+                  {leaderboard.length === 0 ? (
+                    <p>Complete a match to join the board.</p>
+                  ) : (
+                    <ol>
+                      {leaderboard.map((entry, index) => (
+                        <li key={entry.identity.toHexString()}>
+                          <span>{index + 1}</span>
+                          <strong>{entry.displayName}</strong>
+                          <small>
+                            {entry.wins} wins · {entry.runsScored} runs
+                          </small>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                  {myBookCricketRecord && (
+                    <p className="personal-form">
+                      Your form: {myBookCricketRecord.wins} wins from{" "}
+                      {myBookCricketRecord.matchesPlayed} matches · best{" "}
+                      {myBookCricketRecord.highestScore}
+                    </p>
+                  )}
+                </article>
+              </section>
+            )}
+          </details>
         </>
       )}
       {showOperatorMetrics && currentMetrics && (
