@@ -8,6 +8,8 @@ import {
   type PenMotion,
 } from "../spacetimedb/src/penFightMotion";
 import { PenDesk } from "./PenDesk";
+import { DotsBoxes } from "./DotsBoxes";
+import { GilliDanda } from "./GilliDanda";
 import { AgentDuelPanel } from "./AgentDuel";
 const ignoreMoving = () => {};
 
@@ -139,6 +141,28 @@ export default function BigScreen() {
     [events, displayedMatch],
   );
 
+  if (displayedMatch?.gameKind === "dots_boxes")
+    return (
+      <DotsBoxes
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        screen
+        onBack={() => {
+          location.hash = "";
+        }}
+      />
+    );
+  if (displayedMatch?.gameKind === "gilli_danda")
+    return (
+      <GilliDanda
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        screen
+        onBack={() => {
+          location.hash = "";
+        }}
+      />
+    );
   if (!displayedMatch || (!state && !penState))
     return (
       <main className="screen-shell screen-empty">

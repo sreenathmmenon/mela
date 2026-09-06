@@ -16,6 +16,16 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
+# Vite substitutes these at build time. Railway supplies the same variables at
+# build and runtime; keeping them as explicit build arguments makes a preview
+# point at its own world instead of silently falling back to production.
+ARG VITE_SPACETIMEDB_HOST
+ARG VITE_SPACETIMEDB_DB_NAME
+ARG VITE_PUBLIC_APP_URL
+ENV VITE_SPACETIMEDB_HOST=$VITE_SPACETIMEDB_HOST
+ENV VITE_SPACETIMEDB_DB_NAME=$VITE_SPACETIMEDB_DB_NAME
+ENV VITE_PUBLIC_APP_URL=$VITE_PUBLIC_APP_URL
+
 # Railway serves from the domain root, so this uses the default `build` target.
 RUN pnpm run build
 RUN pnpm run build:transport

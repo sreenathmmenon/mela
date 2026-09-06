@@ -6,3 +6,11 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as PlaygroundClockProcedure from "../playground_clock_procedure";
+
+export type PlaygroundClockArgs = __Infer<
+  typeof PlaygroundClockProcedure.params
+>;
+export type PlaygroundClockResult = __Infer<
+  typeof PlaygroundClockProcedure.returnType
+>;

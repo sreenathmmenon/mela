@@ -102,6 +102,19 @@ export const CrowdSchedule = __t.object("CrowdSchedule", {
 });
 export type CrowdSchedule = __Infer<typeof CrowdSchedule>;
 
+export const DotsBoxesState = __t.object("DotsBoxesState", {
+  matchId: __t.u64(),
+  edges: __t.string(),
+  boxes: __t.string(),
+  humanBoxes: __t.u32(),
+  botBoxes: __t.u32(),
+  turn: __t.string(),
+  revision: __t.u32(),
+  lastOutcome: __t.string(),
+  seed: __t.u64(),
+});
+export type DotsBoxesState = __Infer<typeof DotsBoxesState>;
+
 export const DuelCrowdCredit = __t.object("DuelCrowdCredit", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -123,6 +136,27 @@ export const EmailMigration = __t.object("EmailMigration", {
   id: __t.u32(),
 });
 export type EmailMigration = __Infer<typeof EmailMigration>;
+
+export const GilliDandaState = __t.object("GilliDandaState", {
+  matchId: __t.u64(),
+  round: __t.u32(),
+  humanScore: __t.u32(),
+  botScore: __t.u32(),
+  turn: __t.string(),
+  lastDistance: __t.u32(),
+  lastSound: __t.string(),
+  lastOutcome: __t.string(),
+  seed: __t.u64(),
+});
+export type GilliDandaState = __Infer<typeof GilliDandaState>;
+
+export const GilliLaunch = __t.object("GilliLaunch", {
+  matchId: __t.u64(),
+  round: __t.u32(),
+  startedAtMicros: __t.u64(),
+  power: __t.u32(),
+});
+export type GilliLaunch = __Infer<typeof GilliLaunch>;
 
 export const IdentityLink = __t.object("IdentityLink", {
   identity: __t.identity(),
@@ -361,6 +395,13 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   crowdInfluence: __t.u32(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const PlaygroundRematch = __t.object("PlaygroundRematch", {
+  previousMatchId: __t.u64(),
+  nextMatchId: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type PlaygroundRematch = __Infer<typeof PlaygroundRematch>;
 
 export const ProfileLinkChallenge = __t.object("ProfileLinkChallenge", {
   nonce: __t.string(),

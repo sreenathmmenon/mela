@@ -3355,3 +3355,215 @@ button:disabled {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* Experimental games use physical notebook/chalk surfaces, not generic cards. */
+.game-card.dots {
+  background: #fffaf0;
+}
+.game-card.gilli {
+  background: #fff2d8;
+}
+.dots-art {
+  letter-spacing: 0.55rem;
+  line-height: 1.25;
+  color: #9d5b16;
+  font-size: 1.35rem;
+}
+.gilli-art {
+  color: #8d3c1d;
+  font-size: 2rem;
+  font-weight: 900;
+}
+.dots-shell,
+.gilli-shell {
+  max-width: 760px;
+}
+.dots-score,
+.gilli-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.2rem 0;
+  padding: 1rem 1.25rem;
+  border: 3px solid #2c241c;
+  border-radius: 1.15rem;
+  background: #fffdf7;
+  text-align: center;
+}
+.dots-score strong,
+.gilli-score strong {
+  display: block;
+  font-size: 2rem;
+}
+.dots-score small,
+.gilli-score small {
+  letter-spacing: 0.11em;
+  font-weight: 800;
+}
+.dots-score p,
+.gilli-turn {
+  font-weight: 800;
+  max-width: 18rem;
+}
+.dots-board-wrap {
+  position: relative;
+  width: min(92vw, 540px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 1.4rem;
+  background:
+    repeating-linear-gradient(0deg, #fff9eb, #fff9eb 22px, #f2dfbe 23px),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 22px,
+      #f2dfbe 23px
+    );
+  border: 4px solid #2c241c;
+  box-shadow: 8px 8px 0 #d8bc84;
+  overflow: hidden;
+}
+.dots-board {
+  width: 100%;
+  height: 100%;
+}
+.dot {
+  fill: #2c241c;
+}
+.drawn-edge {
+  stroke: #8e491f;
+  stroke-width: 3.8;
+  stroke-linecap: round;
+}
+.human-box {
+  fill: #f3bf5c;
+  opacity: 0.8;
+}
+.bot-box {
+  fill: #a8c9c1;
+  opacity: 0.8;
+}
+.dots-hit-grid {
+  position: absolute;
+  inset: 0;
+}
+.edge-hit {
+  position: absolute;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.edge-hit.horizontal {
+  width: 22%;
+  height: 7%;
+}
+.edge-hit.vertical {
+  width: 7%;
+  height: 22%;
+}
+.edge-hit:not(:disabled):hover,
+.edge-hit:not(:disabled):focus-visible {
+  background: #d78f3b44;
+  outline: 2px solid #9c551c;
+}
+.game-moment {
+  text-align: center;
+  margin: 1.6rem 0;
+  padding: 1rem;
+}
+.game-moment strong,
+.game-moment span {
+  display: block;
+}
+.game-moment strong {
+  font-size: 1.1rem;
+}
+.game-moment span {
+  opacity: 0.7;
+  margin-top: 0.35rem;
+}
+.gilli-stage {
+  position: relative;
+  overflow: hidden;
+  height: 280px;
+  border: 4px solid #2c241c;
+  border-radius: 1.4rem;
+  background: linear-gradient(#82b35d 0 45%, #c8864a 45% 100%);
+  box-shadow: 8px 8px 0 #d8bc84;
+}
+.gilli-stage:after {
+  content: "";
+  position: absolute;
+  width: 330px;
+  height: 80px;
+  border: 4px dashed #fff4ce;
+  border-radius: 50%;
+  left: 50%;
+  bottom: -32px;
+  transform: translateX(-50%);
+}
+.chalk {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  color: #fff8d7;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.gilli-stick {
+  position: absolute;
+  width: 190px;
+  height: 14px;
+  background: #5a2c18;
+  border-radius: 1rem;
+  left: 23%;
+  bottom: 88px;
+  transform: rotate(-30deg);
+  box-shadow: 0 4px #2e150b;
+}
+.gilli-piece {
+  position: absolute;
+  width: 68px;
+  height: 13px;
+  background: #d89142;
+  border-radius: 50%;
+  left: 57%;
+  bottom: 124px;
+  transform: rotate(19deg);
+  box-shadow: 0 4px #804214;
+}
+.gilli-impact {
+  position: absolute;
+  right: 15%;
+  top: 28%;
+  font-size: 2.4rem;
+  color: #fff6d5;
+  text-shadow: 3px 3px #6c321a;
+  transform: rotate(-8deg);
+}
+.strike-controls {
+  margin: 1.4rem auto;
+  max-width: 540px;
+  padding: 1.1rem;
+  border: 3px solid #2c241c;
+  border-radius: 1.2rem;
+  background: #fffdf7;
+}
+.strike-controls label {
+  display: grid;
+  grid-template-columns: 110px 1fr 54px;
+  gap: 0.7rem;
+  align-items: center;
+  font-weight: 800;
+  margin: 0.8rem 0;
+}
+.strike-controls input {
+  accent-color: #a54e1e;
+}
+.strike-controls b {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}

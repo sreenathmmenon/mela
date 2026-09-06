@@ -40,23 +40,34 @@ import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
 import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
+import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
+import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
+import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
+import LiftGilliReducer from "./lift_gilli_reducer";
 import OnboardReducer from "./onboard_reducer";
 import OnboardWithEmailReducer from "./onboard_with_email_reducer";
 import PlayBallReducer from "./play_ball_reducer";
+import RematchPlaygroundReducer from "./rematch_playground_reducer";
+import StrikeGilliReducer from "./strike_gilli_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
+import UseExperimentalCrowdPowerReducer from "./use_experimental_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "./use_pen_fight_crowd_power_reducer";
 
 // Import all procedure arg schemas
+import * as PlaygroundClockProcedure from "./playground_clock_procedure";
 
 // Import all table schema definitions
 import AgentDuelRow from "./agent_duel_table";
 import AiCharacterRow from "./ai_character_table";
 import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
+import DotsBoxesStateRow from "./dots_boxes_state_table";
 import DuelCrowdCreditRow from "./duel_crowd_credit_table";
+import GilliDandaStateRow from "./gilli_danda_state_table";
+import GilliLaunchRow from "./gilli_launch_table";
 import LiveEventRow from "./live_event_table";
 import MatchRow from "./match_table";
 import MatchCrowdRow from "./match_crowd_table";
@@ -73,6 +84,7 @@ import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
 import PenFightRecordRow from "./pen_fight_record_table";
 import PlayerProfileRow from "./player_profile_table";
+import PlaygroundRematchRow from "./playground_rematch_table";
 import VisibleCrowdEffectsRow from "./visible_crowd_effects_table";
 import WorldRow from "./world_table";
 import WorldActivityRow from "./world_activity_table";
@@ -162,6 +174,27 @@ const tablesSchema = __schema({
     },
     BookCricketStateRow,
   ),
+  dotsBoxesState: __table(
+    {
+      name: "dots_boxes_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "dots_boxes_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "dots_boxes_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    DotsBoxesStateRow,
+  ),
   duelCrowdCredit: __table(
     {
       name: "duel_crowd_credit",
@@ -182,6 +215,48 @@ const tablesSchema = __schema({
       ],
     },
     DuelCrowdCreditRow,
+  ),
+  gilliDandaState: __table(
+    {
+      name: "gilli_danda_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "gilli_danda_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "gilli_danda_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    GilliDandaStateRow,
+  ),
+  gilliLaunch: __table(
+    {
+      name: "gilli_launch",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "gilli_launch_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "gilli_launch_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    GilliLaunchRow,
   ),
   liveEvent: __table(
     {
@@ -420,6 +495,27 @@ const tablesSchema = __schema({
     },
     PlayerProfileRow,
   ),
+  playgroundRematch: __table(
+    {
+      name: "playground_rematch",
+      indexes: [
+        {
+          accessor: "previousMatchId",
+          name: "playground_rematch_previous_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["previousMatchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "playground_rematch_previous_match_id_key",
+          constraint: "unique",
+          columns: ["previousMatchId"],
+        },
+      ],
+    },
+    PlaygroundRematchRow,
+  ),
   world: __table(
     {
       name: "world",
@@ -529,18 +625,34 @@ const reducersSchema = __reducers(
   __reducerSchema("complete_profile_link", CompleteProfileLinkReducer),
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
+  __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),
+  __reducerSchema("create_gilli_danda", CreateGilliDandaReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
+  __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
   __reducerSchema("flick_pen", FlickPenReducer),
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
+  __reducerSchema("lift_gilli", LiftGilliReducer),
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("onboard_with_email", OnboardWithEmailReducer),
   __reducerSchema("play_ball", PlayBallReducer),
+  __reducerSchema("rematch_playground", RematchPlaygroundReducer),
+  __reducerSchema("strike_gilli", StrikeGilliReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
+  __reducerSchema(
+    "use_experimental_crowd_power",
+    UseExperimentalCrowdPowerReducer,
+  ),
   __reducerSchema("use_pen_fight_crowd_power", UsePenFightCrowdPowerReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
-const proceduresSchema = __procedures();
+const proceduresSchema = __procedures(
+  __procedureSchema(
+    "playground_clock",
+    PlaygroundClockProcedure.params,
+    PlaygroundClockProcedure.returnType,
+  ),
+);
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
 const REMOTE_MODULE = {

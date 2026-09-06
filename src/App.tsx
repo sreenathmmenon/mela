@@ -13,6 +13,8 @@ import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
 import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
+import { DotsBoxes } from "./DotsBoxes";
+import { GilliDanda } from "./GilliDanda";
 import { EmailRecap } from "./EmailRecap";
 import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
@@ -57,6 +59,8 @@ const POWER_CARDS = [
 const GAME_LABELS: Record<string, string> = {
   book_cricket: "Book Cricket",
   pen_fight: "Pen Fight",
+  dots_boxes: "Dots & Boxes",
+  gilli_danda: "Gilli Danda",
 };
 
 const PROFILE_LINK_NONCE_KEY = "mela-profile-link-nonce";
@@ -521,6 +525,8 @@ function App() {
 
   const createMatch = useReducer(reducers.createBookCricket);
   const createPenFight = useReducer(reducers.createPenFight);
+  const createDotsBoxes = useReducer(reducers.createDotsBoxes);
+  const createGilliDanda = useReducer(reducers.createGilliDanda);
   const createAgentDuel = useReducer(reducers.createAgentDuel);
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
@@ -632,7 +638,7 @@ function App() {
     setShowHome(false);
     if (alreadyIn) {
       setFeedback(
-        `You're back in the ${target.gameKind === "pen_fight" ? "Pen Fight" : "Book Cricket"} crowd.`,
+        `You're back in the ${GAME_LABELS[target.gameKind] ?? target.gameKind} crowd.`,
       );
       return;
     }
@@ -748,6 +754,25 @@ function App() {
       setCreatingMatch(false);
     }
   };
+  const startExperimentalGame = async (kind: "dots" | "gilli") => {
+    setCreatingMatch(true);
+    setShowHome(false);
+    setPinnedMatchId(null);
+    try {
+      await (kind === "dots" ? createDotsBoxes() : createGilliDanda());
+      setFeedback(
+        kind === "dots"
+          ? "The notebook is open. Claim the grid."
+          : "The chalk is down. Lift and strike.",
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to start this game.",
+      );
+    } finally {
+      setCreatingMatch(false);
+    }
+  };
 
   // "balanced" is not offered as a card — it is the default ball one delivery —
   // so the parameter is widened past what PLAY_CHOICES exposes.
@@ -856,6 +881,34 @@ function App() {
         row.status === "complete" &&
         row.gameKind === "pen_fight",
     );
+  const sharedPlayground =
+    !showHome &&
+    matches.find(
+      (m) =>
+        m.id === requestedMemoryId &&
+        m.status === "complete" &&
+        ["dots_boxes", "gilli_danda"].includes(m.gameKind),
+    );
+  if (sharedPlayground)
+    return sharedPlayground.gameKind === "dots_boxes" ? (
+      <DotsBoxes
+        key={sharedPlayground.id.toString()}
+        matchId={sharedPlayground.id}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
+    ) : (
+      <GilliDanda
+        key={sharedPlayground.id.toString()}
+        matchId={sharedPlayground.id}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
+    );
   const penMatch = sharedPenMemory || displayedMatch;
   if ((me || sharedPenMemory) && penMatch?.gameKind === "pen_fight")
     return (
@@ -874,6 +927,22 @@ function App() {
           setShowHome(true);
           setFeedback(null);
         }}
+      />
+    );
+  if (me && displayedMatch?.gameKind === "dots_boxes")
+    return (
+      <DotsBoxes
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        onBack={() => setShowHome(true)}
+      />
+    );
+  if (me && displayedMatch?.gameKind === "gilli_danda")
+    return (
+      <GilliDanda
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        onBack={() => setShowHome(true)}
       />
     );
 
@@ -1106,6 +1175,34 @@ function App() {
                 {creatingMatch ? "Setting up…" : "Play →"}
               </span>
             </button>
+            <button
+              className="game-card dots"
+              onClick={() => startExperimentalGame("dots")}
+              disabled={creatingMatch}
+            >
+              <span className="game-art dots-art" aria-hidden="true">
+                · · ·<br />· · ·<br />· · ·
+              </span>
+              <strong>Dots &amp; Boxes</strong>
+              <em>Draw lines. Claim squares. Keep a capture chain alive.</em>
+              <span className="game-go">
+                {creatingMatch ? "Opening…" : "Play →"}
+              </span>
+            </button>
+            <button
+              className="game-card gilli"
+              onClick={() => startExperimentalGame("gilli")}
+              disabled={creatingMatch}
+            >
+              <span className="game-art gilli-art" aria-hidden="true">
+                ╱ ─
+              </span>
+              <strong>Gilli Danda</strong>
+              <em>Lift the gilli. Find the sweet spot. Send it flying.</em>
+              <span className="game-go">
+                {creatingMatch ? "Marking chalk…" : "Play →"}
+              </span>
+            </button>
           </div>
           <div className="duel-launch">
             <button
@@ -1153,52 +1250,54 @@ function App() {
             <div className="watch-live">
               <p className="eyebrow">OR JOIN A LIVE CROWD</p>
               <ul>
-                {liveMatchesToWatch.slice(0, 4).map((match) => {
-                  const host =
-                    participants.find(
-                      (row) =>
-                        row.matchId === match.id && row.actorKind === "human",
-                    )?.displayName ?? "Someone";
-                  const watching = spectators.filter(
-                    (row) => row.matchId === match.id,
-                  ).length;
-                  return (
-                    <li key={match.id.toString()}>
-                      <span>
-                        <strong>{host}</strong> ·{" "}
-                        {match.gameKind === "pen_fight"
-                          ? "Pen Fight"
-                          : "Book Cricket"}
-                        <em>
-                          {watching === 0
-                            ? "no one watching yet"
-                            : plural(watching, "person", "people") +
-                              " watching"}
-                        </em>
-                      </span>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await joinSpectator({ matchId: match.id });
-                            setShowHome(false);
-                            setError(null);
-                            setFeedback(
-                              `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
-                            );
-                          } catch (reason) {
-                            setError(
-                              reason instanceof Error
-                                ? reason.message
-                                : "Could not join that crowd.",
-                            );
-                          }
-                        }}
-                      >
-                        Watch
-                      </button>
-                    </li>
-                  );
-                })}
+                {liveMatchesToWatch
+                  .slice()
+                  .sort((a, b) => Number(b.id - a.id))
+                  .map((match) => {
+                    const host =
+                      participants.find(
+                        (row) =>
+                          row.matchId === match.id && row.actorKind === "human",
+                      )?.displayName ?? "Someone";
+                    const watching = spectators.filter(
+                      (row) => row.matchId === match.id,
+                    ).length;
+                    return (
+                      <li key={match.id.toString()}>
+                        <span>
+                          <strong>{host}</strong> ·{" "}
+                          {GAME_LABELS[match.gameKind] ?? match.gameKind}
+                          <em>
+                            {watching === 0
+                              ? "no one watching yet"
+                              : plural(watching, "person", "people") +
+                                " watching"}
+                          </em>
+                        </span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await joinSpectator({ matchId: match.id });
+                              setPinnedMatchId(match.id);
+                              setShowHome(false);
+                              setError(null);
+                              setFeedback(
+                                `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
+                              );
+                            } catch (reason) {
+                              setError(
+                                reason instanceof Error
+                                  ? reason.message
+                                  : "Could not join that crowd.",
+                              );
+                            }
+                          }}
+                        >
+                          Watch
+                        </button>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           )}
@@ -1337,16 +1436,15 @@ function App() {
                     Open the book. The page number is your runs.
                   </p>
                 )}
+                {/* What the crowd has spent is deliberately NOT shown before
+                    the choice. Naming an incoming BOOST or SHIELD lets the
+                    batter play around it, which is the same reason Pen Fight
+                    hides pending effects. The crowd is credited by name the
+                    moment the ball resolves, in the reveal card above. */}
                 {pendingOnMe.length > 0 && (
                   <p className="crowd-incoming" role="status">
-                    <b>The crowd is with you.</b>{" "}
-                    {pendingOnMe
-                      .map(
-                        (effect) =>
-                          `${effect.actorName} played ${effect.power.toUpperCase()}`,
-                      )
-                      .join(" · ")}{" "}
-                    — it lands on this ball.
+                    <b>The crowd is spending on this ball.</b> You will see what
+                    they chose when it lands.
                   </p>
                 )}
                 {/* Ball one asks nothing. You tap, the book opens, something
