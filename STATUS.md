@@ -1,5 +1,12 @@
 # MELA STATUS
 
+## Branch-only research — small additional games
+
+- `codex/small-games-research`, based on `5833d5f`: researched Dots and Boxes, Noughts and Crosses and Navakankari. Sources, cultural caveats, integration scope and merge gates are in `docs/SMALL_GAMES_RESEARCH.md`.
+- Recommend Dots and Boxes as the next experiment. Its rules are small, but a complete authoritative Mela game with AI, crowd, memory, QR and big-screen support is not a small patch. Under Sreenath's explicit small-work condition, no application code, dependencies, schema or production state changed. No new game is claimed playable or validated.
+- Documentation-only change; no runtime tests/builds/browser validation repeated. Existing Pen Fight release evidence below remains the baseline.
+- Next task: review the shortlist; only undertake a complete Dots and Boxes integration on an isolated branch when that larger scope and its spectator rules are settled. No merge or deployment in this research pass.
+
 ## Current pass — Pen Fight body contact and side targeting
 
 - Replaced the centre-only 66-unit collision circle with a continuous sweep of two elongated capsule footprints sharing the 3D pens' length, scale and mirrored orientation. Barrel/tip overlap now counts as contact for human, MelaBot and agent actions through the existing shared server resolver. Footprints approximate the detailed tapered meshes; no rigid-body rotation/spin system or schema change was introduced.
