@@ -13,8 +13,8 @@ const boardEdges = [
       from: row * 4 + col,
       to: row * 4 + col + 1,
       horizontal: true,
-      left: 9 + col * 29,
-      top: 10 + row * 29,
+      left: 26.5 + col * 29,
+      top: 12 + row * 29,
     })),
   ).flat(),
   ...Array.from({ length: 3 }, (_, row) =>
@@ -22,8 +22,8 @@ const boardEdges = [
       from: row * 4 + col,
       to: (row + 1) * 4 + col,
       horizontal: false,
-      left: 10 + col * 29,
-      top: 9 + row * 29,
+      left: 12 + col * 29,
+      top: 26.5 + row * 29,
     })),
   ).flat(),
 ];

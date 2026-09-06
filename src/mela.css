@@ -3456,12 +3456,12 @@ button:disabled {
   z-index: 2;
 }
 .edge-hit.horizontal {
-  width: 27%;
-  height: 11%;
+  width: 22%;
+  height: 7%;
 }
 .edge-hit.vertical {
-  width: 11%;
-  height: 27%;
+  width: 7%;
+  height: 22%;
 }
 .edge-hit:not(:disabled):hover,
 .edge-hit:not(:disabled):focus-visible {
