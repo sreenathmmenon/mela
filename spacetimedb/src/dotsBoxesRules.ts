@@ -98,12 +98,19 @@ export function resolveDotsMove(input: {
 export function decideDotsMove(edges: string): [number, number] {
   const current = readSet(edges);
   const legal = [...allEdges].filter((edge) => !current.has(edge));
-  const capture = legal.find((edge) => {
-    const [from, to] = edge.split("-").map(Number);
-    return (
-      resolveDotsMove({ edges, boxes: "", from, to, side: "melabot" }).claimed >
-      0
-    );
-  });
-  return (capture ?? legal[0]).split("-").map(Number) as [number, number];
+  if (!legal.length) throw new Error("The grid is complete.");
+  // Only count boxes adjacent to this NEW edge. Already owned boxes cannot
+  // make an unrelated edge look like a capture.
+  const captures = (edge: string) =>
+    boxEdges.filter(
+      (box) =>
+        box.includes(edge) && box.filter((e) => current.has(e)).length === 3,
+    ).length;
+  const gifts = (edge: string) =>
+    boxEdges.filter(
+      (box) =>
+        box.includes(edge) && box.filter((e) => current.has(e)).length === 2,
+    ).length;
+  legal.sort((a, b) => captures(b) - captures(a) || gifts(a) - gifts(b));
+  return legal[0].split("-").map(Number) as [number, number];
 }

@@ -66,7 +66,16 @@ import {
   validatePenFlick,
 } from "./penFightRules";
 import { decideDotsMove, resolveDotsMove } from "./dotsBoxesRules";
-import { resolveGilliStrike } from "./gilliDandaRules";
+import {
+  resolveGilliStrike,
+  gilliTimingAt,
+  GILLI_FLIGHT_MICROS,
+} from "./gilliDandaRules";
+import {
+  PLAYGROUND_POWERS,
+  playgroundPower,
+  crowdPurchase,
+} from "./playgroundCrowdRules";
 
 const WORLD_ID = 1n;
 
@@ -295,6 +304,15 @@ const spacetimedb = schema({
       revision: t.u32(),
       lastOutcome: t.string(),
       seed: t.u64(),
+    },
+  ),
+  gilliLaunch: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      round: t.u32(),
+      startedAtMicros: t.u64(),
+      power: t.u32(),
     },
   ),
   /** Gilli flight is committed as an outcome, never a browser physics result. */
@@ -568,7 +586,10 @@ export const visibleCrowdEffects = spacetimedb.view(
       (effect: any) => {
         const actor = canonicalIdentity(ctx);
         const match = ctx.db.match.id.find(effect.matchId);
-        if (match?.gameKind !== "pen_fight") return true;
+        if (
+          !["pen_fight", "dots_boxes", "gilli_danda"].includes(match?.gameKind)
+        )
+          return true;
         const duel = ctx.db.agentDuel.matchId.find(effect.matchId);
         if (
           duel?.leftIdentity?.isEqual(actor) ||
@@ -2225,7 +2246,7 @@ function finishExperimentalMatch(
     winner,
     endedAt: ctx.timestamp,
   });
-  const human = player(ctx),
+  const human = ctx.db.playerProfile.identity.find(match.playerIdentity),
     progression = ensureMelaProfile(ctx, match.playerIdentity),
     metrics = metricsIdentityFor(ctx, match.playerIdentity);
   const update = playerProgressAfterMatch(
@@ -2267,7 +2288,7 @@ function finishExperimentalMatch(
     ).length,
     crowdActions: activity.actions,
     crowdEnergySpent: activity.energySpent,
-    notableMoment,
+    notableMoment: `${notableMoment}${activity.actions ? ` The crowd made ${activity.actions} moves; the latest was ${activity.lastPower.replaceAll("_", " ")} by ${activity.lastActor}.` : ""}`,
     completedAt: ctx.timestamp,
   });
   applyMetricDelta(ctx, completedMatchDelta());
@@ -2275,6 +2296,21 @@ function finishExperimentalMatch(
     ...metrics,
     completedPlayerMatches: metrics.completedPlayerMatches + 1,
   });
+  for (const spectator of ctx.db.matchSpectator.iter()) {
+    if (spectator.matchId !== match.id) continue;
+    const profile = ensureMelaProfile(ctx, spectator.identity);
+    ctx.db.melaProfile.identity.update({
+      ...profile,
+      ...spectatorProgressAfterMatch(profile.progressPoints),
+      matchesWatched: profile.matchesWatched + 1,
+      updatedAt: ctx.timestamp,
+    });
+  }
+  for (const task of ctx.db.crowdSchedule.iter())
+    if (task.matchId === match.id) ctx.db.crowdSchedule.id.delete(task.id);
+  for (const effect of ctx.db.crowdEffect.iter())
+    if (effect.matchId === match.id) ctx.db.crowdEffect.id.delete(effect.id);
+  ctx.db.gilliLaunch.matchId.delete(match.id);
 }
 
 function scheduleExperimentalBot(
@@ -2288,7 +2324,7 @@ function scheduleExperimentalBot(
     kind,
     matchId,
     BigInt(revision),
-    nowMicros(ctx) + BOOK_CRICKET_RULES.aiWakeDelayMicros,
+    nowMicros(ctx) + 4_000_000n,
   );
 }
 
@@ -2307,6 +2343,18 @@ function resolveDotsTurn(
     to,
     side,
   });
+  const chainBreak = effectsFor(ctx, match.id, side).find(
+    (effect) => effect.power === "chain_break",
+  );
+  if (chainBreak && result.claimed && !result.complete) {
+    result.nextTurn = side === "human" ? "melabot" : "human";
+    ctx.db.crowdEffect.id.delete(chainBreak.id);
+    emit(
+      ctx,
+      match.id,
+      `${chainBreak.actorName}'s CHAIN BREAK stopped the extra turn.`,
+    );
+  }
   const humanBoxes = result.boxes
     .split(",")
     .filter((box) => box.endsWith("h")).length;
@@ -2368,7 +2416,7 @@ export const createDotsBoxes = spacetimedb.reducer((ctx: any) => {
 });
 
 export const drawDotsEdge = spacetimedb.reducer(
-  { matchId: t.u64(), from: t.u32(), to: t.u32() },
+  { matchId: t.u64(), from: t.u32(), to: t.u32(), revision: t.u32() },
   (ctx: any, action: any) => {
     const match = ctx.db.match.id.find(action.matchId),
       state = ctx.db.dotsBoxesState.matchId.find(action.matchId),
@@ -2379,7 +2427,8 @@ export const drawDotsEdge = spacetimedb.reducer(
       match.status !== "active" ||
       match.gameKind !== "dots_boxes" ||
       !match.playerIdentity.isEqual(identity) ||
-      state.turn !== "human"
+      state.turn !== "human" ||
+      state.revision !== action.revision
     )
       throw new SenderError("That line is not available.");
     try {
@@ -2399,12 +2448,30 @@ function resolveGilliTurn(
   side: "human" | "melabot",
   power: number,
   timing: number,
+  missed = false,
 ) {
-  const strike = resolveGilliStrike(state.seed, power, timing),
-    score =
+  const strike = resolveGilliStrike(state.seed, power, timing);
+  const effect = effectsFor(ctx, match.id, side).find(
+    (row) => row.power === "rhythm" || row.power === "heckle",
+  );
+  const distance = missed
+    ? 0
+    : Math.max(
+        0,
+        strike.distance + (effect?.power === "rhythm" ? 8 : effect ? -8 : 0),
+      );
+  if (effect) {
+    ctx.db.crowdEffect.id.delete(effect.id);
+    emit(
+      ctx,
+      match.id,
+      `${effect.actorName}'s ${effect.power === "rhythm" ? "RHYTHM" : "HECKLE"} changed the strike.`,
+    );
+  }
+  const score =
       side === "human"
-        ? state.humanScore + strike.distance
-        : state.botScore + strike.distance,
+        ? state.humanScore + distance
+        : state.botScore + distance,
     round = state.round + 1;
   const next = {
     ...state,
@@ -2412,12 +2479,15 @@ function resolveGilliTurn(
     humanScore: side === "human" ? score : state.humanScore,
     botScore: side === "melabot" ? score : state.botScore,
     turn: round > 10 ? "complete" : side === "human" ? "melabot" : "human",
-    lastDistance: strike.distance,
-    lastSound: strike.sound,
-    lastOutcome: `${side === "human" ? "You" : "MelaBot"} sent the gilli ${strike.distance} paces — ${strike.sound.toUpperCase()}!`,
+    lastDistance: distance,
+    lastSound: missed ? "thud" : strike.sound,
+    lastOutcome: missed
+      ? "The gilli landed before the strike. No paces this turn."
+      : `${side === "human" ? "You" : "MelaBot"} sent the gilli ${distance} paces — ${strike.sound.toUpperCase()}!`,
     seed: strike.seed,
   };
   ctx.db.gilliDandaState.matchId.update(next);
+  ctx.db.gilliLaunch.matchId.delete(match.id);
   emit(ctx, match.id, next.lastOutcome);
   if (round > 10) {
     const winner =
@@ -2460,8 +2530,43 @@ export const createGilliDanda = spacetimedb.reducer((ctx: any) => {
   emit(ctx, matchId, `${profile.displayName} placed a gilli on the chalk.`);
 });
 
+export const liftGilli = spacetimedb.reducer(
+  { matchId: t.u64(), power: t.u32(), round: t.u32() },
+  (ctx: any, action: any) => {
+    const match = ctx.db.match.id.find(action.matchId),
+      state = ctx.db.gilliDandaState.matchId.find(action.matchId);
+    if (
+      !match ||
+      !state ||
+      match.status !== "active" ||
+      match.gameKind !== "gilli_danda" ||
+      !match.playerIdentity.isEqual(canonicalIdentity(ctx)) ||
+      state.turn !== "human" ||
+      state.round !== action.round ||
+      action.power < 1 ||
+      action.power > 3
+    )
+      throw new SenderError("Wait for your turn and choose a strength.");
+    if (ctx.db.gilliLaunch.matchId.find(match.id))
+      throw new SenderError("The gilli is already in the air.");
+    ctx.db.gilliLaunch.insert({
+      matchId: match.id,
+      round: state.round,
+      power: action.power,
+      startedAtMicros: nowMicros(ctx),
+    });
+    scheduleCrowdTask(
+      ctx,
+      "gilli_landed",
+      match.id,
+      BigInt(state.round),
+      nowMicros(ctx) + GILLI_FLIGHT_MICROS,
+    );
+    emit(ctx, match.id, "The gilli is up — watch the strike!");
+  },
+);
 export const strikeGilli = spacetimedb.reducer(
-  { matchId: t.u64(), power: t.u32(), timing: t.u32() },
+  { matchId: t.u64(), round: t.u32() },
   (ctx: any, action: any) => {
     const match = ctx.db.match.id.find(action.matchId),
       state = ctx.db.gilliDandaState.matchId.find(action.matchId),
@@ -2472,11 +2577,22 @@ export const strikeGilli = spacetimedb.reducer(
       match.status !== "active" ||
       match.gameKind !== "gilli_danda" ||
       !match.playerIdentity.isEqual(identity) ||
-      state.turn !== "human"
+      state.turn !== "human" ||
+      state.round !== action.round
     )
       throw new SenderError("Wait for your turn at the chalk.");
     try {
-      resolveGilliTurn(ctx, match, state, "human", action.power, action.timing);
+      const launch = ctx.db.gilliLaunch.matchId.find(match.id);
+      if (!launch || launch.round !== state.round)
+        throw new SenderError("Lift the gilli first.");
+      resolveGilliTurn(
+        ctx,
+        match,
+        state,
+        "human",
+        launch.power,
+        gilliTimingAt(BigInt(nowMicros(ctx)) - BigInt(launch.startedAtMicros)),
+      );
     } catch (error) {
       throw new SenderError(
         error instanceof Error ? error.message : "Illegal strike.",
@@ -2684,6 +2800,107 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
   },
 );
 
+export const useExperimentalCrowdPower = spacetimedb.reducer(
+  { matchId: t.u64(), power: t.string(), target: t.string() },
+  (ctx: any, { matchId, power, target }: any) => {
+    const identity = canonicalIdentity(ctx),
+      match = ctx.db.match.id.find(matchId);
+    const allowed =
+      match?.gameKind === "dots_boxes"
+        ? ["chain_break", "cheer"]
+        : match?.gameKind === "gilli_danda"
+          ? ["rhythm", "heckle", "cheer"]
+          : [];
+    if (
+      !match ||
+      match.status !== "active" ||
+      !spectatorFor(ctx, matchId, identity) ||
+      !allowed.includes(power) ||
+      !["human", "melabot"].includes(target)
+    )
+      throw new SenderError("That crowd move is not available.");
+    const config = PLAYGROUND_POWERS[playgroundPower(match.gameKind, power)];
+    const cost = config.cost,
+      crowd = ctx.db.matchCrowd.matchId.find(matchId),
+      now = nowMicros(ctx),
+      cooldown = cooldownFor(ctx, matchId, identity, power);
+    if (
+      !crowd ||
+      crowd.energy < cost ||
+      (cooldown && cooldown.readyAtMicros > now)
+    )
+      throw new SenderError("That crowd move is not ready.");
+    let nextEnergy: number;
+    try {
+      nextEnergy = crowdPurchase(
+        crowd.energy,
+        crowd.maxEnergy,
+        cooldown?.readyAtMicros ?? 0n,
+        now,
+        playgroundPower(match.gameKind, power),
+        power !== "cheer" && effectsFor(ctx, matchId, target).length > 0,
+      );
+    } catch (e) {
+      throw new SenderError(
+        e instanceof Error ? e.message : "Crowd action unavailable.",
+      );
+    }
+    ctx.db.matchCrowd.matchId.update({ ...crowd, energy: nextEnergy });
+    const readyAtMicros = now + (power === "cheer" ? 10_000_000n : 22_000_000n);
+    if (cooldown)
+      ctx.db.spectatorCooldown.id.update({ ...cooldown, readyAtMicros });
+    else
+      ctx.db.spectatorCooldown.insert({
+        id: nextId(ctx.db.spectatorCooldown.iter()),
+        matchId,
+        identity,
+        power,
+        readyAtMicros,
+      });
+    const profile = player(ctx),
+      activity = ctx.db.matchCrowdActivity.matchId.find(matchId);
+    const actorMetrics = metricsIdentityFor(ctx, identity);
+    applyMetricDelta(ctx, crowdActionDelta(actorMetrics.hasActed !== 1));
+    ctx.db.metricsIdentity.identity.update({ ...actorMetrics, hasActed: 1 });
+    const influence = ensureMelaProfile(ctx, identity);
+    ctx.db.melaProfile.identity.update({
+      ...influence,
+      crowdActions: influence.crowdActions + 1,
+      crowdInfluence: influence.crowdInfluence + (power === "cheer" ? 1 : 2),
+      updatedAt: ctx.timestamp,
+    });
+    if (activity)
+      ctx.db.matchCrowdActivity.matchId.update({
+        ...activity,
+        actions: activity.actions + 1,
+        energySpent: activity.energySpent + cost,
+        lastActor: profile.displayName,
+        lastPower: power,
+      });
+    if (power === "cheer") {
+      emit(
+        ctx,
+        matchId,
+        `${profile.displayName} CHEERED — Crowd Energy ${nextEnergy}/${crowd.maxEnergy}`,
+      );
+      return;
+    }
+    const effectId = nextId(ctx.db.crowdEffect.iter()),
+      expiresAtMicros = now + 25_000_000n;
+    ctx.db.crowdEffect.insert({
+      id: effectId,
+      matchId,
+      power,
+      target,
+      actorName: profile.displayName,
+      expiresAtMicros,
+    });
+    scheduleCrowdTask(ctx, "effect_expiry", matchId, effectId, expiresAtMicros);
+    // Pending powers are visible only through the spectator view. Reveal the
+    // named power to players when the authoritative move consumes it.
+  },
+);
+
 const rejectCrowdPower = (
   ctx: any,
   matchId: bigint,
@@ -2703,7 +2920,11 @@ export const useCrowdPower = spacetimedb.reducer(
   (ctx: any, { matchId, power, target }: any) => {
     const identity = canonicalIdentity(ctx);
     const match = ctx.db.match.id.find(matchId);
-    if (!match || match.status !== "active")
+    if (
+      !match ||
+      match.status !== "active" ||
+      match.gameKind !== "book_cricket"
+    )
       return rejectCrowdPower(ctx, matchId, power, "match is not live");
     if (!spectatorFor(ctx, matchId, identity))
       return rejectCrowdPower(ctx, matchId, power, "join the crowd first");
@@ -2805,6 +3026,19 @@ export const processCrowdSchedule = spacetimedb.reducer(
   (ctx: any, { arg }: any) => {
     const match = ctx.db.match.id.find(arg.matchId);
     if (!match || match.status !== "active") return;
+    if (arg.kind === "gilli_landed") {
+      const state = ctx.db.gilliDandaState.matchId.find(match.id),
+        launch = ctx.db.gilliLaunch.matchId.find(match.id);
+      if (
+        match.gameKind === "gilli_danda" &&
+        state?.turn === "human" &&
+        launch &&
+        state.round === Number(arg.effectId) &&
+        launch.round === state.round
+      )
+        resolveGilliTurn(ctx, match, state, "human", launch.power, 100, true);
+      return;
+    }
     if (arg.kind === "agent_timeout" || arg.kind === "agent_shot") {
       processAgentWake(ctx, match, arg);
       return;

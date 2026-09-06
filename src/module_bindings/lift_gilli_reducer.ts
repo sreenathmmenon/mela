@@ -12,5 +12,6 @@ import {
 
 export default {
   matchId: __t.u64(),
+  power: __t.u32(),
   round: __t.u32(),
 };

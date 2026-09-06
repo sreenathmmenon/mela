@@ -638,7 +638,7 @@ function App() {
     setShowHome(false);
     if (alreadyIn) {
       setFeedback(
-        `You're back in the ${target.gameKind === "pen_fight" ? "Pen Fight" : "Book Cricket"} crowd.`,
+        `You're back in the ${GAME_LABELS[target.gameKind] ?? target.gameKind} crowd.`,
       );
       return;
     }
@@ -881,6 +881,34 @@ function App() {
         row.status === "complete" &&
         row.gameKind === "pen_fight",
     );
+  const sharedPlayground =
+    !showHome &&
+    matches.find(
+      (m) =>
+        m.id === requestedMemoryId &&
+        m.status === "complete" &&
+        ["dots_boxes", "gilli_danda"].includes(m.gameKind),
+    );
+  if (sharedPlayground)
+    return sharedPlayground.gameKind === "dots_boxes" ? (
+      <DotsBoxes
+        key={sharedPlayground.id.toString()}
+        matchId={sharedPlayground.id}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
+    ) : (
+      <GilliDanda
+        key={sharedPlayground.id.toString()}
+        matchId={sharedPlayground.id}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
+    );
   const penMatch = sharedPenMemory || displayedMatch;
   if ((me || sharedPenMemory) && penMatch?.gameKind === "pen_fight")
     return (
@@ -903,11 +931,16 @@ function App() {
     );
   if (me && displayedMatch?.gameKind === "dots_boxes")
     return (
-      <DotsBoxes matchId={displayedMatch.id} onBack={() => setShowHome(true)} />
+      <DotsBoxes
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        onBack={() => setShowHome(true)}
+      />
     );
   if (me && displayedMatch?.gameKind === "gilli_danda")
     return (
       <GilliDanda
+        key={displayedMatch.id.toString()}
         matchId={displayedMatch.id}
         onBack={() => setShowHome(true)}
       />
@@ -1217,50 +1250,54 @@ function App() {
             <div className="watch-live">
               <p className="eyebrow">OR JOIN A LIVE CROWD</p>
               <ul>
-                {liveMatchesToWatch.slice(0, 4).map((match) => {
-                  const host =
-                    participants.find(
-                      (row) =>
-                        row.matchId === match.id && row.actorKind === "human",
-                    )?.displayName ?? "Someone";
-                  const watching = spectators.filter(
-                    (row) => row.matchId === match.id,
-                  ).length;
-                  return (
-                    <li key={match.id.toString()}>
-                      <span>
-                        <strong>{host}</strong> ·{" "}
-                        {GAME_LABELS[match.gameKind] ?? match.gameKind}
-                        <em>
-                          {watching === 0
-                            ? "no one watching yet"
-                            : plural(watching, "person", "people") +
-                              " watching"}
-                        </em>
-                      </span>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await joinSpectator({ matchId: match.id });
-                            setShowHome(false);
-                            setError(null);
-                            setFeedback(
-                              `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
-                            );
-                          } catch (reason) {
-                            setError(
-                              reason instanceof Error
-                                ? reason.message
-                                : "Could not join that crowd.",
-                            );
-                          }
-                        }}
-                      >
-                        Watch
-                      </button>
-                    </li>
-                  );
-                })}
+                {liveMatchesToWatch
+                  .slice()
+                  .sort((a, b) => Number(b.id - a.id))
+                  .map((match) => {
+                    const host =
+                      participants.find(
+                        (row) =>
+                          row.matchId === match.id && row.actorKind === "human",
+                      )?.displayName ?? "Someone";
+                    const watching = spectators.filter(
+                      (row) => row.matchId === match.id,
+                    ).length;
+                    return (
+                      <li key={match.id.toString()}>
+                        <span>
+                          <strong>{host}</strong> ·{" "}
+                          {GAME_LABELS[match.gameKind] ?? match.gameKind}
+                          <em>
+                            {watching === 0
+                              ? "no one watching yet"
+                              : plural(watching, "person", "people") +
+                                " watching"}
+                          </em>
+                        </span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await joinSpectator({ matchId: match.id });
+                              setPinnedMatchId(match.id);
+                              setShowHome(false);
+                              setError(null);
+                              setFeedback(
+                                `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
+                              );
+                            } catch (reason) {
+                              setError(
+                                reason instanceof Error
+                                  ? reason.message
+                                  : "Could not join that crowd.",
+                              );
+                            }
+                          }}
+                        >
+                          Watch
+                        </button>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           )}

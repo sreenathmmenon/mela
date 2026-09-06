@@ -18,17 +18,21 @@ import CreatePenFightReducer from "../create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "../draw_dots_edge_reducer";
 import FlickPenReducer from "../flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
+import LiftGilliReducer from "../lift_gilli_reducer";
 import OnboardReducer from "../onboard_reducer";
 import OnboardWithEmailReducer from "../onboard_with_email_reducer";
 import PlayBallReducer from "../play_ball_reducer";
 import StrikeGilliReducer from "../strike_gilli_reducer";
 import UseCrowdPowerReducer from "../use_crowd_power_reducer";
+import UseExperimentalCrowdPowerReducer from "../use_experimental_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
 
 export type AgentFlickParams = __Infer<typeof AgentFlickReducer>;
 export type BeginProfileLinkParams = __Infer<typeof BeginProfileLinkReducer>;
 export type ClaimAgentSeatParams = __Infer<typeof ClaimAgentSeatReducer>;
-export type CompleteProfileLinkParams = __Infer<typeof CompleteProfileLinkReducer>;
+export type CompleteProfileLinkParams = __Infer<
+  typeof CompleteProfileLinkReducer
+>;
 export type CreateAgentDuelParams = __Infer<typeof CreateAgentDuelReducer>;
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type CreateDotsBoxesParams = __Infer<typeof CreateDotsBoxesReducer>;
@@ -36,11 +40,18 @@ export type CreateGilliDandaParams = __Infer<typeof CreateGilliDandaReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
 export type DrawDotsEdgeParams = __Infer<typeof DrawDotsEdgeReducer>;
 export type FlickPenParams = __Infer<typeof FlickPenReducer>;
-export type JoinMatchAsSpectatorParams = __Infer<typeof JoinMatchAsSpectatorReducer>;
+export type JoinMatchAsSpectatorParams = __Infer<
+  typeof JoinMatchAsSpectatorReducer
+>;
+export type LiftGilliParams = __Infer<typeof LiftGilliReducer>;
 export type OnboardParams = __Infer<typeof OnboardReducer>;
 export type OnboardWithEmailParams = __Infer<typeof OnboardWithEmailReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
 export type StrikeGilliParams = __Infer<typeof StrikeGilliReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;
-export type UsePenFightCrowdPowerParams = __Infer<typeof UsePenFightCrowdPowerReducer>;
-
+export type UseExperimentalCrowdPowerParams = __Infer<
+  typeof UseExperimentalCrowdPowerReducer
+>;
+export type UsePenFightCrowdPowerParams = __Infer<
+  typeof UsePenFightCrowdPowerReducer
+>;

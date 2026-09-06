@@ -150,6 +150,14 @@ export const GilliDandaState = __t.object("GilliDandaState", {
 });
 export type GilliDandaState = __Infer<typeof GilliDandaState>;
 
+export const GilliLaunch = __t.object("GilliLaunch", {
+  matchId: __t.u64(),
+  round: __t.u32(),
+  startedAtMicros: __t.u64(),
+  power: __t.u32(),
+});
+export type GilliLaunch = __Infer<typeof GilliLaunch>;
+
 export const IdentityLink = __t.object("IdentityLink", {
   identity: __t.identity(),
   canonicalIdentity: __t.identity(),
@@ -442,4 +450,3 @@ export const WorldPresence = __t.object("WorldPresence", {
   lastSeenAt: __t.timestamp(),
 });
 export type WorldPresence = __Infer<typeof WorldPresence>;
-

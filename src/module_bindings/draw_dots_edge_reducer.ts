@@ -14,4 +14,5 @@ export default {
   matchId: __t.u64(),
   from: __t.u32(),
   to: __t.u32(),
+  revision: __t.u32(),
 };
