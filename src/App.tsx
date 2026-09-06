@@ -1399,16 +1399,15 @@ function App() {
                     Open the book. The page number is your runs.
                   </p>
                 )}
+                {/* What the crowd has spent is deliberately NOT shown before
+                    the choice. Naming an incoming BOOST or SHIELD lets the
+                    batter play around it, which is the same reason Pen Fight
+                    hides pending effects. The crowd is credited by name the
+                    moment the ball resolves, in the reveal card above. */}
                 {pendingOnMe.length > 0 && (
                   <p className="crowd-incoming" role="status">
-                    <b>The crowd is with you.</b>{" "}
-                    {pendingOnMe
-                      .map(
-                        (effect) =>
-                          `${effect.actorName} played ${effect.power.toUpperCase()}`,
-                      )
-                      .join(" · ")}{" "}
-                    — it lands on this ball.
+                    <b>The crowd is spending on this ball.</b> You will see what
+                    they chose when it lands.
                   </p>
                 )}
                 {/* Ball one asks nothing. You tap, the book opens, something
