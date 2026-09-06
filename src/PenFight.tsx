@@ -153,10 +153,6 @@ export function PenFight({
     return () => window.clearInterval(timer);
   }, []);
   const [aim, setAim] = useState({ x: 740, y: 500 });
-  // Where along the opponent's pen this flick lands. 50 is dead centre;
-  // the Cap/Tip buttons move it off-centre so the strike glances and spins
-  // the struck pen sideways instead of driving it straight back.
-  const [contact, setContact] = useState(50);
   const [force, setForce] = useState(60);
   const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
     null,
@@ -426,9 +422,9 @@ export function PenFight({
         aimX: gesture?.x ?? aim.x,
         aimY: gesture?.y ?? aim.y,
         force: gesture?.force ?? cappedForce,
-        // A drag aims at the pen's middle; the Cap/Middle/Tip buttons choose a
-        // deliberate off-centre strike, which the physics turns into spin.
-        contact: gesture ? 50 : contact,
+        // Contact stays centred: one gesture beats two, and a spin control can
+        // be added later as a dial if players actually ask for it.
+        contact: 50,
       });
       setNote("");
     } catch {
@@ -822,13 +818,11 @@ export function PenFight({
             <legend>Aim at their pen</legend>
             {(
               [
-                // offset along the opponent's pen, label, contact 0-100.
-                // 50 is centre; away from it the hit glances and spins.
-                [-150, "Cap", 15],
-                [0, "Middle", 50],
-                [150, "Tip", 85],
+                [-150, "Cap"],
+                [0, "Middle"],
+                [150, "Tip"],
               ] as const
-            ).map(([offset, label, contactFor]) => {
+            ).map(([offset, label]) => {
               const point = penAimPoint(
                 { x: state.botX, y: state.botY },
                 "melabot",
@@ -840,10 +834,7 @@ export function PenFight({
                 <button
                   key={label}
                   aria-pressed={aim.x === x && aim.y === y}
-                  onClick={() => {
-                    setAim({ x, y });
-                    setContact(contactFor);
-                  }}
+                  onClick={() => setAim({ x, y })}
                 >
                   {label}
                 </button>

@@ -39,6 +39,7 @@ export function DotsBoxes({
       .map((b) => [Number(b.slice(0, -1)), b.endsWith("h")]),
   );
   const edges = new Set((state?.edges || "").split(","));
+  const lastEdge = state?.edges.split(",").slice(-1)[0];
   const canPlay = isPlayer && connected && state?.turn === "human" && !busy;
   return (
     <PlaygroundMatch
@@ -123,8 +124,8 @@ export function DotsBoxes({
                 return (
                   <button
                     key={cell}
-                    className={`pg-edge ${horizontal ? "h" : "v"} ${taken ? "taken" : ""}`}
-                    aria-label={`Draw line from dot ${from + 1} to ${to + 1}`}
+                    className={`pg-edge ${horizontal ? "h" : "v"} ${taken ? "taken" : ""} ${key === lastEdge ? "latest" : ""}`}
+                    aria-label={`${taken ? "Drawn" : "Draw"} line from dot ${from + 1} to ${to + 1}`}
                     disabled={!canPlay || taken}
                     onClick={async () => {
                       setBusy(true);
@@ -153,6 +154,13 @@ export function DotsBoxes({
             <p className="pg-paper-note">
               {state.humanBoxes + state.botBoxes} of 9 claimed · Close a box to
               keep the pencil.
+            </p>
+            <p className="pg-board-help">
+              {canPlay
+                ? "Tap a faint line · Tab + Enter also works"
+                : state.turn === "melabot"
+                  ? "Watch the highlighted line for MelaBot’s move"
+                  : "The newest line is highlighted"}
             </p>
           </div>
           <p className="pg-moment" role="status">

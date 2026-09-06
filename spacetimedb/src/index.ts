@@ -306,6 +306,14 @@ const spacetimedb = schema({
       seed: t.u64(),
     },
   ),
+  playgroundRematch: table(
+    { public: true },
+    {
+      previousMatchId: t.u64().primaryKey(),
+      nextMatchId: t.u64(),
+      createdAt: t.timestamp(),
+    },
+  ),
   gilliLaunch: table(
     { public: true },
     {
@@ -2288,7 +2296,7 @@ function finishExperimentalMatch(
     ).length,
     crowdActions: activity.actions,
     crowdEnergySpent: activity.energySpent,
-    notableMoment: `${notableMoment}${activity.actions ? ` The crowd made ${activity.actions} moves; the latest was ${activity.lastPower.replaceAll("_", " ")} by ${activity.lastActor}.` : ""}`,
+    notableMoment: `${notableMoment}${activity.actions ? ` The crowd made ${activity.actions} ${activity.actions === 1 ? "move" : "moves"}; the latest was ${activity.lastPower.replaceAll("_", " ")} by ${activity.lastActor}.` : ""}`,
     completedAt: ctx.timestamp,
   });
   applyMetricDelta(ctx, completedMatchDelta());
@@ -2395,7 +2403,7 @@ function resolveDotsTurn(
   }
 }
 
-export const createDotsBoxes = spacetimedb.reducer((ctx: any) => {
+function startDotsBoxes(ctx: any) {
   const { matchId, profile } = createExperimentalMatch(ctx, "dots_boxes");
   ctx.db.dotsBoxesState.insert({
     matchId,
@@ -2413,6 +2421,10 @@ export const createDotsBoxes = spacetimedb.reducer((ctx: any) => {
     matchId,
     `${profile.displayName} opened a fresh Dots & Boxes grid.`,
   );
+  return matchId;
+}
+export const createDotsBoxes = spacetimedb.reducer((ctx: any) => {
+  startDotsBoxes(ctx);
 });
 
 export const drawDotsEdge = spacetimedb.reducer(
@@ -2514,7 +2526,7 @@ function resolveGilliTurn(
   }
 }
 
-export const createGilliDanda = spacetimedb.reducer((ctx: any) => {
+function startGilliDanda(ctx: any) {
   const { matchId, profile } = createExperimentalMatch(ctx, "gilli_danda");
   ctx.db.gilliDandaState.insert({
     matchId,
@@ -2528,7 +2540,53 @@ export const createGilliDanda = spacetimedb.reducer((ctx: any) => {
     seed: matchId + 509n,
   });
   emit(ctx, matchId, `${profile.displayName} placed a gilli on the chalk.`);
+  return matchId;
+}
+export const createGilliDanda = spacetimedb.reducer((ctx: any) => {
+  startGilliDanda(ctx);
 });
+
+/** Read-only clock sample. No database mutation, HTTP request or game decision. */
+export const playgroundClock = spacetimedb.procedure(
+  {},
+  t.u64(),
+  (ctx) => ctx.timestamp.microsSinceUnixEpoch,
+);
+
+/** One completed match has at most one official follow-on; spectators opt in. */
+export const rematchPlayground = spacetimedb.reducer(
+  { matchId: t.u64() },
+  (ctx: any, { matchId }: any) => {
+    const previous = ctx.db.match.id.find(matchId);
+    if (
+      !previous ||
+      previous.status !== "complete" ||
+      !["dots_boxes", "gilli_danda"].includes(previous.gameKind) ||
+      !previous.playerIdentity.isEqual(canonicalIdentity(ctx))
+    )
+      throw new SenderError("Only this match's player can start its rematch.");
+    if (ctx.db.playgroundRematch.previousMatchId.find(matchId)) return;
+    // An old result must never abandon a newer match in another tab/game.
+    for (const match of ctx.db.match.iter())
+      if (
+        match.status === "active" &&
+        match.playerIdentity.isEqual(previous.playerIdentity)
+      )
+        throw new SenderError(
+          "Finish your current match before starting a rematch.",
+        );
+    const nextMatchId =
+      previous.gameKind === "dots_boxes"
+        ? startDotsBoxes(ctx)
+        : startGilliDanda(ctx);
+    ctx.db.playgroundRematch.insert({
+      previousMatchId: matchId,
+      nextMatchId,
+      createdAt: ctx.timestamp,
+    });
+    emit(ctx, matchId, "The rematch is ready. The crowd is invited back.");
+  },
+);
 
 export const liftGilli = spacetimedb.reducer(
   { matchId: t.u64(), power: t.u32(), round: t.u32() },

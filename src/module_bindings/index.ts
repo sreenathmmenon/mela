@@ -50,12 +50,14 @@ import LiftGilliReducer from "./lift_gilli_reducer";
 import OnboardReducer from "./onboard_reducer";
 import OnboardWithEmailReducer from "./onboard_with_email_reducer";
 import PlayBallReducer from "./play_ball_reducer";
+import RematchPlaygroundReducer from "./rematch_playground_reducer";
 import StrikeGilliReducer from "./strike_gilli_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 import UseExperimentalCrowdPowerReducer from "./use_experimental_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "./use_pen_fight_crowd_power_reducer";
 
 // Import all procedure arg schemas
+import * as PlaygroundClockProcedure from "./playground_clock_procedure";
 
 // Import all table schema definitions
 import AgentDuelRow from "./agent_duel_table";
@@ -82,6 +84,7 @@ import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
 import PenFightRecordRow from "./pen_fight_record_table";
 import PlayerProfileRow from "./player_profile_table";
+import PlaygroundRematchRow from "./playground_rematch_table";
 import VisibleCrowdEffectsRow from "./visible_crowd_effects_table";
 import WorldRow from "./world_table";
 import WorldActivityRow from "./world_activity_table";
@@ -492,6 +495,27 @@ const tablesSchema = __schema({
     },
     PlayerProfileRow,
   ),
+  playgroundRematch: __table(
+    {
+      name: "playground_rematch",
+      indexes: [
+        {
+          accessor: "previousMatchId",
+          name: "playground_rematch_previous_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["previousMatchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "playground_rematch_previous_match_id_key",
+          constraint: "unique",
+          columns: ["previousMatchId"],
+        },
+      ],
+    },
+    PlaygroundRematchRow,
+  ),
   world: __table(
     {
       name: "world",
@@ -611,6 +635,7 @@ const reducersSchema = __reducers(
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("onboard_with_email", OnboardWithEmailReducer),
   __reducerSchema("play_ball", PlayBallReducer),
+  __reducerSchema("rematch_playground", RematchPlaygroundReducer),
   __reducerSchema("strike_gilli", StrikeGilliReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
   __reducerSchema(
@@ -621,7 +646,13 @@ const reducersSchema = __reducers(
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
-const proceduresSchema = __procedures();
+const proceduresSchema = __procedures(
+  __procedureSchema(
+    "playground_clock",
+    PlaygroundClockProcedure.params,
+    PlaygroundClockProcedure.returnType,
+  ),
+);
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
 const REMOTE_MODULE = {

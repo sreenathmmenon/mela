@@ -4,6 +4,8 @@ import { useReducer, useTable } from "spacetimedb/react";
 import { reducers, tables } from "./module_bindings";
 import { PlaygroundMatch, usePlaygroundMatch } from "./PlaygroundMatch";
 import { playSound } from "./sound";
+import { usePlaygroundClock } from "./usePlaygroundClock";
+import { flightProgress } from "./playgroundClock";
 
 export function GilliDanda({
   matchId,
@@ -30,6 +32,7 @@ export function GilliDanda({
     [progress, setProgress] = useState(0),
     [shot, setShot] = useState(false);
   const lastRound = useRef(state?.round);
+  const clock = usePlaygroundClock();
   useEffect(() => {
     if (
       state &&
@@ -51,22 +54,22 @@ export function GilliDanda({
     }
     let frame = 0;
     const update = () => {
+      const now = clock.now();
       setProgress(
-        Math.min(
-          1,
-          Math.max(
-            0,
-            (Date.now() - Number(launch.startedAtMicros / 1000n)) / 2400,
-          ),
-        ),
+        now === null ? 0 : flightProgress(now, launch.startedAtMicros),
       );
       frame = requestAnimationFrame(update);
     };
     update();
     return () => cancelAnimationFrame(frame);
-  }, [launch?.startedAtMicros]);
+  }, [launch?.startedAtMicros, clock.ready]);
   const canPlay =
-    connected && isPlayer && state?.turn === "human" && !busy && !shot;
+    connected &&
+    clock.ready &&
+    isPlayer &&
+    state?.turn === "human" &&
+    !busy &&
+    !shot;
   const hit = async () => {
     if (!canPlay || !state) return;
     setBusy(true);
@@ -258,6 +261,18 @@ export function GilliDanda({
           </div>
           {isPlayer && state.turn !== "complete" && (
             <section className="pg-strike">
+              {!clock.ready && (
+                <p role="status">
+                  Syncing the timing with Mela…{" "}
+                  <button onClick={clock.retry}>Retry timing</button>
+                </p>
+              )}
+              {clock.slow && (
+                <p role="status">
+                  Your connection is taking longer. Try Gentle for a wider
+                  contact window.
+                </p>
+              )}
               <fieldset disabled={!!launch || !canPlay}>
                 <legend>Choose your swing</legend>
                 {[1, 2, 3].map((p) => (
@@ -283,7 +298,13 @@ export function GilliDanda({
                 className="pg-timing"
                 aria-label="Strike timing: gold is the contact window"
               >
-                <span className="pg-sweet" />
+                <span
+                  className="pg-sweet"
+                  style={{
+                    left: `${55 - 25 / (power === 3 ? 5 : power === 2 ? 3 : 2)}%`,
+                    width: `${50 / (power === 3 ? 5 : power === 2 ? 3 : 2)}%`,
+                  }}
+                />
                 <i style={{ left: `${progress * 100}%` }} />
               </div>
               <button
@@ -300,8 +321,8 @@ export function GilliDanda({
                       : "LIFT THE GILLI"}
               </button>
               <p>
-                Lift first. Tap Strike when the marker reaches gold. A stronger
-                swing needs cleaner timing.
+                Lift first. Tap Strike (or press Enter on the button) when the
+                marker reaches gold. A stronger swing needs cleaner timing.
               </p>
             </section>
           )}

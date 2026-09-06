@@ -1,7 +1,7 @@
 # Mela games lab
 
 Isolated preview: https://mela-games-lab-production.up.railway.app
-Branch: `codex/small-games-research`. Not merged into main. Production Pen Fight and Book Cricket remain untouched.
+Development began on `codex/small-games-research`. Sreenath has now authorized the verified main release. Check STATUS.md for actual deployment evidence; an authorization is not a deployment result.
 
 ## Dots & Boxes
 
@@ -17,8 +17,10 @@ Spectators choose a side. RHYTHM adds eight paces to the next strike; HECKLE rem
 
 Both games offer CHEER: spend four energy to restore eight, capped at 60, with a ten-second personal cooldown. Everyone shares the same pool. Eligibility, cost, effects, cooldowns and outcomes are server-authoritative. Rejected reducers commit nothing; UI shows the rejection. Energy regeneration is inherited discrete scheduling, not a game tick.
 
-Completed results show scores, crowd contribution and a shareable saved memory. Play again creates a new match; spectator invitations belong to the specific match. The public screen route projects the same state without player controls.
+Completed results show scores, your own player/crowd journey and a shareable saved memory. The player can choose **Rematch · invite this crowd**. The server creates at most one official rematch. Everyone watching the completed match receives a **Follow the rematch** link, without another QR or automatic enrolment. Spectators may instead choose **Your turn to play**. Old memory links retain the original result; new match energy/effects start fresh. The public screen route projects the same state without player controls and can open the next stage.
+
+Gilli calibrates its display with three read-only server-clock samples when connecting or returning to the foreground. A wrong device date no longer shifts the contact window. This is an approximate display clock: contact and scoring are still measured and validated exclusively on the server, and a slow connection can still affect play. Stronger swings show a narrower gold window. Dots supports Tab/Enter, visible focus and a highlighted last line.
 
 ## Validation boundaries
 
-106 deterministic tests, real three-client new-game checks, full Book Cricket match regression and four-client Pen Fight agent/crowd regression passed. Desktop and 390px spectator screens were inspected. Gilli is a stylized 2D timing game, not a 3D physics simulation. High-latency feel and broader device testing remain useful before merging. Preview email/magic-link configuration is separate from production.
+108 deterministic tests, real three-client new-game/rematch/clock checks, full Book Cricket match regression and four-client Pen Fight agent/crowd regression passed. Desktop and 390px spectator screens were inspected, including a wrong-device-clock Gilli completion and spectator rematch navigation. Gilli is a stylized 2D timing game, not a 3D physics simulation. High-latency feel and broader device testing remain useful. Preview email/magic-link configuration is separate from production.

@@ -396,6 +396,13 @@ export const PlayerProfile = __t.object("PlayerProfile", {
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
 
+export const PlaygroundRematch = __t.object("PlaygroundRematch", {
+  previousMatchId: __t.u64(),
+  nextMatchId: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type PlaygroundRematch = __Infer<typeof PlaygroundRematch>;
+
 export const ProfileLinkChallenge = __t.object("ProfileLinkChallenge", {
   nonce: __t.string(),
   sourceIdentity: __t.identity(),

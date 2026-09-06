@@ -31,6 +31,7 @@ export function usePlaygroundMatch(matchId: bigint, screen = false) {
     );
   return {
     match,
+    identity,
     humanName,
     isPlayer,
     isSpectator,
@@ -52,13 +53,47 @@ export function PlaygroundMatch({
   children: ReactNode;
   onBack: () => void;
 }) {
-  const { match, humanName, isPlayer, isSpectator, connected, spectators } =
-    usePlaygroundMatch(matchId, screen);
+  const {
+    match,
+    identity,
+    humanName,
+    isPlayer,
+    isSpectator,
+    connected,
+    spectators,
+  } = usePlaygroundMatch(matchId, screen);
   const [crowds] = useTable(tables.matchCrowd);
   const [cooldowns] = useTable(tables.ownSpectatorCooldown);
   const [effects] = useTable(tables.visibleCrowdEffects);
   const [memories] = useTable(tables.matchMemory);
   const [profiles] = useTable(tables.melaProfile);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [matchId]);
+  const [rematches] = useTable(tables.playgroundRematch);
+  const [matches] = useTable(tables.match);
+  const [ownAfter, setOwnAfter] = useState<bigint>();
+  const nextMatchId = rematches.find(
+    (r) => r.previousMatchId === matchId,
+  )?.nextMatchId;
+  const nextMatch = matches.find((m) => m.id === nextMatchId);
+  useEffect(() => {
+    if (ownAfter === undefined) return;
+    const created = matches.find(
+      (m) =>
+        m.id > ownAfter &&
+        identity?.isEqual(m.playerIdentity) &&
+        m.status === "active",
+    );
+    if (created)
+      location.assign(`${import.meta.env.BASE_URL}?join=${created.id}`);
+  }, [matches, ownAfter, identity]);
+  const rematch = useReducer(reducers.rematchPlayground);
+  const [requestedRematch, setRequestedRematch] = useState(false);
+  useEffect(() => {
+    if (requestedRematch && nextMatchId)
+      location.assign(`${import.meta.env.BASE_URL}?join=${nextMatchId}`);
+  }, [requestedRematch, nextMatchId]);
   const [events, setEvents] = useState<Array<{ key: string; message: string }>>(
     [],
   );
@@ -100,6 +135,11 @@ export function PlaygroundMatch({
   }, []);
   const crowd = crowds.find((c) => c.matchId === matchId),
     memory = memories.find((m) => m.matchId === matchId);
+  useEffect(() => {
+    setNotice("");
+    setError("");
+  }, [memory?.matchId]);
+  const myProfile = profiles.find((p) => identity?.isEqual(p.identity));
   const powers: PlaygroundPower[] =
     match?.gameKind === "dots_boxes"
       ? ["chain_break", "cheer"]
@@ -173,27 +213,93 @@ export function PlaygroundMatch({
           <p>{memory.notableMoment.replace(/You/g, memory.humanName)}</p>
           <p>
             {memory.humanName} {memory.humanScore} · {memory.aiName}{" "}
-            {memory.botScore} · {memory.crowdActions} crowd moves
+            {memory.botScore} · {memory.crowdActions} crowd{" "}
+            {memory.crowdActions === 1 ? "move" : "moves"}
           </p>
-          <p>
-            {humanName}'s Mela journey: level{" "}
-            {profiles.find((p) => match?.playerIdentity.isEqual(p.identity))
-              ?.melaLevel ?? 1}
-            . Player skill and crowd influence stay separate.
-          </p>
-          {!screen && (
+          {!screen && myProfile && (
+            <p className="pg-personal-memory">
+              {isSpectator
+                ? `You were part of this crowd. ${myProfile.matchesWatched} ${myProfile.matchesWatched === 1 ? "match" : "matches"} watched · ${myProfile.crowdInfluence} crowd influence.`
+                : `Your Mela journey continues. Level ${myProfile.melaLevel} · ${myProfile.matchesPlayed} ${myProfile.matchesPlayed === 1 ? "match" : "matches"} played.`}
+            </p>
+          )}
+          {nextMatchId ? (
+            <div className="pg-next-match">
+              <p className="eyebrow">THE SAME CROWD. A FRESH CHALLENGE.</p>
+              <h3>{humanName} has opened the rematch.</h3>
+              <p>
+                Your saved result stays here. Join the next match when you’re
+                ready.
+              </p>
+              <a
+                className="primary pg-next-link"
+                href={
+                  screen
+                    ? `/#/screen?match=${nextMatchId}`
+                    : `${import.meta.env.BASE_URL}?${nextMatch?.status === "active" ? "join" : "memory"}=${nextMatchId}`
+                }
+              >
+                {screen
+                  ? "Show the rematch →"
+                  : nextMatch?.status !== "active"
+                    ? "See the next result →"
+                    : isPlayer
+                      ? "Enter your rematch →"
+                      : "Follow the rematch →"}
+              </a>
+            </div>
+          ) : isPlayer && !screen ? (
             <button
               className="primary"
               disabled={!!busy || !connected}
               onClick={() =>
                 action(
                   "rematch",
-                  () => (match?.gameKind === "dots_boxes" ? dots() : gilli()),
-                  "New match started.",
+                  async () => {
+                    await rematch({ matchId });
+                    setRequestedRematch(true);
+                  },
+                  "Your rematch is ready. The crowd has been invited.",
                 )
               }
             >
-              Play again →
+              Rematch · invite this crowd →
+            </button>
+          ) : (
+            !screen && (
+              <div className="pg-next-match">
+                <h3>Stay for the next one.</h3>
+                <p>
+                  If {humanName} starts a rematch, your invitation will appear
+                  here. No new QR needed.
+                </p>
+              </div>
+            )
+          )}
+          {!screen && !isPlayer && myProfile && (
+            <button
+              disabled={!!busy || !connected}
+              onClick={() =>
+                action(
+                  "play",
+                  async () => {
+                    const latest = matches.reduce(
+                      (max, m) => (m.id > max ? m.id : max),
+                      0n,
+                    );
+                    await (match?.gameKind === "dots_boxes" ? dots() : gilli());
+                    setOwnAfter(latest);
+                  },
+                  "Your own match is ready.",
+                )
+              }
+            >
+              Your turn to play →
+            </button>
+          )}
+          {!screen && !myProfile && (
+            <button className="primary" onClick={onBack}>
+              Join Mela to play →
             </button>
           )}
           <button

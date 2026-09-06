@@ -41,6 +41,7 @@ async function connect(name: string, token?: string) {
         "SELECT * FROM live_event",
         "SELECT * FROM book_cricket_state",
         "SELECT * FROM pen_desk_state",
+        "SELECT * FROM playground_rematch",
       ]),
   );
   if (!token)
@@ -54,6 +55,10 @@ try {
   const player = await connect("GridAsha"),
     a = await connect("CrowdNila"),
     b = await connect("CrowdIra");
+  const firstClock = await player.procedures.playgroundClock({});
+  const secondClock = await player.procedures.playgroundClock({});
+  assert.ok(secondClock >= firstClock);
+  assert.ok(Math.abs(Number(secondClock / 1000n) - Date.now()) < 5000);
   const events: string[] = [];
   player.db.liveEvent.onInsert((_c, e) => events.push(e.message));
   const latest = () =>
@@ -244,6 +249,14 @@ try {
   const bid = [...returning.db.match.iter()].sort((a, b) =>
     Number(b.id - a.id),
   )[0].id;
+  await assert.rejects(() =>
+    returning.reducers.rematchPlayground({ matchId: gid }),
+  );
+  assert.equal(
+    returning.db.match.id.find(bid)!.status,
+    "active",
+    "old rematch cannot abandon Book Cricket",
+  );
   while (returning.db.bookCricketState.matchId.find(bid)?.turn === "human")
     await returning.reducers.playBall({ matchId: bid, style: "safe" });
   await until(
@@ -252,6 +265,49 @@ try {
     30000,
   );
   console.log("Book Cricket full human/bot completion regression PASS");
+  await assert.rejects(() => a.reducers.rematchPlayground({ matchId: gid }));
+  await assert.rejects(() =>
+    returning.reducers.rematchPlayground({ matchId: bid }),
+  );
+  const count = [...returning.db.match.iter()].length;
+  await Promise.all([
+    returning.reducers.rematchPlayground({ matchId: gid }),
+    returning.reducers.rematchPlayground({ matchId: gid }),
+  ]);
+  const rematchId =
+    returning.db.playgroundRematch.previousMatchId.find(gid)!.nextMatchId;
+  assert.equal(
+    [...returning.db.match.iter()].length,
+    count + 1,
+    "duplicate request creates exactly one match",
+  );
+  await until(
+    () =>
+      [a, b].every(
+        (c) =>
+          c.db.playgroundRematch.previousMatchId.find(gid)?.nextMatchId ===
+          rematchId,
+      ),
+    "rematch invitation converges",
+  );
+  await a.reducers.joinMatchAsSpectator({ matchId: rematchId });
+  await a.reducers.useExperimentalCrowdPower({
+    matchId: rematchId,
+    power: "rhythm",
+    target: "human",
+  });
+  await assert.rejects(() =>
+    returning.reducers.rematchPlayground({ matchId: rematchId }),
+  );
+  assert.equal(
+    returning.db.matchMemory.matchId.find(gid)!.humanScore,
+    gs.humanScore,
+  );
+  await returning.reducers.rematchPlayground({ matchId: gid });
+  assert.equal(returning.db.match.id.find(rematchId)!.status, "active");
+  console.log(
+    "Read-only server clock; rematch ownership, duplicate, active-game protection, spectator invitation/follow/power and retained memory PASS",
+  );
   console.log("All real-client playground checks PASS");
 } finally {
   for (const c of connections) c.disconnect();
