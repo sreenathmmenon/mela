@@ -1,8 +1,9 @@
+import { sweepPens } from "./penGeometry";
 export const PEN_FIGHT_RULES = {
   arenaSize: 1000,
-  /** Drawing size of a pen. Not used for collision — see `contactRadius`. */
+  /** Legacy presentation size; the 3D collision footprint lives in penGeometry. */
   penRadius: 58,
-  /** Two pens touch when the flick path passes within this of the target. */
+  /** AI approach-distance heuristic, not a collision boundary. */
   contactRadius: 66,
   openingForceMax: 66,
   minForce: 20,
@@ -157,6 +158,7 @@ export function penTravelForForce(force: number) {
 }
 
 export function resolvePenFlick(input: {
+  actorSide?: PenSide;
   seed: bigint;
   actorX: number;
   actorY: number;
@@ -207,14 +209,15 @@ export function resolvePenFlick(input: {
 
   const travel = penTravelForForce(power) * (1 + jitter);
 
-  // Swept collision: closest approach of the travel segment to the target pen.
-  const toTargetX = input.targetX - input.actorX;
-  const toTargetY = input.targetY - input.actorY;
-  const along = Math.max(0, Math.min(travel, toTargetX * vx + toTargetY * vy));
-  const missX = input.actorX + vx * along - input.targetX;
-  const missY = input.actorY + vy * along - input.targetY;
-  const miss = Math.hypot(missX, missY);
-  const hit = miss <= PEN_FIGHT_RULES.contactRadius;
+  // Sweep the two full pen bodies, using the renderer's mirrored orientations.
+  const collision = sweepPens(
+    { x: input.actorX, y: input.actorY },
+    { x: input.targetX, y: input.targetY },
+    { x: vx, y: vy },
+    travel,
+    input.actorSide ?? "human",
+  );
+  const hit = Boolean(collision);
 
   let actorX = input.actorX + vx * travel;
   let actorY = input.actorY + vy * travel;
@@ -223,11 +226,8 @@ export function resolvePenFlick(input: {
   let contactX = actorX;
   let contactY = actorY;
 
-  if (hit) {
-    const back = Math.sqrt(
-      Math.max(0, PEN_FIGHT_RULES.contactRadius ** 2 - miss * miss),
-    );
-    const contactT = Math.max(0, along - back);
+  if (collision) {
+    const contactT = collision.distance;
     const hitX = input.actorX + vx * contactT;
     const hitY = input.actorY + vy * contactT;
     contactX = hitX;
@@ -235,8 +235,8 @@ export function resolvePenFlick(input: {
     const remaining = Math.max(0, travel - contactT);
 
     // Normal points from the touch point into the struck pen.
-    let nx = input.targetX - hitX;
-    let ny = input.targetY - hitY;
+    let nx = collision.normal.x;
+    let ny = collision.normal.y;
     const nLen = Math.max(1e-6, Math.hypot(nx, ny));
     nx /= nLen;
     ny /= nLen;

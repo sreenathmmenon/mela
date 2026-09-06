@@ -23,11 +23,13 @@ const base = {
 test("shot presentation retains the exact collision point and unclamped exits", () => {
   const contact = resolvePenFlick(base);
   assert.equal(contact.hit, true);
-  assert.ok(
-    Math.abs(
-      Math.hypot(contact.motion.contactX - 740, contact.motion.contactY - 500) -
-        66,
-    ) < 0.001,
+  assert.ok(contact.motion.contactX > base.actorX);
+  assert.ok(contact.motion.contactX < base.targetX);
+  const short = resolvePenFlick({ ...base, force: 20 });
+  assert.equal(
+    short.hit,
+    false,
+    "an aligned shot still needs enough strength to reach",
   );
   assert.equal(Math.round(contact.motion.actorX), contact.actorX);
   const exit = resolvePenFlick({ ...base, force: 100 });

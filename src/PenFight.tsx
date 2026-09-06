@@ -27,6 +27,7 @@ import "./pens.css";
 import "./penFightExperience.css";
 import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
 import { boundedAim, canGrabPen } from "./penFightInput";
+import { penAimPoint } from "../spacetimedb/src/penGeometry";
 import {
   PEN_MOTION_PREFIX,
   readPenMotion,
@@ -808,6 +809,42 @@ export function PenFight({
       </section>
       {owns && !completed && (
         <section className="flick-controls">
+          <fieldset
+            className="pen-target-controls"
+            disabled={
+              pending || moving || !conn.isActive || state.turn !== "human"
+            }
+          >
+            <legend>Aim at their pen</legend>
+            {(
+              [
+                [-150, "Cap"],
+                [0, "Middle"],
+                [150, "Tip"],
+              ] as const
+            ).map(([offset, label]) => {
+              const point = penAimPoint(
+                { x: state.botX, y: state.botY },
+                "melabot",
+                offset,
+              );
+              const x = Math.max(0, Math.min(1000, Math.round(point.x))),
+                y = Math.max(0, Math.min(1000, Math.round(point.y)));
+              return (
+                <button
+                  key={label}
+                  aria-pressed={aim.x === x && aim.y === y}
+                  onClick={() => setAim({ x, y })}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            <small>
+              Choose a spot, then adjust strength and flick. Side contacts can
+              glance.
+            </small>
+          </fieldset>
           <p className="eyebrow">
             {moving
               ? "LET THE PENS SETTLE"

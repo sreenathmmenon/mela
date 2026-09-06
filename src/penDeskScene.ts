@@ -208,6 +208,18 @@ export function createDeskScene(
     24,
   );
   scene.add(arrow);
+  const aimMarker = mesh(
+    new T.RingGeometry(12, 17, 32),
+    new T.MeshBasicMaterial({
+      color: "#fff8dd",
+      side: T.DoubleSide,
+      depthTest: false,
+    }),
+    scene,
+  );
+  aimMarker.rotation.x = -Math.PI / 2;
+  aimMarker.renderOrder = 21;
+  aimMarker.castShadow = false;
   const shaft = mesh(
     new T.CylinderGeometry(3, 3, 1, 8),
     new T.MeshBasicMaterial({ color: "#087e83" }),
@@ -326,6 +338,8 @@ export function createDeskScene(
       shaft.visible =
         frame.interactive && progress >= 1;
     ring.position.set(h.x - 500, 2, h.y - 500);
+    aimMarker.visible = frame.interactive && progress >= 1;
+    aimMarker.position.set(frame.aim.x - 500, 26, frame.aim.y - 500);
     ring.scale.setScalar(frame.aiming ? 1.12 : 1);
     finger.visible = tether.visible =
       frame.aiming && !!frame.pull && progress >= 1;

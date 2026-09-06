@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { DeskPoint } from "../spacetimedb/src/penFightMotion";
 
-// Presentation dimensions only. The authoritative game remains a 1000-unit board.
+// Shared pen dimensions. The authoritative game remains a 1000-unit board.
 export { PEN_LENGTH, PEN_SCALE } from "./penFightInput";
 export function deskCamera(aspect: number) {
   const camera = new PerspectiveCamera(38, aspect, 1, 6000);

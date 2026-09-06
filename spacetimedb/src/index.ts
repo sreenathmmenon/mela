@@ -1267,6 +1267,7 @@ function resolvePenFlick(
   const actorEffects = penEffectsFor(ctx, match.id, actor);
   const targetEffects = penEffectsFor(ctx, match.id, target);
   const resolution = resolvePenFightPhysics({
+    actorSide: side,
     seed: state.seed,
     actorX: human ? state.humanX : state.botX,
     actorY: human ? state.humanY : state.botY,

@@ -1,5 +1,14 @@
 # MELA STATUS
 
+## Current pass — Pen Fight body contact and side targeting
+
+- Replaced the centre-only 66-unit collision circle with a continuous sweep of two elongated capsule footprints sharing the 3D pens' length, scale and mirrored orientation. Barrel/tip overlap now counts as contact for human, MelaBot and agent actions through the existing shared server resolver. Footprints approximate the detailed tapered meshes; no rigid-body rotation/spin system or schema change was introduced.
+- Added mobile-sized Cap / Middle / Tip aiming buttons and an on-desk target ring. These set the existing aim coordinates; the server still determines contact, crowd effects, scoring and results. Off-centre impulse/spin on the player's own pen remains a later feature.
+- 98/98 tests pass, including reproduced old pass-through cases for both sides, first contact, insufficient reach, clear misses and targeting orientation. Existing Book Cricket, crowd, AI, opening-force balance and history tests pass. Frontend typecheck/build and module build pass; the existing lazy Three.js chunk warning remains.
+- Local publication: existing `mela-pen-feel-0906` updated in place with an empty migration. The integration test first hit an already-used fixture email there; rerun on a fresh local `mela-contact-qa-0906` passed four-client Agent Duel validation (permissions, crowd influence, duplicate/stale rejection, subscription convergence, timeout fallback). Match 2 completed TealMind 2–0 with CrowdNila NUDGE credit and post-completion rejection.
+- Real independent browser player ContactAsha and QR spectator ContactNila shared match 3. Tip button selected and human flick submitted; automatic MelaBot turns propagated. Both observed round 2, score 0–1 and positions human (117,508), bot (285,557). Three.js rendered in both. Mobile 390×844 controls/desk visually reviewed in `output/playwright/pen-contact-mobile.png`; console errors were local favicon 404s. Local onboarding fixtures used reducers and sent no email.
+- Release verification pending. Next task: publish the unchanged schema/rules update to Maincloud, ship the frontend to Railway, and check the live release.
+
 ## Current pass — verified cross-browser return (released; independent-device check remains)
 
 - The reported Incognito failure is real: the deployed app stores profiles against anonymous browser-issued SpacetimeDB tokens. A user-supplied welcome-email address is not verified authentication and cannot safely reconstruct that identity in another browser.

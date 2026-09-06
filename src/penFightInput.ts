@@ -1,9 +1,12 @@
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
 
-// Shared presentation geometry, not authoritative collision dimensions.
-export const PEN_LENGTH = 350;
-export const PEN_SCALE = 1.2;
-export const HUMAN_PEN_YAW = 0.12;
+// One footprint for rendered pens, input targeting and authoritative contact.
+import {
+  PEN_LENGTH,
+  PEN_SCALE,
+  HUMAN_PEN_YAW,
+} from "../spacetimedb/src/penGeometry";
+export { PEN_LENGTH, PEN_SCALE, HUMAN_PEN_YAW };
 
 /** Intersect the whole ray with the board, rather than clipping its axes
  * separately. Axis clipping changes the angle precisely where aim matters most. */

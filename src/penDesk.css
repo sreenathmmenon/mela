@@ -253,6 +253,29 @@
   pointer-events: none;
   overflow: hidden;
 }
+.pen-target-controls {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pen-target-controls legend {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.pen-target-controls button {
+  flex: 1;
+  min-height: 48px;
+}
+.pen-target-controls button[aria-pressed="true"] {
+  background: #183c3e;
+  color: #fff8e7;
+}
+.pen-target-controls small {
+  flex-basis: 100%;
+}
 .three-desk canvas {
   display: block;
   width: 100%;
