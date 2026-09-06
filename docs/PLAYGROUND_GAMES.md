@@ -1,7 +1,7 @@
 # Mela games lab
 
-Isolated preview: https://mela-games-lab-production.up.railway.app
-Development began on `codex/small-games-research`. Sreenath has now authorized the verified main release. Check STATUS.md for actual deployment evidence; an authorization is not a deployment result.
+Live app: https://mela-web-production.up.railway.app
+Released on main in `1225e74` after Sreenath approved integration. Maincloud/Railway verification is recorded in STATUS.md. The older isolated lab is no longer the latest release target.
 
 ## Dots & Boxes
 
