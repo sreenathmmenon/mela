@@ -25,6 +25,29 @@ export function legacyEmail(identity: string): string {
   return `${identity.toLowerCase()}@users.invalid`;
 }
 
+/**
+ * Decide what to do with a private contact before a profile exists. A contact
+ * can be written by an interrupted welcome flow, but it is not a person or a
+ * claim on an email until the profile reducer commits. Only that incomplete
+ * state may be repaired or replaced; established profiles remain immutable.
+ */
+export function emailOnboardingPlan(input: {
+  hasProfile: boolean;
+  address: string;
+  contact?: { email: string; source: string };
+}): "insert" | "keep" | "replace" | "reject" {
+  if (!input.contact) return "insert";
+  if (!input.hasProfile)
+    return input.contact.email === input.address &&
+      input.contact.source === "user_supplied"
+      ? "keep"
+      : "replace";
+  return input.contact.email === input.address &&
+    input.contact.source === "user_supplied"
+    ? "keep"
+    : "reject";
+}
+
 export function migrateLegacyContacts(ctx: any) {
   if (ctx.db.emailMigration.id.find(1)) return;
   for (const profile of ctx.db.playerProfile.iter()) {

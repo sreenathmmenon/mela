@@ -566,6 +566,46 @@ export function PenFight({
           <strong>{state.botRounds}</strong> {duel?.rightName ?? "MelaBot"}
         </span>
       </section>
+      <section
+        className="pen-join pen-join-visible"
+        aria-label="Invite the crowd"
+      >
+        <QRCodeSVG
+          value={url(match.id, completed)}
+          size={116}
+          aria-label={
+            completed
+              ? "QR code to revisit this duel"
+              : "QR code to join this match as a spectator"
+          }
+        />
+        <div>
+          <strong>
+            {completed ? "THIS WAS OUR DESK" : "SCAN · JOIN THE CROWD"}
+          </strong>
+          <span>
+            {completed
+              ? "Scan to revisit this duel."
+              : "Friends can watch live and change the next flick."}
+          </span>
+          <a href={url(match.id, completed)}>
+            {completed ? "Open remembered duel" : "Open crowd link"}
+          </a>
+          <button
+            className="secondary"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(url(match.id, completed));
+                setNote("Desk link copied. Invite your crowd.");
+              } catch {
+                setNote("Copy the match link above to invite a friend.");
+              }
+            }}
+          >
+            Copy desk link
+          </button>
+        </div>
+      </section>
       <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
         <div className="pen-turn">
           <strong>
@@ -1134,43 +1174,6 @@ export function PenFight({
           )}
         </section>
       )}
-      <section className="pen-join">
-        <QRCodeSVG
-          value={url(match.id, completed)}
-          size={92}
-          aria-label={
-            completed
-              ? "QR code to revisit this duel"
-              : "QR code to join this match as a spectator"
-          }
-        />
-        <div>
-          <strong>
-            {completed ? "THIS WAS OUR DESK" : "SAVE A CHAIR FOR A FRIEND"}
-          </strong>
-          <span>
-            {completed
-              ? "Scan to revisit this duel."
-              : "Send them this desk. Their next move could change yours."}
-          </span>
-          <a href={url(match.id, completed)}>
-            {completed ? "Open remembered duel" : "Open crowd link"}
-          </a>
-          <button
-            className="secondary"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(url(match.id, completed));
-                setNote("Desk link copied. Invite your crowd.");
-              } catch {
-                setNote("Copy the match link above to invite a friend.");
-              }
-            }}
-          >
-            Copy desk link
-          </button>
-        </div>
-      </section>
     </main>
   );
 }

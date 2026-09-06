@@ -611,10 +611,12 @@ function App() {
       setError(null);
       setFeedback(
         body.existing
-          ? "Welcome back. Your games and memories are ready."
+          ? "Your Mela profile is already ready on this device."
           : requestedJoinMatchId
             ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
-            : "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game.",
+            : body.emailStatus === "sent"
+              ? "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game."
+              : "Welcome to Mela. Your profile is ready; your welcome email is delayed, but you can play now.",
       );
     } catch (reason) {
       setError(

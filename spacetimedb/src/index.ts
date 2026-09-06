@@ -49,7 +49,11 @@ import {
   spectatorJoinDelta,
 } from "./melaMetrics";
 import { checkDisplayName } from "./displayNameRules";
-import { realEmail, migrateLegacyContacts } from "./emailRules";
+import {
+  emailOnboardingPlan,
+  realEmail,
+  migrateLegacyContacts,
+} from "./emailRules";
 import {
   PEN_FIGHT_POWERS,
   PEN_FIGHT_RULES,
@@ -1757,14 +1761,42 @@ export const onboardWithEmail = spacetimedb.reducer(
     } catch {
       throw new SenderError("Enter a valid email address.");
     }
+    // Email is private contact data, but a completed Mela profile may not
+    // share it with another identity. The scan is deliberately inside this
+    // reducer transaction, so concurrent first registrations cannot both win.
+    const usedByAnotherProfile = Array.from(ctx.db.emailContact.iter()).some(
+      (contact: any) =>
+        contact.email === address &&
+        !contact.identity.isEqual(ctx.sender) &&
+        Boolean(ctx.db.playerProfile.identity.find(contact.identity)),
+    );
+    if (usedByAnotherProfile)
+      throw new SenderError(
+        "This email is already connected to another Mela profile.",
+      );
     const old = ctx.db.emailContact.identity.find(ctx.sender);
-    // Retry-safe; never silently replace an existing person's contact.
-    if (old && (old.source !== "user_supplied" || old.email !== address))
+    const hasProfile = Boolean(ctx.db.playerProfile.identity.find(ctx.sender));
+    const plan = emailOnboardingPlan({
+      hasProfile,
+      address,
+      contact: old,
+    });
+    // A completed profile keeps its original private contact. The sole repair
+    // path is an interrupted signup with no profile/history at all.
+    if (plan === "reject")
       throw new SenderError(
         "This identity is already registered. Rejoin your existing profile.",
       );
+    if (old && plan === "replace")
+      ctx.db.emailContact.identity.update({
+        ...old,
+        email: address,
+        source: "user_supplied",
+        verified: false,
+        createdAt: ctx.timestamp,
+      });
     onboardProfile(ctx, displayName);
-    if (!old)
+    if (plan === "insert")
       ctx.db.emailContact.insert({
         identity: ctx.sender,
         email: address,

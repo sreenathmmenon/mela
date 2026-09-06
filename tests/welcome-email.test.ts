@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import {
+  emailOnboardingPlan,
   realEmail,
   legacyEmail,
   migrateLegacyContacts,
@@ -25,6 +26,40 @@ test("legacy contacts are unique, unverified, non-deliverable and never accepted
     assert.throws(() => realEmail(email));
     assert.throws(() => parseRecap({ email, matchId: "7", consent: true }));
   }
+});
+test("only an incomplete contact can be repaired with a new email", () => {
+  assert.equal(
+    emailOnboardingPlan({
+      hasProfile: false,
+      address: "new@example.com",
+      contact: { email: "old@example.com", source: "user_supplied" },
+    }),
+    "replace",
+  );
+  assert.equal(
+    emailOnboardingPlan({
+      hasProfile: false,
+      address: "new@example.com",
+      contact: { email: "old@users.invalid", source: "legacy_placeholder" },
+    }),
+    "replace",
+  );
+  assert.equal(
+    emailOnboardingPlan({
+      hasProfile: true,
+      address: "new@example.com",
+      contact: { email: "old@example.com", source: "user_supplied" },
+    }),
+    "reject",
+  );
+  assert.equal(
+    emailOnboardingPlan({
+      hasProfile: true,
+      address: "old@example.com",
+      contact: { email: "old@example.com", source: "user_supplied" },
+    }),
+    "keep",
+  );
 });
 test("legacy migration covers existing profiles exactly once and preserves real contacts and world rows", () => {
   let migrated = false;
@@ -150,25 +185,30 @@ async function fixture(
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
-test("real HTTP flow authenticates, sends, then enrolls; retries do not send twice", async () => {
+test("real HTTP flow commits the profile before delivery; retries do not send twice", async () => {
   const f = await fixture();
   try {
     assert.equal((await f.post()).status, 200);
-    assert.deepEqual(f.calls, ["authenticate", "send", "enroll", "close"]);
+    assert.deepEqual(f.calls, ["authenticate", "enroll", "send", "close"]);
     assert.equal((await f.post()).status, 200);
     assert.equal(f.calls.filter((x) => x === "send").length, 1);
   } finally {
     await f.close();
   }
 });
-test("provider failure never enrolls a new user or claims success", async () => {
+test("provider failure keeps a new user's committed profile and reports delayed email", async () => {
   const f = await fixture({
     fetch: (async () =>
       new Response("failure", { status: 500 })) as typeof fetch,
   });
   try {
-    assert.equal((await f.post()).status, 502);
-    assert.deepEqual(f.calls, ["authenticate", "close"]);
+    const response = await f.post();
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accepted: true,
+      emailStatus: "delayed",
+    });
+    assert.deepEqual(f.calls, ["authenticate", "enroll", "close"]);
   } finally {
     await f.close();
   }
@@ -205,7 +245,35 @@ test("stale signup for an existing identity resumes without emailing or changing
     await f.close();
   }
 });
-test("bad origins, sessions, placeholders and missing config cannot send", async () => {
+test("a contact without a completed profile resumes enrolment instead of claiming a false return", async () => {
+  const calls: string[] = [];
+  const f = await fixture({
+    session: async () => ({
+      identity: "interrupted-enrolment",
+      // This models a contact created before an interrupted profile commit.
+      existing: false,
+      enroll: async () => {
+        calls.push("resume-enroll");
+      },
+      close: () => calls.push("close"),
+    }),
+  });
+  try {
+    const response = await f.post();
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accepted: true,
+      emailStatus: "sent",
+    });
+    assert.deepEqual(
+      [...calls, ...f.calls],
+      ["resume-enroll", "close", "send"],
+    );
+  } finally {
+    await f.close();
+  }
+});
+test("bad origins, sessions and placeholders cannot register or send", async () => {
   const f = await fixture();
   try {
     assert.equal(
@@ -232,7 +300,13 @@ test("bad origins, sessions, placeholders and missing config cannot send", async
   }
   const off = await fixture({ apiKey: undefined });
   try {
-    assert.equal((await off.post()).status, 503);
+    const response = await off.post();
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accepted: true,
+      emailStatus: "delayed",
+    });
+    assert.deepEqual(off.calls, ["authenticate", "enroll", "close"]);
   } finally {
     await off.close();
   }
@@ -262,7 +336,7 @@ test("concurrent identical welcomes are serialized and rate budgets reject abuse
     await f.close();
   }
 });
-test("enrollment failure after provider acceptance retries without resending", async () => {
+test("enrollment failure returns no registration and a later retry sends once", async () => {
   let attempts = 0;
   const f = await fixture({
     session: async () => ({
@@ -274,7 +348,7 @@ test("enrollment failure after provider acceptance retries without resending", a
     }),
   });
   try {
-    assert.equal((await f.post()).status, 503);
+    assert.equal((await f.post()).status, 409);
     assert.equal((await f.post()).status, 200);
     assert.equal(f.calls.filter((x) => x === "send").length, 1);
   } finally {

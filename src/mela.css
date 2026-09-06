@@ -2166,6 +2166,12 @@ button:disabled {
   background: var(--wash);
   color: var(--ink);
 }
+.pen-join-visible {
+  margin: var(--s3) 0 var(--s5);
+  border-style: solid;
+  border-color: var(--honey-text);
+  background: var(--honey-wash);
+}
 .pen-join svg {
   padding: 6px;
   border-radius: var(--radius-s);
@@ -2983,6 +2989,14 @@ button:disabled {
   .pen-join {
     align-items: start;
     flex-direction: column;
+  }
+  .pen-join-visible {
+    align-items: center;
+    text-align: center;
+  }
+  .pen-join-visible svg {
+    width: min(100%, 180px);
+    height: auto;
   }
   .screen-shell {
     padding: var(--s5);

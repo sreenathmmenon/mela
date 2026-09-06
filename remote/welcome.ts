@@ -38,6 +38,7 @@ export function welcomeMessage(origin: string) {
 
 type Session = {
   identity: string;
+  /** A profile, not merely a contact record, means this identity can return. */
   existing?: boolean;
   enroll: () => Promise<void>;
   close: () => void;
@@ -74,12 +75,18 @@ export function welcomeSession(
           .subscriptionBuilder()
           .onApplied(() => {
             if (done) return;
-            const contact = Array.from(connection.db.myEmailContact.iter())[0];
+            // A welcome email may have been accepted before the profile reducer
+            // committed (for example a tab closed during enrolment). A contact
+            // alone is not a usable Mela profile. Calling that person
+            // "Welcome back" strands a fresh browser on an empty identity.
+            const profile = Array.from(connection.db.playerProfile.iter()).find(
+              (row) => row.identity.toHexString() === identity.toHexString(),
+            );
             done = true;
             clearTimeout(timer);
             resolve({
               identity: identity.toHexString(),
-              existing: Boolean(contact),
+              existing: Boolean(profile),
               enroll: () =>
                 connection.reducers.onboardWithEmail({
                   displayName: name,
@@ -89,7 +96,10 @@ export function welcomeSession(
             });
           })
           .onError(fail)
-          .subscribe("SELECT * FROM my_email_contact");
+          .subscribe([
+            "SELECT * FROM my_email_contact",
+            "SELECT * FROM player_profile",
+          ]);
       })
       .onConnectError(fail)
       .build();
@@ -137,11 +147,6 @@ export function createWelcomeHandler(options: Options) {
         throw new RecapError(405, "Use the join form.");
       if (req.headers.origin !== options.origin)
         throw new RecapError(403, "Join from the Mela app.");
-      if (!options.apiKey || !options.from)
-        throw new RecapError(
-          503,
-          "Welcome email is temporarily unavailable. Please try again shortly.",
-        );
       if (!req.headers["content-type"]?.startsWith("application/json"))
         throw new RecapError(400, "Use the join form.");
       take("requests", 60, 60000);
@@ -178,50 +183,17 @@ export function createWelcomeHandler(options: Options) {
       pending.add(key);
       active++;
       session = await (options.session || welcomeSession)(token, name, email);
-      // A stale signup form must not turn a valid returning identity into an
-      // error, replace its contact, or send mail to newly typed details.
+      // A stale form must not rewrite a real returning profile or send mail
+      // to newly typed details. `existing` means a committed profile, not
+      // just an email contact from an interrupted signup.
       if (session.existing) {
         json(200, { accepted: false, existing: true });
         return true;
       }
       take(`identity:${hash(session.identity)}`, 5, 86400000);
-      for (const [k, until] of accepted) if (until <= now()) accepted.delete(k);
-      if (!accepted.has(key)) {
-        take(`email:${hash(email)}`, 3, 86400000);
-        take("sends", 100, 86400000);
-        const result = await (options.fetch || fetch)(
-          "https://api.resend.com/emails",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${options.apiKey}`,
-              "Content-Type": "application/json",
-              "Idempotency-Key": key,
-            },
-            body: JSON.stringify({
-              from: options.from,
-              to: [email],
-              ...welcomeMessage(options.origin),
-            }),
-            signal: AbortSignal.timeout(10000),
-          },
-        );
-        if (!result.ok)
-          throw new RecapError(
-            502,
-            "Your welcome email could not be sent. Please try again.",
-          );
-        const data = (await result.json()) as { id?: string };
-        if (!data.id)
-          throw new RecapError(
-            502,
-            "Email acceptance could not be confirmed. Please retry.",
-          );
-        accepted.set(key, now() + 86400000);
-        console.info("Mela welcome accepted by email provider", {
-          deliveryId: data.id,
-        });
-      }
+      // Registration is the authoritative reducer transaction. It comes
+      // before delivery: a provider outage must not make a valid person lose
+      // their Mela profile or force them into a fake "returning" state.
       let enrollmentTimer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
@@ -233,10 +205,56 @@ export function createWelcomeHandler(options: Options) {
             );
           }),
         ]);
+      } catch {
+        throw new RecapError(
+          409,
+          "Mela could not create this profile. No registration was made. Use a different email or return to the browser where this email first joined Mela.",
+        );
       } finally {
         if (enrollmentTimer) clearTimeout(enrollmentTimer);
       }
-      json(200, { accepted: true });
+      for (const [k, until] of accepted) if (until <= now()) accepted.delete(k);
+      let emailStatus: "sent" | "delayed" = "delayed";
+      if (!accepted.has(key)) {
+        if (options.apiKey && options.from) {
+          try {
+            take(`email:${hash(email)}`, 3, 86400000);
+            take("sends", 100, 86400000);
+            const result = await (options.fetch || fetch)(
+              "https://api.resend.com/emails",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${options.apiKey}`,
+                  "Content-Type": "application/json",
+                  "Idempotency-Key": key,
+                },
+                body: JSON.stringify({
+                  from: options.from,
+                  to: [email],
+                  ...welcomeMessage(options.origin),
+                }),
+                signal: AbortSignal.timeout(10000),
+              },
+            );
+            if (!result.ok) throw new Error("Provider rejected welcome");
+            const data = (await result.json()) as { id?: string };
+            if (!data.id) throw new Error("Provider omitted delivery id");
+            accepted.set(key, now() + 86400000);
+            emailStatus = "sent";
+            console.info("Mela welcome accepted by email provider", {
+              deliveryId: data.id,
+            });
+          } catch {
+            // Profile/contact are already committed. Delivery can be retried
+            // later; it must never undo or deny the registration.
+            emailStatus = "delayed";
+          }
+        }
+      } else {
+        emailStatus = "sent";
+      }
+      json(200, { accepted: true, emailStatus });
     } catch (error) {
       json(error instanceof RecapError ? error.status : 503, {
         error:
