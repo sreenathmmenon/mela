@@ -1,5 +1,14 @@
 # MELA STATUS
 
+## Current pass — verified cross-browser return (release verification pending)
+
+- The reported Incognito failure is real: the deployed app stores profiles against anonymous browser-issued SpacetimeDB tokens. A user-supplied welcome-email address is not verified authentication and cannot safely reconstruct that identity in another browser.
+- Researched fact: SpacetimeDB documents that anonymous tokens cannot be recovered if the token is lost, and recommends OIDC for production identity lifecycle. SpacetimeAuth is its managed OIDC provider; it is currently beta. The configured Mela client has magic-link sign-in and the Railway `/callback` redirect registered.
+- Implemented an additive, secure migration path: a person opens their existing Mela browser, selects **Use on another device**, then completes the magic link. A private, random, ten-minute one-time challenge bridges the original profile to the authenticated identity. The bridge requires a Maincloud-validated SpacetimeAuth JWT with the exact issuer and Mela client audience; typing or knowing an email address never links a profile.
+- Existing games, memories, scores, crowd activity and match ownership remain attached to the original canonical identity. A private `identity_link` aliases only the authenticated identity to that canonical owner; the caller-only `my_identity_link` view lets the client render the same profile/matches after login without exposing the mapping globally. No profile/contact merge or historical-data rewrite occurs.
+- Local migration to `mela-pen-feel-0906` created only private `identity_link`, private expiring `profile_link_challenge`, and caller-only `my_identity_link`; no data was deleted. The UI exposes both **Already in Mela? Sign in with email** and the source-browser **Use on another device** action. Full deterministic suite (**94/94**), typecheck, module build, transport build and production frontend build pass. The OIDC callback itself cannot be completed against local development because only the Railway callback URL is registered.
+- **Not deployed yet.** Required release verification: publish the additive module, deploy Railway, then use Sreenath's existing original Mela browser plus the authorized mailbox to complete the real magic-link bridge and an independent Incognito return. Confirm the old profile/memories appear and no fresh profile is created. Do not claim cross-browser login until that check succeeds.
+
 ## Current pass — durable first-time signup and visible Pen Fight crowd QR
 
 - Fixed the reported false-returning-person path. The welcome transport now treats an identity as returning only when its `player_profile` is committed; a private email contact by itself can never produce a “Welcome back” result.

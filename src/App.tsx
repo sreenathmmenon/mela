@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useAuth } from "react-oidc-context";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
@@ -57,6 +58,18 @@ const GAME_LABELS: Record<string, string> = {
   book_cricket: "Book Cricket",
   pen_fight: "Pen Fight",
 };
+
+const PROFILE_LINK_NONCE_KEY = "mela-profile-link-nonce";
+const AUTH_RETURN_TO_KEY = "mela-auth-return-to";
+const freshProfileLinkNonce = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(32)), (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");
+const rememberAuthReturn = () =>
+  sessionStorage.setItem(
+    AUTH_RETURN_TO_KEY,
+    `${window.location.pathname}${window.location.search}${window.location.hash}`,
+  );
 
 const PLAY_CHOICES = [
   {
@@ -140,6 +153,7 @@ function screenUrlFor(matchId: bigint) {
 }
 
 function App() {
+  const auth = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
@@ -208,6 +222,7 @@ function App() {
   const conn = useSpacetimeDB();
   const { isActive: connected } = conn;
   const [profiles, profilesReady] = useTable(tables.playerProfile);
+  const [identityLinks, identityLinksReady] = useTable(tables.myIdentityLink);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [presence] = useTable(tables.worldPresence);
   const [matches] = useTable(tables.match);
@@ -224,28 +239,30 @@ function App() {
   const [melaMetrics] = useTable(tables.melaMetrics);
   useTable(tables.liveEvent, { onInsert: onMatchEvent });
 
+  const canonicalIdentity =
+    identityLinks[0]?.canonicalIdentity ?? conn.identity;
   const me = useMemo(() => {
-    const identity = conn.identity;
+    const identity = canonicalIdentity;
     return identity
       ? profiles.find((profile) => profile.identity.isEqual(identity))
       : undefined;
-  }, [profiles, conn.identity]);
+  }, [profiles, canonicalIdentity]);
   const myMelaProfile = useMemo(() => {
-    const identity = conn.identity;
+    const identity = canonicalIdentity;
     return identity
       ? melaProfiles.find((profile) => profile.identity.isEqual(identity))
       : undefined;
-  }, [melaProfiles, conn.identity]);
+  }, [melaProfiles, canonicalIdentity]);
   const myBookCricketRecord = useMemo(() => {
-    const identity = conn.identity;
+    const identity = canonicalIdentity;
     return identity
       ? records.find((record) => record.identity.isEqual(identity))
       : undefined;
-  }, [records, conn.identity]);
+  }, [records, canonicalIdentity]);
   // Mela runs many concurrent matches. A person only ever lands in a match they
   // own or joined — never in a stranger's, and never in a finished one they had
   // no part in. `showHome` lets them step back out at any time.
-  const myIdentity = conn.identity;
+  const myIdentity = canonicalIdentity;
   const isMine = useCallback(
     (match: (typeof matches)[number]) =>
       Boolean(
@@ -293,7 +310,7 @@ function App() {
   const matchEffects = displayedMatch
     ? effects.filter((row) => row.matchId === displayedMatch.id)
     : [];
-  const identity = conn.identity;
+  const identity = canonicalIdentity;
   const ownsMatch = Boolean(
     activeMatch && identity && activeMatch.playerIdentity.isEqual(identity),
   );
@@ -508,6 +525,75 @@ function App() {
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
+  const beginProfileLink = useReducer(reducers.beginProfileLink);
+  const completeProfileLink = useReducer(reducers.completeProfileLink);
+  const profileLinkHandled = useRef(false);
+
+  // The source browser holds the one-time nonce across the OIDC redirect. A
+  // verified magic-link identity can redeem it exactly once; an email string
+  // alone can never attach itself to someone else's saved Mela life.
+  useEffect(() => {
+    const nonce = sessionStorage.getItem(PROFILE_LINK_NONCE_KEY);
+    if (
+      !auth.isAuthenticated ||
+      !nonce ||
+      !connected ||
+      !profilesReady ||
+      !identityLinksReady ||
+      me ||
+      profileLinkHandled.current
+    )
+      return;
+    profileLinkHandled.current = true;
+    completeProfileLink({ nonce })
+      .then(() => {
+        sessionStorage.removeItem(PROFILE_LINK_NONCE_KEY);
+        setFeedback(
+          "Email sign-in is ready. Your Mela memories came with you.",
+        );
+      })
+      .catch((reason) =>
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Mela could not connect this email sign-in.",
+        ),
+      );
+  }, [
+    auth.isAuthenticated,
+    completeProfileLink,
+    connected,
+    identityLinksReady,
+    me,
+    profilesReady,
+  ]);
+
+  const startEmailSignIn = async () => {
+    try {
+      setError(null);
+      rememberAuthReturn();
+      if (me && !auth.isAuthenticated) {
+        const nonce = freshProfileLinkNonce();
+        await beginProfileLink({ nonce });
+        sessionStorage.setItem(PROFILE_LINK_NONCE_KEY, nonce);
+      }
+      await auth.signinRedirect();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Email sign-in could not start. Please try again.",
+      );
+    }
+  };
+
+  const leaveMela = () => {
+    if (auth.isAuthenticated) {
+      void auth.signoutRedirect();
+      return;
+    }
+    signOut();
+  };
 
   // A scanned QR must land the visitor in THAT match — even if they have
   // played or watched here before. Fresh identities join during onboarding;
@@ -872,9 +958,30 @@ function App() {
           </div>
           <p id="join-email-note" className="recap-privacy">
             By joining, you request one welcome email, delivered by Resend. Your
-            email stays private. No newsletter, password or email verification
-            step. Your history stays on this browser.
+            email stays private. No newsletter or password. You can securely
+            connect this profile to email for another browser after joining.
           </p>
+          <button
+            type="button"
+            className="secondary email-sign-in"
+            onClick={() => void startEmailSignIn()}
+            disabled={joining}
+          >
+            Already in Mela? Sign in with email
+          </button>
+          <p className="recap-privacy">
+            Use the magic link you previously connected from your original Mela
+            browser. Email alone never takes over a profile.
+          </p>
+          {auth.isAuthenticated &&
+            !me &&
+            !sessionStorage.getItem(PROFILE_LINK_NONCE_KEY) && (
+              <p className="feedback error" role="alert">
+                This email is not connected to a Mela profile yet. Open Mela in
+                the browser where your profile already works, then choose “Use
+                on another device”.
+              </p>
+            )}
           {error && (
             <p className="feedback error" role="alert">
               {error}
@@ -911,6 +1018,18 @@ function App() {
         <section className="identity">
           <span>
             Signed in as <strong>{me.displayName}</strong>
+            {!auth.isAuthenticated && (
+              <button
+                className="link-back"
+                onClick={() => void startEmailSignIn()}
+                title="Secure this profile so you can use it in another browser"
+              >
+                Use on another device
+              </button>
+            )}
+            {auth.isAuthenticated && (
+              <span className="identity-auth">Email connected</span>
+            )}
             {displayedMatch && (
               <button
                 className="link-back"
@@ -944,8 +1063,8 @@ function App() {
             </button>
             <button
               className="link-back"
-              onClick={signOut}
-              title="Leave Mela on this device and re-enter with a new name"
+              onClick={leaveMela}
+              title="Leave Mela on this device"
             >
               Sign out
             </button>

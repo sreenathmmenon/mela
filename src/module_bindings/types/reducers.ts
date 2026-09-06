@@ -7,7 +7,9 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import AgentFlickReducer from "../agent_flick_reducer";
+import BeginProfileLinkReducer from "../begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "../claim_agent_seat_reducer";
+import CompleteProfileLinkReducer from "../complete_profile_link_reducer";
 import CreateAgentDuelReducer from "../create_agent_duel_reducer";
 import CreateBookCricketReducer from "../create_book_cricket_reducer";
 import CreatePenFightReducer from "../create_pen_fight_reducer";
@@ -20,7 +22,11 @@ import UseCrowdPowerReducer from "../use_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
 
 export type AgentFlickParams = __Infer<typeof AgentFlickReducer>;
+export type BeginProfileLinkParams = __Infer<typeof BeginProfileLinkReducer>;
 export type ClaimAgentSeatParams = __Infer<typeof ClaimAgentSeatReducer>;
+export type CompleteProfileLinkParams = __Infer<
+  typeof CompleteProfileLinkReducer
+>;
 export type CreateAgentDuelParams = __Infer<typeof CreateAgentDuelReducer>;
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;

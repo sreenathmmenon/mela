@@ -91,6 +91,29 @@ const spacetimedb = schema({
     },
   ),
   emailMigration: table({ public: false }, { id: t.u32().primaryKey() }),
+  /**
+   * Maps a verified SpacetimeAuth identity to an existing Mela identity.
+   * The historical identity remains the canonical owner of matches, records,
+   * memories and crowd work; the authenticated identity is an additional
+   * credential, never a guessed email-based merge.
+   */
+  identityLink: table(
+    { public: false },
+    {
+      identity: t.identity().primaryKey(),
+      canonicalIdentity: t.identity(),
+      linkedAt: t.timestamp(),
+    },
+  ),
+  /** A short-lived, private proof held across the OIDC redirect. */
+  profileLinkChallenge: table(
+    { public: false },
+    {
+      nonce: t.string().primaryKey(),
+      sourceIdentity: t.identity(),
+      expiresAtMicros: t.u64(),
+    },
+  ),
   world: table(
     { public: true },
     {
@@ -435,6 +458,27 @@ const spacetimedb = schema({
 });
 export default spacetimedb;
 
+/**
+ * Reveals only the caller's own canonical Mela identity. The frontend needs
+ * this projection to render the exact same profile and matches after an
+ * authenticated return, while the link table itself stays private.
+ */
+export const myIdentityLink = spacetimedb.view(
+  { public: true },
+  t.array(
+    t.row("OwnIdentityLink", {
+      identity: t.identity().primaryKey(),
+      canonicalIdentity: t.identity(),
+    }),
+  ),
+  (ctx: any) => {
+    const row = ctx.db.identityLink.identity.find(ctx.sender);
+    return row
+      ? [{ identity: row.identity, canonicalIdentity: row.canonicalIdentity }]
+      : [];
+  },
+);
+
 export const ownSpectatorCooldown = spacetimedb.view(
   { public: true },
   t.array(
@@ -448,7 +492,7 @@ export const ownSpectatorCooldown = spacetimedb.view(
   ),
   (ctx: any) =>
     Array.from(ctx.db.spectatorCooldown.iter() as Iterable<any>).filter((row) =>
-      row.identity.isEqual(ctx.sender),
+      row.identity.isEqual(canonicalIdentity(ctx)),
     ),
 );
 
@@ -490,17 +534,17 @@ export const visibleCrowdEffects = spacetimedb.view(
   (ctx: any) =>
     Array.from(ctx.db.crowdEffect.iter() as Iterable<any>).filter(
       (effect: any) => {
+        const actor = canonicalIdentity(ctx);
         const match = ctx.db.match.id.find(effect.matchId);
         if (match?.gameKind !== "pen_fight") return true;
         const duel = ctx.db.agentDuel.matchId.find(effect.matchId);
         if (
-          duel?.leftIdentity?.isEqual(ctx.sender) ||
-          duel?.rightIdentity?.isEqual(ctx.sender)
+          duel?.leftIdentity?.isEqual(actor) ||
+          duel?.rightIdentity?.isEqual(actor)
         )
           return false;
         return Array.from(ctx.db.matchSpectator.iter()).some(
-          (s: any) =>
-            s.matchId === effect.matchId && s.identity.isEqual(ctx.sender),
+          (s: any) => s.matchId === effect.matchId && s.identity.isEqual(actor),
         );
       },
     ),
@@ -554,6 +598,25 @@ const ensureMelaProfile = (ctx: any, identity: any) => {
   return profile;
 };
 const identityKey = (identity: any) => identity.toHexString();
+const canonicalIdentity = (ctx: any, identity = ctx.sender) =>
+  ctx.db.identityLink.identity.find(identity)?.canonicalIdentity ?? identity;
+const MELA_AUTH_ISSUER = "https://auth.spacetimedb.com/oidc";
+const MELA_AUTH_CLIENT_ID = "client_034JneP1uzy8V3MhC39IXp";
+const requireMelaAuth = (ctx: any) => {
+  const jwt = ctx.senderAuth?.jwt;
+  if (
+    !jwt ||
+    jwt.issuer !== MELA_AUTH_ISSUER ||
+    !jwt.audience?.some((aud: string) => aud === MELA_AUTH_CLIENT_ID)
+  )
+    throw new SenderError("Sign in through Mela's email link to continue.");
+};
+const cleanExpiredProfileLinkChallenges = (ctx: any) => {
+  const now = nowMicros(ctx);
+  for (const row of ctx.db.profileLinkChallenge.iter())
+    if (row.expiresAtMicros <= now)
+      ctx.db.profileLinkChallenge.nonce.delete(row.nonce);
+};
 const historicalMetricSnapshot = (ctx: any) => {
   const matches = Array.from(ctx.db.match.iter()) as any[];
   const playerIds = new Set(
@@ -743,9 +806,10 @@ const updatePenMetrics = (ctx: any, fields: Record<string, number>) => {
   ctx.db.penFightMetrics.id.update(next);
 };
 const player = (ctx: any) => {
-  const row = ctx.db.playerProfile.identity.find(ctx.sender);
+  const identity = canonicalIdentity(ctx);
+  const row = ctx.db.playerProfile.identity.find(identity);
   if (!row) throw new SenderError("Choose a display name first.");
-  ensureMelaProfile(ctx, ctx.sender);
+  ensureMelaProfile(ctx, identity);
   return row;
 };
 const nextMatchId = (ctx: any) => nextId(ctx.db.match.iter());
@@ -755,9 +819,10 @@ const nextMatchId = (ctx: any) => nextId(ctx.db.match.iter());
  * nobody else's live match is ever touched.
  */
 const abandonOwnActiveMatches = (ctx: any) => {
+  const identity = canonicalIdentity(ctx);
   for (const existing of ctx.db.match.iter()) {
     if (existing.status !== "active") continue;
-    if (!existing.playerIdentity.isEqual(ctx.sender)) continue;
+    if (!existing.playerIdentity.isEqual(identity)) continue;
     ctx.db.match.id.update({
       ...existing,
       status: "abandoned",
@@ -1509,6 +1574,7 @@ export const agentFlick = spacetimedb.reducer(
     intent: t.string(),
   },
   (ctx: any, action: any) => {
+    const identity = canonicalIdentity(ctx);
     const duel = ctx.db.agentDuel.matchId.find(action.matchId);
     const match = ctx.db.match.id.find(action.matchId);
     const state = ctx.db.penFightState.matchId.find(action.matchId);
@@ -1659,8 +1725,17 @@ export const onConnect = spacetimedb.clientConnected((ctx: any) => {
   // the persisted match tables, then normal reducers maintain it incrementally.
   ensureMetrics(ctx);
   ensurePenMetrics(ctx);
-  if (ctx.db.playerProfile.identity.find(ctx.sender))
-    ensureMelaProfile(ctx, ctx.sender);
+  const identity = canonicalIdentity(ctx);
+  if (ctx.db.playerProfile.identity.find(identity)) {
+    ensureMelaProfile(ctx, identity);
+    const presence = ctx.db.worldPresence.identity.find(identity);
+    if (presence)
+      ctx.db.worldPresence.identity.update({
+        ...presence,
+        state: "online",
+        lastSeenAt: ctx.timestamp,
+      });
+  }
   if (ctx.connectionId)
     ctx.db.connectionSession.insert({
       connectionId: ctx.connectionId,
@@ -1806,12 +1881,82 @@ export const onboardWithEmail = spacetimedb.reducer(
       });
   },
 );
+
+/**
+ * Starts the one-time bridge from a person's current Mela browser identity to
+ * their verified magic-link identity. The nonce is generated in the browser
+ * and retained only in same-origin session storage through the OIDC redirect;
+ * it is private database state and expires after ten minutes.
+ */
+export const beginProfileLink = spacetimedb.reducer(
+  { nonce: t.string() },
+  (ctx: any, { nonce }: any) => {
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(nonce))
+      throw new SenderError(
+        "Could not start secure sign-in. Please try again.",
+      );
+    if (ctx.db.identityLink.identity.find(ctx.sender))
+      throw new SenderError("This Mela profile already has email sign-in.");
+    if (!ctx.db.playerProfile.identity.find(ctx.sender))
+      throw new SenderError(
+        "Join Mela on this device before enabling email sign-in.",
+      );
+    cleanExpiredProfileLinkChallenges(ctx);
+    const existing = ctx.db.profileLinkChallenge.nonce.find(nonce);
+    if (existing && !existing.sourceIdentity.isEqual(ctx.sender))
+      throw new SenderError(
+        "Could not start secure sign-in. Please try again.",
+      );
+    if (existing)
+      ctx.db.profileLinkChallenge.nonce.update({
+        ...existing,
+        expiresAtMicros: nowMicros(ctx) + 10n * 60n * 1000000n,
+      });
+    else
+      ctx.db.profileLinkChallenge.insert({
+        nonce,
+        sourceIdentity: ctx.sender,
+        expiresAtMicros: nowMicros(ctx) + 10n * 60n * 1000000n,
+      });
+  },
+);
+
+/** Completes the bridge only after Maincloud has validated the OIDC JWT. */
+export const completeProfileLink = spacetimedb.reducer(
+  { nonce: t.string() },
+  (ctx: any, { nonce }: any) => {
+    requireMelaAuth(ctx);
+    cleanExpiredProfileLinkChallenges(ctx);
+    const challenge = ctx.db.profileLinkChallenge.nonce.find(nonce);
+    if (!challenge)
+      throw new SenderError(
+        "This secure sign-in link expired. Start again in your original Mela browser.",
+      );
+    if (ctx.db.identityLink.identity.find(ctx.sender))
+      throw new SenderError("This email sign-in is already connected to Mela.");
+    if (ctx.db.playerProfile.identity.find(ctx.sender))
+      throw new SenderError(
+        "This email sign-in already has a Mela profile and cannot replace another one.",
+      );
+    if (!ctx.db.playerProfile.identity.find(challenge.sourceIdentity))
+      throw new SenderError(
+        "That original Mela profile is no longer available.",
+      );
+    ctx.db.identityLink.insert({
+      identity: ctx.sender,
+      canonicalIdentity: challenge.sourceIdentity,
+      linkedAt: ctx.timestamp,
+    });
+    ctx.db.profileLinkChallenge.nonce.delete(nonce);
+  },
+);
 export const createBookCricket = spacetimedb.reducer((ctx: any) => {
   const p = player(ctx);
+  const identity = canonicalIdentity(ctx);
   // Mela hosts many concurrent matches; only one live match per identity keeps
   // ownership unambiguous without blocking every other person in the world.
   abandonOwnActiveMatches(ctx);
-  const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
+  const participantMetrics = metricsIdentityFor(ctx, identity);
   applyMetricDelta(
     ctx,
     playerMatchStartDelta({
@@ -1831,7 +1976,7 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     id: matchId,
     worldId: WORLD_ID,
     gameKind: "book_cricket",
-    playerIdentity: ctx.sender,
+    playerIdentity: identity,
     status: "active",
     winner: "",
     createdAt: ctx.timestamp,
@@ -1842,7 +1987,7 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     matchId,
     actorKind: "human",
     role: "player",
-    identity: ctx.sender,
+    identity,
     displayName: p.displayName,
   });
   ctx.db.matchParticipant.insert({
@@ -1894,8 +2039,9 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
 });
 function createPenMatch(ctx: any) {
   const p = player(ctx);
+  const identity = canonicalIdentity(ctx);
   abandonOwnActiveMatches(ctx);
-  const metricIdentity = penMetricIdentity(ctx, ctx.sender);
+  const metricIdentity = penMetricIdentity(ctx, identity);
   updatePenMetrics(ctx, {
     matchesStarted: 1,
     participants: 1,
@@ -1905,7 +2051,7 @@ function createPenMatch(ctx: any) {
     ...metricIdentity,
     hasPlayed: 1,
   });
-  const globalMetrics = metricsIdentityFor(ctx, ctx.sender);
+  const globalMetrics = metricsIdentityFor(ctx, identity);
   applyMetricDelta(ctx, playerMatchStartDelta(globalMetrics));
   ctx.db.metricsIdentity.identity.update({ ...globalMetrics, hasPlayed: 1 });
   const matchId = nextMatchId(ctx);
@@ -1913,7 +2059,7 @@ function createPenMatch(ctx: any) {
     id: matchId,
     worldId: WORLD_ID,
     gameKind: "pen_fight",
-    playerIdentity: ctx.sender,
+    playerIdentity: identity,
     status: "active",
     winner: "",
     createdAt: ctx.timestamp,
@@ -1924,7 +2070,7 @@ function createPenMatch(ctx: any) {
     matchId,
     actorKind: "human",
     role: "player",
-    identity: ctx.sender,
+    identity,
     displayName: p.displayName,
   });
   ctx.db.matchParticipant.insert({
@@ -1983,6 +2129,7 @@ export const flickPen = spacetimedb.reducer(
     contact: t.u32(),
   },
   (ctx: any, action: any) => {
+    const identity = canonicalIdentity(ctx);
     if (ctx.db.agentDuel.matchId.find(action.matchId))
       throw new SenderError("This desk is reserved for its agent seats.");
     const match = ctx.db.match.id.find(action.matchId);
@@ -1992,7 +2139,7 @@ export const flickPen = spacetimedb.reducer(
       !state ||
       match.status !== "active" ||
       match.gameKind !== "pen_fight" ||
-      !match.playerIdentity.isEqual(ctx.sender)
+      !match.playerIdentity.isEqual(identity)
     )
       throw new SenderError("Not your live Pen Fight.");
     if (
@@ -2015,17 +2162,18 @@ export const flickPen = spacetimedb.reducer(
 export const usePenFightCrowdPower = spacetimedb.reducer(
   { matchId: t.u64(), power: t.string(), target: t.string() },
   (ctx: any, { matchId, power, target }: any) => {
+    const identity = canonicalIdentity(ctx);
     const match = ctx.db.match.id.find(matchId);
     if (!match || match.status !== "active" || match.gameKind !== "pen_fight")
       throw new SenderError("That Pen Fight is not live.");
     if (
-      !spectatorFor(ctx, matchId, ctx.sender) ||
+      !spectatorFor(ctx, matchId, identity) ||
       !isPenFightPower(power) ||
       (target !== "human" && target !== "melabot")
     )
       throw new SenderError("Join the crowd and choose a legal desk action.");
     const now = nowMicros(ctx);
-    const cooldown = cooldownFor(ctx, matchId, ctx.sender, power);
+    const cooldown = cooldownFor(ctx, matchId, identity, power);
     if (cooldown && cooldown.readyAtMicros > now)
       throw new SenderError("That desk move is cooling down.");
     const crowd = ctx.db.matchCrowd.matchId.find(matchId);
@@ -2050,7 +2198,7 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
       ctx.db.spectatorCooldown.insert({
         id: nextId(ctx.db.spectatorCooldown.iter()),
         matchId,
-        identity: ctx.sender,
+        identity,
         power,
         readyAtMicros: now + rule.cooldownMicros,
       });
@@ -2065,12 +2213,12 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
         lastPower: power,
       });
     updatePenMetrics(ctx, { crowdActions: 1 });
-    const actorMetrics = metricsIdentityFor(ctx, ctx.sender);
+    const actorMetrics = metricsIdentityFor(ctx, identity);
     applyMetricDelta(ctx, crowdActionDelta(actorMetrics.hasActed !== 1));
     if (actorMetrics.hasActed !== 1)
       ctx.db.metricsIdentity.identity.update({ ...actorMetrics, hasActed: 1 });
     const influence = power === "tilt" ? 3 : power === "cheer" ? 1 : 2;
-    const melaProfile = ensureMelaProfile(ctx, ctx.sender);
+    const melaProfile = ensureMelaProfile(ctx, identity);
     ctx.db.melaProfile.identity.update({
       ...melaProfile,
       crowdActions: melaProfile.crowdActions + 1,
@@ -2106,13 +2254,14 @@ export const usePenFightCrowdPower = spacetimedb.reducer(
 export const playBall = spacetimedb.reducer(
   { matchId: t.u64(), style: t.string() },
   (ctx: any, { matchId, style }: any) => {
+    const identity = canonicalIdentity(ctx);
     const match = ctx.db.match.id.find(matchId);
     const state = ctx.db.bookCricketState.matchId.find(matchId);
     if (
       !match ||
       !state ||
       match.status !== "active" ||
-      !match.playerIdentity.isEqual(ctx.sender)
+      !match.playerIdentity.isEqual(identity)
     )
       throw new SenderError("Not your active match.");
     if (
@@ -2126,21 +2275,22 @@ export const playBall = spacetimedb.reducer(
 export const joinMatchAsSpectator = spacetimedb.reducer(
   { matchId: t.u64() },
   (ctx: any, { matchId }: any) => {
+    const identity = canonicalIdentity(ctx);
     const duel = ctx.db.agentDuel.matchId.find(matchId);
     if (
-      duel?.leftIdentity?.isEqual(ctx.sender) ||
-      duel?.rightIdentity?.isEqual(ctx.sender)
+      duel?.leftIdentity?.isEqual(identity) ||
+      duel?.rightIdentity?.isEqual(identity)
     )
       throw new SenderError("An agent seat cannot also join the crowd.");
     const match = ctx.db.match.id.find(matchId);
     const profile = player(ctx);
     if (!match || match.status !== "active")
       throw new SenderError("That match is not live.");
-    if (!duel && match.playerIdentity.isEqual(ctx.sender))
+    if (!duel && match.playerIdentity.isEqual(identity))
       throw new SenderError("The player is already in this match.");
-    if (spectatorFor(ctx, matchId, ctx.sender)) return;
+    if (spectatorFor(ctx, matchId, identity)) return;
     if (match.gameKind === "pen_fight") {
-      const metricIdentity = penMetricIdentity(ctx, ctx.sender);
+      const metricIdentity = penMetricIdentity(ctx, identity);
       updatePenMetrics(ctx, {
         participants: 1,
         uniqueSpectators: metricIdentity.hasSpectated ? 0 : 1,
@@ -2150,7 +2300,7 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
         hasSpectated: 1,
       });
     }
-    const participantMetrics = metricsIdentityFor(ctx, ctx.sender);
+    const participantMetrics = metricsIdentityFor(ctx, identity);
     applyMetricDelta(
       ctx,
       spectatorJoinDelta(participantMetrics.hasSpectated === 1),
@@ -2162,7 +2312,7 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
     ctx.db.matchSpectator.insert({
       id: nextId(ctx.db.matchSpectator.iter()),
       matchId,
-      identity: ctx.sender,
+      identity,
       displayName: profile.displayName,
       joinedAt: ctx.timestamp,
     });
@@ -2187,17 +2337,18 @@ const rejectCrowdPower = (
 export const useCrowdPower = spacetimedb.reducer(
   { matchId: t.u64(), power: t.string(), target: t.string() },
   (ctx: any, { matchId, power, target }: any) => {
+    const identity = canonicalIdentity(ctx);
     const match = ctx.db.match.id.find(matchId);
     if (!match || match.status !== "active")
       return rejectCrowdPower(ctx, matchId, power, "match is not live");
-    if (!spectatorFor(ctx, matchId, ctx.sender))
+    if (!spectatorFor(ctx, matchId, identity))
       return rejectCrowdPower(ctx, matchId, power, "join the crowd first");
     if (!isCrowdPower(power))
       return rejectCrowdPower(ctx, matchId, power, "unknown power");
     if (target !== "human" && target !== "melabot")
       return rejectCrowdPower(ctx, matchId, power, "invalid target");
     const now = nowMicros(ctx);
-    const existingCooldown = cooldownFor(ctx, matchId, ctx.sender, power);
+    const existingCooldown = cooldownFor(ctx, matchId, identity, power);
     if (existingCooldown && existingCooldown.readyAtMicros > now)
       return rejectCrowdPower(ctx, matchId, power, "cooling down");
     const crowd = ctx.db.matchCrowd.matchId.find(matchId);
@@ -2229,17 +2380,17 @@ export const useCrowdPower = spacetimedb.reducer(
       ctx.db.spectatorCooldown.insert({
         id: nextId(ctx.db.spectatorCooldown.iter()),
         matchId,
-        identity: ctx.sender,
+        identity,
         power,
         readyAtMicros,
       });
 
     const profile = player(ctx);
-    const actorMetrics = metricsIdentityFor(ctx, ctx.sender);
+    const actorMetrics = metricsIdentityFor(ctx, identity);
     applyMetricDelta(ctx, crowdActionDelta(actorMetrics.hasActed !== 1));
     if (actorMetrics.hasActed !== 1)
       ctx.db.metricsIdentity.identity.update({ ...actorMetrics, hasActed: 1 });
-    const melaProfile = ensureMelaProfile(ctx, ctx.sender);
+    const melaProfile = ensureMelaProfile(ctx, identity);
     ctx.db.melaProfile.identity.update({
       ...melaProfile,
       crowdActions: melaProfile.crowdActions + 1,

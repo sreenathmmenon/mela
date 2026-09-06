@@ -358,6 +358,15 @@ button:disabled {
 .identity strong {
   color: var(--ink);
 }
+.identity-auth {
+  display: inline-block;
+  margin-left: var(--s2);
+  color: var(--teal-text);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 .link-back {
   margin-left: var(--s3);
@@ -373,6 +382,10 @@ button:disabled {
   background: var(--honey-wash);
   color: var(--honey-text);
   border-color: var(--honey-text);
+}
+.email-sign-in {
+  width: 100%;
+  margin-top: var(--s3);
 }
 
 /* ---------------------------------------------------------- onboarding ---- */

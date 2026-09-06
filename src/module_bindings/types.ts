@@ -124,6 +124,13 @@ export const EmailMigration = __t.object("EmailMigration", {
 });
 export type EmailMigration = __Infer<typeof EmailMigration>;
 
+export const IdentityLink = __t.object("IdentityLink", {
+  identity: __t.identity(),
+  canonicalIdentity: __t.identity(),
+  linkedAt: __t.timestamp(),
+});
+export type IdentityLink = __Infer<typeof IdentityLink>;
+
 export const LiveEvent = __t.object("LiveEvent", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -250,6 +257,9 @@ export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 export const MyEmailContact = __t.object("MyEmailContact", {});
 export type MyEmailContact = __Infer<typeof MyEmailContact>;
 
+export const MyIdentityLink = __t.object("MyIdentityLink", {});
+export type MyIdentityLink = __Infer<typeof MyIdentityLink>;
+
 export const OwnCooldownProjection = __t.object("OwnCooldownProjection", {
   id: __t.u64(),
   matchId: __t.u64(),
@@ -266,6 +276,12 @@ export const OwnEmailContact = __t.object("OwnEmailContact", {
   verified: __t.bool(),
 });
 export type OwnEmailContact = __Infer<typeof OwnEmailContact>;
+
+export const OwnIdentityLink = __t.object("OwnIdentityLink", {
+  identity: __t.identity(),
+  canonicalIdentity: __t.identity(),
+});
+export type OwnIdentityLink = __Infer<typeof OwnIdentityLink>;
 
 export const OwnSpectatorCooldown = __t.object("OwnSpectatorCooldown", {});
 export type OwnSpectatorCooldown = __Infer<typeof OwnSpectatorCooldown>;
@@ -345,6 +361,13 @@ export const PlayerProfile = __t.object("PlayerProfile", {
   crowdInfluence: __t.u32(),
 });
 export type PlayerProfile = __Infer<typeof PlayerProfile>;
+
+export const ProfileLinkChallenge = __t.object("ProfileLinkChallenge", {
+  nonce: __t.string(),
+  sourceIdentity: __t.identity(),
+  expiresAtMicros: __t.u64(),
+});
+export type ProfileLinkChallenge = __Infer<typeof ProfileLinkChallenge>;
 
 export const SpectatorCooldown = __t.object("SpectatorCooldown", {
   id: __t.u64(),

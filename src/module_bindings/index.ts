@@ -35,7 +35,9 @@ import {
 
 // Import all reducer arg schemas
 import AgentFlickReducer from "./agent_flick_reducer";
+import BeginProfileLinkReducer from "./begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
+import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
@@ -65,6 +67,7 @@ import MatchSpectatorRow from "./match_spectator_table";
 import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
 import MyEmailContactRow from "./my_email_contact_table";
+import MyIdentityLinkRow from "./my_identity_link_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
 import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
@@ -484,6 +487,14 @@ const tablesSchema = __schema({
     },
     MyEmailContactRow,
   ),
+  myIdentityLink: __table(
+    {
+      name: "my_identity_link",
+      indexes: [],
+      constraints: [],
+    },
+    MyIdentityLinkRow,
+  ),
   ownSpectatorCooldown: __table(
     {
       name: "own_spectator_cooldown",
@@ -513,7 +524,9 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("agent_flick", AgentFlickReducer),
+  __reducerSchema("begin_profile_link", BeginProfileLinkReducer),
   __reducerSchema("claim_agent_seat", ClaimAgentSeatReducer),
+  __reducerSchema("complete_profile_link", CompleteProfileLinkReducer),
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
