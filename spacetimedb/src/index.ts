@@ -65,6 +65,8 @@ import {
   resolvePenFlick as resolvePenFightPhysics,
   validatePenFlick,
 } from "./penFightRules";
+import { decideDotsMove, resolveDotsMove } from "./dotsBoxesRules";
+import { resolveGilliStrike } from "./gilliDandaRules";
 
 const WORLD_ID = 1n;
 
@@ -276,6 +278,36 @@ const spacetimedb = schema({
       botX: t.u32(),
       botY: t.u32(),
       turnsInRound: t.u32(),
+      lastOutcome: t.string(),
+      seed: t.u64(),
+    },
+  ),
+  /** Public, compact board projection. Edge and box ownership are server-owned. */
+  dotsBoxesState: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      edges: t.string(),
+      boxes: t.string(),
+      humanBoxes: t.u32(),
+      botBoxes: t.u32(),
+      turn: t.string(),
+      revision: t.u32(),
+      lastOutcome: t.string(),
+      seed: t.u64(),
+    },
+  ),
+  /** Gilli flight is committed as an outcome, never a browser physics result. */
+  gilliDandaState: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      round: t.u32(),
+      humanScore: t.u32(),
+      botScore: t.u32(),
+      turn: t.string(),
+      lastDistance: t.u32(),
+      lastSound: t.string(),
       lastOutcome: t.string(),
       seed: t.u64(),
     },
@@ -2121,6 +2153,337 @@ function createPenMatch(ctx: any) {
 export const createPenFight = spacetimedb.reducer((ctx: any) => {
   createPenMatch(ctx);
 });
+
+function createExperimentalMatch(
+  ctx: any,
+  gameKind: "dots_boxes" | "gilli_danda",
+) {
+  const profile = player(ctx),
+    identity = canonicalIdentity(ctx);
+  abandonOwnActiveMatches(ctx);
+  const metrics = metricsIdentityFor(ctx, identity);
+  applyMetricDelta(ctx, playerMatchStartDelta(metrics));
+  ctx.db.metricsIdentity.identity.update({ ...metrics, hasPlayed: 1 });
+  ensureMelaBot(ctx);
+  const matchId = nextMatchId(ctx);
+  ctx.db.match.insert({
+    id: matchId,
+    worldId: WORLD_ID,
+    gameKind,
+    playerIdentity: identity,
+    status: "active",
+    winner: "",
+    createdAt: ctx.timestamp,
+    endedAt: undefined,
+  });
+  ctx.db.matchParticipant.insert({
+    id: nextId(ctx.db.matchParticipant.iter()),
+    matchId,
+    actorKind: "human",
+    role: "player",
+    identity,
+    displayName: profile.displayName,
+  });
+  ctx.db.matchParticipant.insert({
+    id: nextId(ctx.db.matchParticipant.iter()),
+    matchId,
+    actorKind: "ai",
+    role: "opponent",
+    identity: undefined,
+    displayName: "MelaBot",
+  });
+  ctx.db.matchCrowd.insert({ matchId, energy: 42, maxEnergy: 60 });
+  ctx.db.matchCrowdActivity.insert({
+    matchId,
+    actions: 0,
+    energySpent: 0,
+    lastActor: "The crowd",
+    lastPower: "watching",
+  });
+  scheduleCrowdTask(
+    ctx,
+    "regen",
+    matchId,
+    0n,
+    nowMicros(ctx) + BOOK_CRICKET_RULES.crowdEnergyRegenMicros,
+  );
+  return { matchId, profile };
+}
+
+function finishExperimentalMatch(
+  ctx: any,
+  match: any,
+  winner: string,
+  humanScore: number,
+  botScore: number,
+  notableMoment: string,
+) {
+  if (ctx.db.matchMemory.matchId.find(match.id)) return;
+  ctx.db.match.id.update({
+    ...match,
+    status: "complete",
+    winner,
+    endedAt: ctx.timestamp,
+  });
+  const human = player(ctx),
+    progression = ensureMelaProfile(ctx, match.playerIdentity),
+    metrics = metricsIdentityFor(ctx, match.playerIdentity);
+  const update = playerProgressAfterMatch(
+    progression.progressPoints,
+    winner === "human",
+  );
+  ctx.db.melaProfile.identity.update({
+    ...progression,
+    ...update,
+    matchesPlayed: progression.matchesPlayed + 1,
+    matchesWon: progression.matchesWon + (winner === "human" ? 1 : 0),
+    updatedAt: ctx.timestamp,
+  });
+  ctx.db.matchHistory.insert({
+    id: nextId(ctx.db.matchHistory.iter()),
+    matchId: match.id,
+    winner,
+    humanScore,
+    botScore,
+    occurredAt: ctx.timestamp,
+  });
+  const activity = ctx.db.matchCrowdActivity.matchId.find(match.id) ?? {
+    actions: 0,
+    energySpent: 0,
+  };
+  ctx.db.matchMemory.insert({
+    matchId: match.id,
+    sequence: match.id,
+    gameKind: match.gameKind,
+    humanName: human.displayName,
+    aiName: "MelaBot",
+    winner,
+    humanScore,
+    humanWickets: 0,
+    botScore,
+    botWickets: 0,
+    crowdParticipants: Array.from(ctx.db.matchSpectator.iter()).filter(
+      (row: any) => row.matchId === match.id,
+    ).length,
+    crowdActions: activity.actions,
+    crowdEnergySpent: activity.energySpent,
+    notableMoment,
+    completedAt: ctx.timestamp,
+  });
+  applyMetricDelta(ctx, completedMatchDelta());
+  ctx.db.metricsIdentity.identity.update({
+    ...metrics,
+    completedPlayerMatches: metrics.completedPlayerMatches + 1,
+  });
+}
+
+function scheduleExperimentalBot(
+  ctx: any,
+  kind: string,
+  matchId: bigint,
+  revision: number,
+) {
+  scheduleCrowdTask(
+    ctx,
+    kind,
+    matchId,
+    BigInt(revision),
+    nowMicros(ctx) + BOOK_CRICKET_RULES.aiWakeDelayMicros,
+  );
+}
+
+function resolveDotsTurn(
+  ctx: any,
+  match: any,
+  state: any,
+  side: "human" | "melabot",
+  from: number,
+  to: number,
+) {
+  const result = resolveDotsMove({
+    edges: state.edges,
+    boxes: state.boxes,
+    from,
+    to,
+    side,
+  });
+  const humanBoxes = result.boxes
+    .split(",")
+    .filter((box) => box.endsWith("h")).length;
+  const botBoxes = result.boxes
+    .split(",")
+    .filter((box) => box.endsWith("b")).length;
+  const next = {
+    ...state,
+    edges: result.edges,
+    boxes: result.boxes,
+    humanBoxes,
+    botBoxes,
+    turn: result.complete ? "complete" : result.nextTurn,
+    revision: state.revision + 1,
+    lastOutcome: result.claimed
+      ? `${side === "human" ? "You" : "MelaBot"} claimed ${result.claimed} box${result.claimed === 1 ? "" : "es"}!`
+      : `${side === "human" ? "You" : "MelaBot"} drew a line.`,
+    seed: state.seed + 1n,
+  };
+  ctx.db.dotsBoxesState.matchId.update(next);
+  emit(ctx, match.id, next.lastOutcome);
+  if (result.complete) {
+    finishExperimentalMatch(
+      ctx,
+      match,
+      result.winner!,
+      humanBoxes,
+      botBoxes,
+      result.winner === "draw"
+        ? "Every square was claimed — a dead-even notebook battle."
+        : `${result.winner === "human" ? "You" : "MelaBot"} claimed the final grid.`,
+    );
+    return;
+  }
+  if (next.turn === "melabot") {
+    emit(ctx, match.id, "MelaBot is studying the grid…");
+    scheduleExperimentalBot(ctx, "dots_ai_wake", match.id, next.revision);
+  }
+}
+
+export const createDotsBoxes = spacetimedb.reducer((ctx: any) => {
+  const { matchId, profile } = createExperimentalMatch(ctx, "dots_boxes");
+  ctx.db.dotsBoxesState.insert({
+    matchId,
+    edges: "",
+    boxes: "",
+    humanBoxes: 0,
+    botBoxes: 0,
+    turn: "human",
+    revision: 0,
+    lastOutcome: "DRAW THE FIRST LINE",
+    seed: matchId + 211n,
+  });
+  emit(
+    ctx,
+    matchId,
+    `${profile.displayName} opened a fresh Dots & Boxes grid.`,
+  );
+});
+
+export const drawDotsEdge = spacetimedb.reducer(
+  { matchId: t.u64(), from: t.u32(), to: t.u32() },
+  (ctx: any, action: any) => {
+    const match = ctx.db.match.id.find(action.matchId),
+      state = ctx.db.dotsBoxesState.matchId.find(action.matchId),
+      identity = canonicalIdentity(ctx);
+    if (
+      !match ||
+      !state ||
+      match.status !== "active" ||
+      match.gameKind !== "dots_boxes" ||
+      !match.playerIdentity.isEqual(identity) ||
+      state.turn !== "human"
+    )
+      throw new SenderError("That line is not available.");
+    try {
+      resolveDotsTurn(ctx, match, state, "human", action.from, action.to);
+    } catch (error) {
+      throw new SenderError(
+        error instanceof Error ? error.message : "Illegal line.",
+      );
+    }
+  },
+);
+
+function resolveGilliTurn(
+  ctx: any,
+  match: any,
+  state: any,
+  side: "human" | "melabot",
+  power: number,
+  timing: number,
+) {
+  const strike = resolveGilliStrike(state.seed, power, timing),
+    score =
+      side === "human"
+        ? state.humanScore + strike.distance
+        : state.botScore + strike.distance,
+    round = state.round + 1;
+  const next = {
+    ...state,
+    round,
+    humanScore: side === "human" ? score : state.humanScore,
+    botScore: side === "melabot" ? score : state.botScore,
+    turn: round > 10 ? "complete" : side === "human" ? "melabot" : "human",
+    lastDistance: strike.distance,
+    lastSound: strike.sound,
+    lastOutcome: `${side === "human" ? "You" : "MelaBot"} sent the gilli ${strike.distance} paces — ${strike.sound.toUpperCase()}!`,
+    seed: strike.seed,
+  };
+  ctx.db.gilliDandaState.matchId.update(next);
+  emit(ctx, match.id, next.lastOutcome);
+  if (round > 10) {
+    const winner =
+      next.humanScore === next.botScore
+        ? "draw"
+        : next.humanScore > next.botScore
+          ? "human"
+          : "melabot";
+    finishExperimentalMatch(
+      ctx,
+      match,
+      winner,
+      next.humanScore,
+      next.botScore,
+      winner === "draw"
+        ? "Neither player gave an inch at the chalk line."
+        : `${winner === "human" ? "You" : "MelaBot"} owned the final strike.`,
+    );
+    return;
+  }
+  if (next.turn === "melabot") {
+    emit(ctx, match.id, "MelaBot balances the gilli on the danda…");
+    scheduleExperimentalBot(ctx, "gilli_ai_wake", match.id, next.round);
+  }
+}
+
+export const createGilliDanda = spacetimedb.reducer((ctx: any) => {
+  const { matchId, profile } = createExperimentalMatch(ctx, "gilli_danda");
+  ctx.db.gilliDandaState.insert({
+    matchId,
+    round: 1,
+    humanScore: 0,
+    botScore: 0,
+    turn: "human",
+    lastDistance: 0,
+    lastSound: "",
+    lastOutcome: "LIFT THE GILLI",
+    seed: matchId + 509n,
+  });
+  emit(ctx, matchId, `${profile.displayName} placed a gilli on the chalk.`);
+});
+
+export const strikeGilli = spacetimedb.reducer(
+  { matchId: t.u64(), power: t.u32(), timing: t.u32() },
+  (ctx: any, action: any) => {
+    const match = ctx.db.match.id.find(action.matchId),
+      state = ctx.db.gilliDandaState.matchId.find(action.matchId),
+      identity = canonicalIdentity(ctx);
+    if (
+      !match ||
+      !state ||
+      match.status !== "active" ||
+      match.gameKind !== "gilli_danda" ||
+      !match.playerIdentity.isEqual(identity) ||
+      state.turn !== "human"
+    )
+      throw new SenderError("Wait for your turn at the chalk.");
+    try {
+      resolveGilliTurn(ctx, match, state, "human", action.power, action.timing);
+    } catch (error) {
+      throw new SenderError(
+        error instanceof Error ? error.message : "Illegal strike.",
+      );
+    }
+  },
+);
 export const flickPen = spacetimedb.reducer(
   {
     matchId: t.u64(),
@@ -2444,6 +2807,39 @@ export const processCrowdSchedule = spacetimedb.reducer(
     if (!match || match.status !== "active") return;
     if (arg.kind === "agent_timeout" || arg.kind === "agent_shot") {
       processAgentWake(ctx, match, arg);
+      return;
+    }
+    if (arg.kind === "dots_ai_wake") {
+      const state = ctx.db.dotsBoxesState.matchId.find(arg.matchId);
+      if (
+        !state ||
+        match.gameKind !== "dots_boxes" ||
+        state.turn !== "melabot" ||
+        state.revision !== Number(arg.effectId)
+      )
+        return;
+      const [from, to] = decideDotsMove(state.edges);
+      resolveDotsTurn(ctx, match, state, "melabot", from, to);
+      return;
+    }
+    if (arg.kind === "gilli_ai_wake") {
+      const state = ctx.db.gilliDandaState.matchId.find(arg.matchId);
+      if (
+        !state ||
+        match.gameKind !== "gilli_danda" ||
+        state.turn !== "melabot" ||
+        state.round !== Number(arg.effectId)
+      )
+        return;
+      // MelaBot's timing/power are derived only from committed state.
+      resolveGilliTurn(
+        ctx,
+        match,
+        state,
+        "melabot",
+        Number(state.seed % 3n) + 1,
+        Number((state.seed / 7n) % 101n),
+      );
       return;
     }
     if (arg.kind === "ai_wake") {
