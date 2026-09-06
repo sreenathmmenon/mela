@@ -1,0 +1,178 @@
+.account-strip {
+  max-width: 1200px;
+  margin: auto;
+  padding: 10px 20px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.account-strip button {
+  background: transparent;
+  border: 0;
+  color: #3c382e;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.account-strip small {
+  color: #706855;
+  font-size: 11px;
+  border: 1px solid #d5cbb5;
+  border-radius: 20px;
+  padding: 3px 7px;
+}
+.account-dialog {
+  width: min(460px, calc(100% - 32px));
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 30px;
+  border: 2px solid #292319;
+  border-radius: 22px;
+  background: #fffcf2;
+  color: #292319;
+  box-shadow: 8px 8px 0 #29231933;
+  font-family: inherit;
+}
+.account-dialog::backdrop {
+  background: #18160ec9;
+  backdrop-filter: blur(4px);
+}
+.account-dialog h2 {
+  font-family: Georgia, serif;
+  font-size: 30px;
+  line-height: 1.1;
+  margin: 15px 0;
+}
+.account-dialog p {
+  line-height: 1.5;
+}
+.account-dialog button,
+.save-invitation button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid #292319;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: #fffdf5;
+  font-weight: 700;
+  min-height: 44px;
+}
+.account-dialog button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.account-dialog .account-close {
+  float: right;
+  border: 0;
+  background: transparent;
+  font-size: 25px;
+  padding: 0;
+  min-width: 44px;
+}
+.account-dialog label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.account-name-row {
+  display: flex;
+  gap: 8px;
+}
+.account-name-row input {
+  min-width: 0;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #827760;
+  border-radius: 10px;
+  background: #f7f1e3;
+  color: inherit;
+  font: inherit;
+}
+.account-name-row button {
+  white-space: nowrap;
+}
+.account-dialog .account-primary,
+.save-invitation > button:not(.quiet) {
+  background: #08766c;
+  color: white;
+  border-color: #08766c;
+}
+.account-dialog .account-primary {
+  width: 100%;
+  margin-top: 24px;
+}
+.account-note {
+  font-size: 12px;
+  color: #706855;
+}
+.account-dialog .quiet,
+.save-invitation .quiet {
+  border: 0;
+  background: transparent;
+  display: block;
+}
+.account-dialog .danger {
+  color: #945324;
+  font-size: 12px;
+}
+.account-error,
+.account-warning {
+  background: #fae4d8;
+  padding: 12px;
+  border-radius: 12px;
+}
+.account-success {
+  background: #e0eee4;
+  padding: 12px;
+  border-radius: 12px;
+}
+.save-invitation {
+  max-width: 1100px;
+  margin: 12px auto;
+  padding: 16px 20px;
+  background: #e1eee7;
+  border: 1px solid #8bac9a;
+  border-radius: 16px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #29392f;
+}
+.save-invitation strong,
+.save-invitation span {
+  display: block;
+}
+.save-invitation span {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.account-strip button:focus-visible,
+.account-dialog button:focus-visible,
+.account-dialog input:focus-visible,
+.save-invitation button:focus-visible {
+  outline: 3px solid #d58e15;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .account-dialog {
+    padding: 22px;
+  }
+  .account-name-row {
+    flex-wrap: wrap;
+  }
+  .account-name-row input {
+    flex-basis: 100%;
+  }
+  .save-invitation {
+    margin: 10px 14px;
+    flex-wrap: wrap;
+  }
+  .save-invitation > div {
+    width: 100%;
+  }
+  .account-strip {
+    padding: 8px 14px 0;
+  }
+}

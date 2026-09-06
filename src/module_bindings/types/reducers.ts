@@ -18,6 +18,7 @@ import CreateGilliDandaReducer from "../create_gilli_danda_reducer";
 import CreateLastStickReducer from "../create_last_stick_reducer";
 import CreatePenFightReducer from "../create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "../draw_dots_edge_reducer";
+import EnterGameReducer from "../enter_game_reducer";
 import FlickPenReducer from "../flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
 import LiftGilliReducer from "../lift_gilli_reducer";
@@ -45,6 +46,7 @@ export type CreateGilliDandaParams = __Infer<typeof CreateGilliDandaReducer>;
 export type CreateLastStickParams = __Infer<typeof CreateLastStickReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
 export type DrawDotsEdgeParams = __Infer<typeof DrawDotsEdgeReducer>;
+export type EnterGameParams = __Infer<typeof EnterGameReducer>;
 export type FlickPenParams = __Infer<typeof FlickPenReducer>;
 export type JoinMatchAsSpectatorParams = __Infer<
   typeof JoinMatchAsSpectatorReducer

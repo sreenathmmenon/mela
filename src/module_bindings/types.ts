@@ -10,6 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const AccountStatus = __t.object("AccountStatus", {
+  protected: __t.bool(),
+  recoverable: __t.bool(),
+});
+export type AccountStatus = __Infer<typeof AccountStatus>;
+
 export const AgentDuel = __t.object("AgentDuel", {
   matchId: __t.u64(),
   mode: __t.string(),
@@ -309,6 +315,9 @@ export const MetricsIdentity = __t.object("MetricsIdentity", {
 });
 export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
+export const MyAccountStatus = __t.object("MyAccountStatus", {});
+export type MyAccountStatus = __Infer<typeof MyAccountStatus>;
+
 export const MyEmailContact = __t.object("MyEmailContact", {});
 export type MyEmailContact = __Infer<typeof MyEmailContact>;
 
@@ -430,6 +439,12 @@ export const ProfileLinkChallenge = __t.object("ProfileLinkChallenge", {
   expiresAtMicros: __t.u64(),
 });
 export type ProfileLinkChallenge = __Infer<typeof ProfileLinkChallenge>;
+
+export const ProtectedIdentity = __t.object("ProtectedIdentity", {
+  identity: __t.identity(),
+  verifiedAt: __t.timestamp(),
+});
+export type ProtectedIdentity = __Infer<typeof ProtectedIdentity>;
 
 export const SpectatorCooldown = __t.object("SpectatorCooldown", {
   id: __t.u64(),

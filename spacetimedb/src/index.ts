@@ -49,6 +49,7 @@ import {
   spectatorJoinDelta,
 } from "./melaMetrics";
 import { checkDisplayName } from "./displayNameRules";
+import { guestName, validEntryGame, isProtectedIdentity } from "./guestRules";
 import {
   emailOnboardingPlan,
   realEmail,
@@ -97,6 +98,13 @@ const crowdSchedule = table(
 );
 
 const spacetimedb = schema({
+  protectedIdentity: table(
+    { public: false },
+    {
+      identity: t.identity().primaryKey(),
+      verifiedAt: t.timestamp(),
+    },
+  ),
   emailContact: table(
     { public: false },
     {
@@ -696,15 +704,8 @@ const ensureMelaProfile = (ctx: any, identity: any) => {
 const identityKey = (identity: any) => identity.toHexString();
 const canonicalIdentity = (ctx: any, identity = ctx.sender) =>
   ctx.db.identityLink.identity.find(identity)?.canonicalIdentity ?? identity;
-const MELA_AUTH_ISSUER = "https://auth.spacetimedb.com/oidc";
-const MELA_AUTH_CLIENT_ID = "client_034JneP1uzy8V3MhC39IXp";
 const requireMelaAuth = (ctx: any) => {
-  const jwt = ctx.senderAuth?.jwt;
-  if (
-    !jwt ||
-    jwt.issuer !== MELA_AUTH_ISSUER ||
-    !jwt.audience?.some((aud: string) => aud === MELA_AUTH_CLIENT_ID)
-  )
+  if (!isProtectedIdentity(ctx.senderAuth?.jwt))
     throw new SenderError("Sign in through Mela's email link to continue.");
 };
 const cleanExpiredProfileLinkChallenges = (ctx: any) => {
@@ -1814,6 +1815,14 @@ export const init = spacetimedb.init((ctx: any) => {
   ensurePenMetrics(ctx);
 });
 export const onConnect = spacetimedb.clientConnected((ctx: any) => {
+  if (
+    isProtectedIdentity(ctx.senderAuth?.jwt) &&
+    !ctx.db.protectedIdentity.identity.find(ctx.sender)
+  )
+    ctx.db.protectedIdentity.insert({
+      identity: ctx.sender,
+      verifiedAt: ctx.timestamp,
+    });
   migrateLegacyContacts(ctx);
   ensureWorld(ctx);
   ensureMelaBot(ctx);
@@ -1852,7 +1861,8 @@ function onboardProfile(ctx: any, displayName: string) {
   const check = checkDisplayName(name);
   if (!check.ok)
     throw new SenderError(check.message ?? "That name cannot be used.");
-  const old = ctx.db.playerProfile.identity.find(ctx.sender);
+  const identity = canonicalIdentity(ctx);
+  const old = ctx.db.playerProfile.identity.find(identity);
   if (old)
     ctx.db.playerProfile.identity.update({
       ...old,
@@ -1861,15 +1871,15 @@ function onboardProfile(ctx: any, displayName: string) {
     });
   else
     ctx.db.playerProfile.insert({
-      identity: ctx.sender,
+      identity,
       displayName: name,
       createdAt: ctx.timestamp,
       lastSeenAt: ctx.timestamp,
       melaLevel: 1,
       crowdInfluence: 0,
     });
-  ensureMelaProfile(ctx, ctx.sender);
-  const presence = ctx.db.worldPresence.identity.find(ctx.sender);
+  ensureMelaProfile(ctx, identity);
+  const presence = ctx.db.worldPresence.identity.find(identity);
   if (presence)
     ctx.db.worldPresence.identity.update({
       ...presence,
@@ -1878,7 +1888,7 @@ function onboardProfile(ctx: any, displayName: string) {
     });
   else
     ctx.db.worldPresence.insert({
-      identity: ctx.sender,
+      identity,
       worldId: WORLD_ID,
       state: "online",
       joinedAt: ctx.timestamp,
@@ -1886,16 +1896,61 @@ function onboardProfile(ctx: any, displayName: string) {
     });
 }
 
-// Legacy clients can rename an existing identity, but cannot create new
-// name-only registrations after the email-onboarding release.
+function ensureGuest(ctx: any) {
+  if (!ctx.db.playerProfile.identity.find(canonicalIdentity(ctx)))
+    onboardProfile(ctx, guestName(canonicalIdentity(ctx).toHexString()));
+}
+
+// Rename only the caller's canonical profile. Historic match names are snapshots.
 export const onboard = spacetimedb.reducer(
   { displayName: t.string() },
   (ctx: any, { displayName }: any) => {
-    migrateLegacyContacts(ctx);
-    if (!ctx.db.playerProfile.identity.find(ctx.sender))
-      throw new SenderError("Refresh Mela and join with your name and email.");
+    if (!ctx.db.playerProfile.identity.find(canonicalIdentity(ctx)))
+      throw new SenderError("Choose a game first.");
     onboardProfile(ctx, displayName);
   },
+);
+
+/** One transaction: guest enrollment and chosen game; retries resume, never abandon. */
+export const enterGame = spacetimedb.reducer(
+  { gameKind: t.string() },
+  (ctx: any, { gameKind }: any) => {
+    if (!validEntryGame(gameKind))
+      throw new SenderError("Choose one of Mela's games.");
+    ensureGuest(ctx);
+    if (gameKind === "lobby") return;
+    const identity = canonicalIdentity(ctx);
+    if (
+      Array.from(ctx.db.match.iter()).some(
+        (m: any) => m.status === "active" && m.playerIdentity.isEqual(identity),
+      )
+    )
+      return;
+    if (gameKind === "book_cricket") startBookCricket(ctx);
+    else if (gameKind === "pen_fight") createPenMatch(ctx);
+    else if (gameKind === "dots_boxes") startDotsBoxes(ctx);
+    else if (gameKind === "gilli_danda") startGilliDanda(ctx);
+    else startStrategyMatch(ctx, gameKind);
+  },
+);
+
+export const myAccountStatus = spacetimedb.view(
+  { public: true },
+  t.array(
+    t.row("AccountStatus", { protected: t.bool(), recoverable: t.bool() }),
+  ),
+  (ctx: any) => [
+    {
+      protected: Boolean(ctx.db.protectedIdentity.identity.find(ctx.sender)),
+      recoverable:
+        Boolean(ctx.db.protectedIdentity.identity.find(ctx.sender)) ||
+        Array.from(ctx.db.identityLink.iter()).some(
+          (link: any) =>
+            link.canonicalIdentity.isEqual(ctx.sender) &&
+            Boolean(ctx.db.protectedIdentity.identity.find(link.identity)),
+        ),
+    },
+  ],
 );
 
 export const myEmailContact = spacetimedb.view(
@@ -2029,8 +2084,11 @@ export const completeProfileLink = spacetimedb.reducer(
       throw new SenderError(
         "This secure sign-in link expired. Start again in your original Mela browser.",
       );
-    if (ctx.db.identityLink.identity.find(ctx.sender))
-      throw new SenderError("This email sign-in is already connected to Mela.");
+    if (ctx.db.identityLink.identity.find(ctx.sender)) {
+      // Restore the established account; never merge a different guest's history.
+      ctx.db.profileLinkChallenge.nonce.delete(nonce);
+      return;
+    }
     if (ctx.db.playerProfile.identity.find(ctx.sender))
       throw new SenderError(
         "This email sign-in already has a Mela profile and cannot replace another one.",
@@ -2047,7 +2105,7 @@ export const completeProfileLink = spacetimedb.reducer(
     ctx.db.profileLinkChallenge.nonce.delete(nonce);
   },
 );
-export const createBookCricket = spacetimedb.reducer((ctx: any) => {
+function startBookCricket(ctx: any) {
   const p = player(ctx);
   const identity = canonicalIdentity(ctx);
   // Mela hosts many concurrent matches; only one live match per identity keeps
@@ -2133,7 +2191,10 @@ export const createBookCricket = spacetimedb.reducer((ctx: any) => {
     nowMicros(ctx) + BOOK_CRICKET_RULES.crowdEnergyRegenMicros,
   );
   emit(ctx, matchId, `${p.displayName} started batting`);
-});
+}
+export const createBookCricket = spacetimedb.reducer((ctx: any) =>
+  startBookCricket(ctx),
+);
 function createPenMatch(ctx: any) {
   const p = player(ctx);
   const identity = canonicalIdentity(ctx);
@@ -2991,9 +3052,10 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
     )
       throw new SenderError("An agent seat cannot also join the crowd.");
     const match = ctx.db.match.id.find(matchId);
-    const profile = player(ctx);
     if (!match || match.status !== "active")
       throw new SenderError("That match is not live.");
+    ensureGuest(ctx);
+    const profile = player(ctx);
     if (!duel && match.playerIdentity.isEqual(identity))
       throw new SenderError("The player is already in this match.");
     if (spectatorFor(ctx, matchId, identity)) return;

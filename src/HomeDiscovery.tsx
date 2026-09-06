@@ -55,9 +55,11 @@ export function HomeDiscovery({
   onChoose,
   onSignIn,
   live,
+  busy = false,
 }: {
   onChoose: (name: string) => void;
   onSignIn: () => void;
+  busy?: boolean;
   live: Array<{ id: bigint; host: string; game: string; watching: number }>;
 }) {
   return (
@@ -78,7 +80,7 @@ export function HomeDiscovery({
             Find your game ↓
           </a>
           <button className="secondary" onClick={onSignIn}>
-            Already in Mela? Sign in
+            Restore my progress
           </button>
         </div>
         <div className="home-principles">
@@ -94,15 +96,18 @@ export function HomeDiscovery({
       >
         <div className="home-section-heading">
           <h2 id="home-games-title">What are we playing?</h2>
-          <p>Browse first. Join when something catches your eye.</p>
+          <p>
+            Pick a game. Play straight away. No name, email or password needed.
+          </p>
         </div>
         <div className="home-game-grid">
           {HOME_GAMES.map((game) => (
             <button
               key={game.kind}
               className="home-game"
-              onClick={() => onChoose(game.name)}
-              aria-label={`Join to play ${game.name}`}
+              onClick={() => onChoose(game.kind)}
+              disabled={busy}
+              aria-label={`Play ${game.name}`}
             >
               <span
                 className={`home-art home-art-${game.art}`}
@@ -150,7 +155,7 @@ export function HomeDiscovery({
                 <strong>{game.name}</strong>
                 <span>{game.copy}</span>
                 <em>{game.crowd}</em>
-                <b>Join to play →</b>
+                <b>{busy ? "Getting ready…" : "Play now →"}</b>
               </span>
             </button>
           ))}

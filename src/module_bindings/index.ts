@@ -46,6 +46,7 @@ import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
 import CreateLastStickReducer from "./create_last_stick_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
+import EnterGameReducer from "./enter_game_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import LiftGilliReducer from "./lift_gilli_reducer";
@@ -82,6 +83,7 @@ import MatchParticipantRow from "./match_participant_table";
 import MatchSpectatorRow from "./match_spectator_table";
 import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
+import MyAccountStatusRow from "./my_account_status_table";
 import MyEmailContactRow from "./my_email_contact_table";
 import MyIdentityLinkRow from "./my_identity_link_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
@@ -622,6 +624,14 @@ const tablesSchema = __schema({
     },
     WorldPresenceRow,
   ),
+  myAccountStatus: __table(
+    {
+      name: "my_account_status",
+      indexes: [],
+      constraints: [],
+    },
+    MyAccountStatusRow,
+  ),
   myEmailContact: __table(
     {
       name: "my_email_contact",
@@ -678,6 +688,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_last_stick", CreateLastStickReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
   __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
+  __reducerSchema("enter_game", EnterGameReducer),
   __reducerSchema("flick_pen", FlickPenReducer),
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("lift_gilli", LiftGilliReducer),

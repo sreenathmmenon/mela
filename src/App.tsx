@@ -1,13 +1,6 @@
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { useAuth } from "react-oidc-context";
+import { useMelaAccount } from "./AccountControls";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
@@ -18,8 +11,6 @@ import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
 import { HomeDiscovery } from "./HomeDiscovery";
 import { EmailRecap } from "./EmailRecap";
-import { signOut } from "./identity";
-import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
 import { isMuted, playSound, toggleMuted } from "./sound";
 
 const POWER_CARDS = [
@@ -66,18 +57,6 @@ const GAME_LABELS: Record<string, string> = {
   four_row: "Four in a Row",
   last_stick: "Last Stick",
 };
-
-const PROFILE_LINK_NONCE_KEY = "mela-profile-link-nonce";
-const AUTH_RETURN_TO_KEY = "mela-auth-return-to";
-const freshProfileLinkNonce = () =>
-  Array.from(crypto.getRandomValues(new Uint8Array(32)), (value) =>
-    value.toString(16).padStart(2, "0"),
-  ).join("");
-const rememberAuthReturn = () =>
-  sessionStorage.setItem(
-    AUTH_RETURN_TO_KEY,
-    `${window.location.pathname}${window.location.search}${window.location.hash}`,
-  );
 
 const PLAY_CHOICES = [
   {
@@ -161,10 +140,7 @@ function screenUrlFor(matchId: bigint) {
 }
 
 function App() {
-  const auth = useAuth();
-  const [name, setName] = useState("");
-  const [discoveredGame, setDiscoveredGame] = useState("");
-  const [email, setEmail] = useState("");
+  const { openAccount } = useMelaAccount();
   const [joining, setJoining] = useState(false);
   const joinBusy = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +210,7 @@ function App() {
   const [identityLinks, identityLinksReady] = useTable(tables.myIdentityLink);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [presence] = useTable(tables.worldPresence);
-  const [matches] = useTable(tables.match);
+  const [matches, matchesReady] = useTable(tables.match);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
@@ -538,76 +514,7 @@ function App() {
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
-  const beginProfileLink = useReducer(reducers.beginProfileLink);
-  const completeProfileLink = useReducer(reducers.completeProfileLink);
-  const profileLinkHandled = useRef(false);
-
-  // The source browser holds the one-time nonce across the OIDC redirect. A
-  // verified magic-link identity can redeem it exactly once; an email string
-  // alone can never attach itself to someone else's saved Mela life.
-  useEffect(() => {
-    const nonce = sessionStorage.getItem(PROFILE_LINK_NONCE_KEY);
-    if (
-      !auth.isAuthenticated ||
-      !nonce ||
-      !connected ||
-      !profilesReady ||
-      !identityLinksReady ||
-      me ||
-      profileLinkHandled.current
-    )
-      return;
-    profileLinkHandled.current = true;
-    completeProfileLink({ nonce })
-      .then(() => {
-        sessionStorage.removeItem(PROFILE_LINK_NONCE_KEY);
-        setFeedback(
-          "Email sign-in is ready. Your Mela memories came with you.",
-        );
-      })
-      .catch((reason) =>
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Mela could not connect this email sign-in.",
-        ),
-      );
-  }, [
-    auth.isAuthenticated,
-    completeProfileLink,
-    connected,
-    identityLinksReady,
-    me,
-    profilesReady,
-  ]);
-
-  const startEmailSignIn = async () => {
-    try {
-      setError(null);
-      rememberAuthReturn();
-      if (me && !auth.isAuthenticated) {
-        const nonce = freshProfileLinkNonce();
-        await beginProfileLink({ nonce });
-        sessionStorage.setItem(PROFILE_LINK_NONCE_KEY, nonce);
-      }
-      await auth.signinRedirect();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Email sign-in could not start. Please try again.",
-      );
-    }
-  };
-
-  const leaveMela = () => {
-    if (auth.isAuthenticated) {
-      void auth.signoutRedirect();
-      return;
-    }
-    signOut();
-  };
-
+  const enterGame = useReducer(reducers.enterGame);
   // A scanned QR must land the visitor in THAT match — even if they have
   // played or watched here before. Fresh identities join during onboarding;
   // everyone else joins here, exactly once per page load.
@@ -617,7 +524,7 @@ function App() {
       !requestedJoinMatchId ||
       !connected ||
       !me ||
-      matches.length === 0 ||
+      !matchesReady ||
       qrJoinHandled.current
     )
       return;
@@ -663,70 +570,46 @@ function App() {
         ),
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestedJoinMatchId, connected, me, matches]);
+  }, [requestedJoinMatchId, connected, me, matches, matchesReady]);
 
-  const submitOnboarding = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!name.trim() || !connected || !profilesReady || joinBusy.current)
+  const enter = async (gameKind: string) => {
+    if (joinBusy.current || !connected || !profilesReady || !identityLinksReady)
       return;
-    if (me) {
-      setError(null);
-      return;
-    }
-    // The reducer is the real gate — it runs even if this is bypassed. This
-    // check exists only to tell the player WHY a name was refused: SpacetimeDB
-    // does not surface reducer error text, so a server rejection reaches the
-    // client as "The instance encountered a fatal error".
-    const nameCheck = checkDisplayName(name);
-    if (!nameCheck.ok) {
-      setError(nameCheck.message ?? "That name cannot be used.");
-      return;
-    }
+    joinBusy.current = true;
+    setJoining(true);
+    setError(null);
     try {
-      joinBusy.current = true;
-      setJoining(true);
-      setError(null);
-      // Use THIS live connection's credentials, never another tab's most
-      // recently saved localStorage token.
-      const token = conn.getConnection()?.token;
-      if (!token)
-        throw new Error("Still connecting. Please try again in a moment.");
-      const result = await fetch("/api/welcome", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, email, consent: true }),
-        signal: AbortSignal.timeout(25000),
-      });
-      const body = await result.json();
-      if (!result.ok || (body.accepted !== true && body.existing !== true))
-        throw new Error(
-          body.error || "Could not send your welcome email. Please retry.",
-        );
-      setEmail("");
-      // The QR effect handles joining once the profile subscription arrives.
-      setError(null);
-      setFeedback(
-        body.existing
-          ? "Your Mela profile is already ready on this device."
-          : requestedJoinMatchId
-            ? "You joined the crowd. Watch the next ball, then decide whether this is the moment to intervene."
-            : body.emailStatus === "sent"
-              ? "Welcome to Mela. Your welcome email is on its way—check your inbox or spam. Pick your first game."
-              : "Welcome to Mela. Your profile is ready; your welcome email is delayed, but you can play now.",
-      );
-    } catch (reason) {
+      await enterGame({ gameKind });
+      setShowHome(false);
+      setPinnedMatchId(null);
+      setFeedback(null);
+    } catch {
       setError(
-        reason instanceof Error ? reason.message : "Unable to join Mela.",
+        "We couldn't open your game. Check your connection and try again.",
       );
     } finally {
       joinBusy.current = false;
       setJoining(false);
     }
   };
-
+  const enterCrowd = async () => {
+    if (!requestedJoinMatchId || joinBusy.current || !connected) return;
+    joinBusy.current = true;
+    setJoining(true);
+    setError(null);
+    try {
+      await joinSpectator({ matchId: requestedJoinMatchId });
+      setPinnedMatchId(requestedJoinMatchId);
+      setShowHome(false);
+    } catch {
+      setError(
+        "This crowd couldn't open. The match may have ended. Try again or pick a game.",
+      );
+    } finally {
+      joinBusy.current = false;
+      setJoining(false);
+    }
+  };
   const startMatch = async () => {
     setCreatingMatch(true);
     setShowHome(false);
@@ -1002,14 +885,9 @@ function App() {
 
       {!me && !requestedJoinMatchId && (
         <HomeDiscovery
-          onChoose={(game) => {
-            setDiscoveredGame(game);
-            document
-              .getElementById("join-mela")
-              ?.scrollIntoView({ block: "start" });
-            document.getElementById("name")?.focus({ preventScroll: true });
-          }}
-          onSignIn={() => void startEmailSignIn()}
+          onChoose={(game) => void enter(game)}
+          busy={joining || !connected || !profilesReady || !identityLinksReady}
+          onSignIn={openAccount}
           live={liveMatchesToWatch
             .slice()
             .sort((a, b) => Number(b.id - a.id))
@@ -1031,113 +909,52 @@ function App() {
           <p>Getting your place ready.</p>
         </section>
       )}
-      {!me && connected && profilesReady && (
-        <form id="join-mela" className="join-card" onSubmit={submitOnboarding}>
-          <p className="eyebrow">
-            {requestedJoinMatchId
-              ? "YOU’VE BEEN INVITED TO THE CROWD"
-              : "STEP 1 OF 1"}
-          </p>
+      {!me && connected && profilesReady && Boolean(requestedJoinMatchId) && (
+        <section className="join-card guest-invite">
+          <p className="eyebrow">YOU'RE INVITED · NO SIGN-UP</p>
           <h2>
-            {requestedJoinMatchId
-              ? "Name yourself and join live."
-              : discoveredGame
-                ? `Ready for ${discoveredGame}?`
-                : "Enter the matchday crowd"}
+            {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
+            "active"
+              ? `Join the ${GAME_LABELS[matches.find((m) => m.id === requestedJoinMatchId)!.gameKind] ?? "Mela"} crowd.`
+              : "Catch the next moment."}
           </h2>
           <p>
-            {requestedJoinMatchId
-              ? "You’ll join as part of the crowd — you get to change what happens on the next move."
-              : "Join once, then choose any of the six games. Your name on the desk. A welcome in your inbox. No password."}
+            Watch the match. Choose a side. Change the next move with shared
+            Crowd Energy.
           </p>
-          <label htmlFor="name">Your display name</label>
-          <div className="join-row">
-            <input
-              id="name"
-              placeholder="e.g. Maya"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={!connected || joining}
-              autoComplete="off"
-              maxLength={24}
-            />
-          </div>
-          <label htmlFor="join-email">Your email</label>
-          <div className="join-row">
-            <input
-              id="join-email"
-              type="email"
-              autoComplete="email"
-              required
-              maxLength={254}
-              placeholder="you@example.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={!connected || joining}
-              aria-describedby="join-email-note"
-            />
+          {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
+          "active" ? (
             <button
-              disabled={
-                !connected || joining || name.trim().length < 2 || !email.trim()
-              }
+              disabled={joining || !matchesReady}
+              onClick={() => void enterCrowd()}
             >
-              {joining
-                ? "Sending your welcome…"
-                : connected
-                  ? "Join Mela"
-                  : "Connecting…"}
+              {joining ? "Joining the crowd…" : "Join the crowd →"}
             </button>
-          </div>
-          <p id="join-email-note" className="recap-privacy">
-            By joining, you request one welcome email, delivered by Resend. Your
-            email stays private. No newsletter or password. You can securely
-            connect this profile to email for another browser after joining.
-          </p>
-          <button
-            type="button"
-            className="secondary email-sign-in"
-            onClick={() => void startEmailSignIn()}
-            disabled={joining}
-          >
-            Already in Mela? Sign in with email
-          </button>
+          ) : (
+            <>
+              <p>This match has finished or isn't available.</p>
+              <a href={`?memory=${requestedJoinMatchId}`}>See the result</a>
+              <a className="link-back" href="/">
+                Find a game →
+              </a>
+            </>
+          )}
           <p className="recap-privacy">
-            Use the magic link you previously connected from your original Mela
-            browser. Email alone never takes over a profile.
+            No email. No password. A nickname is ready for you.
           </p>
-          {auth.isAuthenticated &&
-            !me &&
-            !sessionStorage.getItem(PROFILE_LINK_NONCE_KEY) && (
-              <p className="feedback error" role="alert">
-                This email is not connected to a Mela profile yet. Open Mela in
-                the browser where your profile already works, then choose “Use
-                on another device”.
-              </p>
-            )}
-          {error && (
-            <p className="feedback error" role="alert">
-              {error}
-            </p>
-          )}
-          {!requestedJoinMatchId && (
-            <ul className="how-mela-works">
-              <li>
-                <b>Play</b> a two-minute game against MelaBot.
-              </li>
-              <li>
-                <b>Share a QR</b> so friends can watch live.
-              </li>
-              <li>
-                <b>They change your game</b> — the crowd spends shared energy on
-                your next move.
-              </li>
-            </ul>
-          )}
-        </form>
+          <button className="link-back" onClick={openAccount}>
+            Restore my progress
+          </button>
+        </section>
       )}
-      {error && me && (
+      {error && (
         <p className="feedback error" role="alert">
           {error}
+        </p>
+      )}
+      {joining && !requestedJoinMatchId && (
+        <p className="feedback" role="status">
+          Opening your game…
         </p>
       )}
       {feedback && (
@@ -1149,19 +966,10 @@ function App() {
       {me && (
         <section className="identity">
           <span>
-            Signed in as <strong>{me.displayName}</strong>
-            {!auth.isAuthenticated && (
-              <button
-                className="link-back"
-                onClick={() => void startEmailSignIn()}
-                title="Secure this profile so you can use it in another browser"
-              >
-                Use on another device
-              </button>
-            )}
-            {auth.isAuthenticated && (
-              <span className="identity-auth">Email connected</span>
-            )}
+            Playing as <strong>{me.displayName}</strong>
+            <button className="link-back" onClick={openAccount}>
+              Your profile
+            </button>
             {displayedMatch && (
               <button
                 className="link-back"
@@ -1195,10 +1003,10 @@ function App() {
             </button>
             <button
               className="link-back"
-              onClick={leaveMela}
+              onClick={openAccount}
               title="Leave Mela on this device"
             >
-              Sign out
+              Profile & progress
             </button>
           </span>
         </section>

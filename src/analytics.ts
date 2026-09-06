@@ -15,6 +15,7 @@
  * adds no consent banner. Referrers are recorded by GoatCounter automatically.
  */
 
+import { analyticsPath } from "./accountFlow";
 const CODE = import.meta.env.VITE_GOATCOUNTER_CODE as string | undefined;
 
 declare global {
@@ -28,7 +29,7 @@ declare global {
 
 /** The path as GoatCounter should record it, hash route included. */
 function currentPath(): string {
-  return location.pathname + location.search + location.hash;
+  return analyticsPath(location.href);
 }
 
 let lastCounted = "";

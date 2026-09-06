@@ -9,6 +9,12 @@ import BigScreen from "./BigScreen.tsx";
 import { AUTH_TOKEN_KEY } from "./identity.ts";
 import { initAnalytics } from "./analytics.ts";
 import { WebMCPTools } from "./AgentDuel";
+import { AccountControls } from "./AccountControls";
+import {
+  AUTH_RETURN_TO_KEY,
+  PROFILE_LINK_NONCE_KEY,
+  safeReturnPath,
+} from "./accountFlow";
 
 const HOST =
   import.meta.env.VITE_SPACETIMEDB_HOST ??
@@ -41,7 +47,6 @@ const onConnectError = (_ctx: ErrorContext, err: Error) => {
   console.log("Error connecting to SpacetimeDB:", err);
 };
 
-const RETURN_TO_KEY = "mela-auth-return-to";
 const oidcConfig = {
   authority: "https://auth.spacetimedb.com/oidc",
   client_id: "client_034JneP1uzy8V3MhC39IXp",
@@ -71,12 +76,30 @@ function MelaRoot() {
       window.removeEventListener("popstate", sync);
     };
   }, []);
-  return onScreen ? <BigScreen /> : <App />;
+  return onScreen ? (
+    <BigScreen />
+  ) : (
+    <AccountControls>
+      <App />
+    </AccountControls>
+  );
 }
 
 function AuthenticatedMela() {
   const auth = useAuth();
-  const oidcToken = auth.user?.id_token;
+  const oidcToken = auth.user?.expired ? undefined : auth.user?.id_token;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+  const returnToPlay = async () => {
+    sessionStorage.removeItem(PROFILE_LINK_NONCE_KEY);
+    await auth.removeUser();
+    window.location.assign(
+      safeReturnPath(sessionStorage.getItem(AUTH_RETURN_TO_KEY)),
+    );
+  };
   const connectionBuilder = useMemo(
     () =>
       DbConnection.builder()
@@ -94,13 +117,26 @@ function AuthenticatedMela() {
   );
 
   if (auth.isLoading)
-    return <main className="app-shell">Connecting to Mela…</main>;
+    return (
+      <main className="mela-shell">
+        <h1>Mela</h1>
+        <p role="status">Opening your playground…</p>
+        {slow && (
+          <button onClick={() => void returnToPlay()}>
+            Continue playing without sign-in
+          </button>
+        )}
+      </main>
+    );
   if (auth.error)
     return (
-      <main className="app-shell">
+      <main className="mela-shell">
+        <h1>Let's get you back to the game.</h1>
         <p className="feedback error">
-          Email sign-in could not finish. Return to Mela and try again.
+          Sign-in couldn't finish. Your browser progress is still safe. You can
+          play now and save later.
         </p>
+        <button onClick={() => void returnToPlay()}>Back to playing</button>
       </main>
     );
   return (
@@ -121,12 +157,12 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider
       {...oidcConfig}
       onSigninCallback={() => {
-        const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
-        sessionStorage.removeItem(RETURN_TO_KEY);
+        const returnTo = sessionStorage.getItem(AUTH_RETURN_TO_KEY);
+        sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
         window.history.replaceState(
           {},
           document.title,
-          returnTo || window.location.pathname.replace(/\/callback$/, "/"),
+          safeReturnPath(returnTo),
         );
       }}
     >
