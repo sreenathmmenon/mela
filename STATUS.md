@@ -1,5 +1,12 @@
 # MELA STATUS
 
+## Current pass — games-first public homepage (2026-09-06)
+
+- Added a public, responsive six-game discovery page before signup, with illustrated game cards, short rules/crowd descriptions, clear returning-user sign-in and a live crowd section driven by existing subscriptions. No invented audience counts. A game card scrolls/focuses the existing signup form and names the selected game; after joining, the existing picker offers all six games. It does not silently start or abandon a match.
+- QR invitation URLs keep the direct invited-crowd onboarding flow; shared memories, signed-in game picker and active matches keep their existing routes. Only `src/App.tsx`, new `HomeDiscovery.tsx` and scoped `homeDiscovery.css` changed. No server/schema/authority/authentication/email/physics changes, no Maincloud publication needed. The proposed cricket 3D redesign has not been started.
+- Verification: 121/121 tests, frontend typecheck and production build pass; existing bundle-size warning remains. Browser checked desktop and 390×844, six visible game choices, no horizontal overflow, game-card focus/selected heading, fresh local HomeMaya onboarding through the unchanged delayed-email path, six-game picker, Pen Fight creation and 3D restoration after refresh. Independent fresh QR visitor retained direct invitation form without the showcase. Visual review corrected a Book Cricket illustration CSS-name collision. Screenshots: `output/playwright/home-six-cards.png`, `home-final-mobile.png` (local evidence).
+- Next task: commit/push homepage as Sreenath, deploy the existing Railway production service, then verify all six choices appear to a fresh live visitor.
+
 ## Current pass — two additional Mela strategy games (2026-09-06)
 
 - Sreenath requested two additional complete games in the same manner as the released playground games. Main remains authorized. Added **Four in a Row** (`four_row`) and **Last Stick** (`last_stick`), with distinct board/pile presentation, automatic deterministic MelaBot, meaningful spectator powers, QR invitations, read-only big-screen dispatch, saved memory/progression and idempotent rematches. Detailed rules and contracts: `docs/STRATEGY_GAMES.md`.

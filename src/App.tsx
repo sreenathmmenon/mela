@@ -16,6 +16,7 @@ import { PenFight } from "./PenFight";
 import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
+import { HomeDiscovery } from "./HomeDiscovery";
 import { EmailRecap } from "./EmailRecap";
 import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
@@ -162,6 +163,7 @@ function screenUrlFor(matchId: bigint) {
 function App() {
   const auth = useAuth();
   const [name, setName] = useState("");
+  const [discoveredGame, setDiscoveredGame] = useState("");
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
   const joinBusy = useRef(false);
@@ -979,7 +981,9 @@ function App() {
     );
 
   return (
-    <main className="mela-shell">
+    <main
+      className={`mela-shell ${!me && !requestedJoinMatchId ? "home-landing" : ""}`}
+    >
       <header className="hero">
         <p className="eyebrow">MELA · LIVE PLAYGROUND</p>
         <div className="hero-row">
@@ -996,14 +1000,39 @@ function App() {
         </div>
       </header>
 
+      {!me && !requestedJoinMatchId && (
+        <HomeDiscovery
+          onChoose={(game) => {
+            setDiscoveredGame(game);
+            document
+              .getElementById("join-mela")
+              ?.scrollIntoView({ block: "start" });
+            document.getElementById("name")?.focus({ preventScroll: true });
+          }}
+          onSignIn={() => void startEmailSignIn()}
+          live={liveMatchesToWatch
+            .slice()
+            .sort((a, b) => Number(b.id - a.id))
+            .slice(0, 6)
+            .map((match) => ({
+              id: match.id,
+              game: GAME_LABELS[match.gameKind] ?? match.gameKind,
+              host:
+                participants.find(
+                  (p) => p.matchId === match.id && p.actorKind === "human",
+                )?.displayName ?? "A Mela player",
+              watching: spectators.filter((s) => s.matchId === match.id).length,
+            }))}
+        />
+      )}
       {!me && (!connected || !profilesReady) && (
-        <section className="join-card" role="status">
+        <section id="join-mela" className="join-card" role="status">
           <h2>Opening Mela…</h2>
           <p>Getting your place ready.</p>
         </section>
       )}
       {!me && connected && profilesReady && (
-        <form className="join-card" onSubmit={submitOnboarding}>
+        <form id="join-mela" className="join-card" onSubmit={submitOnboarding}>
           <p className="eyebrow">
             {requestedJoinMatchId
               ? "YOU’VE BEEN INVITED TO THE CROWD"
@@ -1012,12 +1041,14 @@ function App() {
           <h2>
             {requestedJoinMatchId
               ? "Name yourself and join live."
-              : "Enter the matchday crowd"}
+              : discoveredGame
+                ? `Ready for ${discoveredGame}?`
+                : "Enter the matchday crowd"}
           </h2>
           <p>
             {requestedJoinMatchId
               ? "You’ll join as part of the crowd — you get to change what happens on the next move."
-              : "Your name on the desk. A welcome in your inbox. No password."}
+              : "Join once, then choose any of the six games. Your name on the desk. A welcome in your inbox. No password."}
           </p>
           <label htmlFor="name">Your display name</label>
           <div className="join-row">
