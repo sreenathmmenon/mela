@@ -31,43 +31,63 @@ export function PenDesk(props: Props) {
   useEffect(() => {
     let disposed = false;
     const container = host.current!;
-    const lost = (event: Event) => {
-      event.preventDefault();
-      setFailed(true);
-      latest.current.onMoving(false);
-    };
-    import("./penDeskScene")
-      .then(({ createDeskScene }) => {
-        if (disposed) return;
-        try {
-          scene.current = createDeskScene(container, [
-            humanLabel.current!,
-            botLabel.current!,
-          ]);
-          container
-            .querySelector("canvas")
-            ?.addEventListener("webglcontextlost", lost);
-          if (latest.current.inputRef)
-            latest.current.inputRef.current = scene.current.point;
-          scene.current.draw(latest.current);
-          setReady(true);
-        } catch {
-          setFailed(true);
-          latest.current.onMoving(false);
-        }
-      })
-      .catch(() => {
-        if (!disposed) setFailed(true);
-      });
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(raf.current);
+    const releaseScene = () => {
       container
         .querySelector("canvas")
         ?.removeEventListener("webglcontextlost", lost);
       scene.current?.dispose();
       scene.current = undefined;
       if (latest.current.inputRef) latest.current.inputRef.current = null;
+    };
+    const lost = (event: Event) => {
+      event.preventDefault();
+      releaseScene();
+      setFailed(true);
+      latest.current.onMoving(false);
+    };
+    const startScene = () => {
+      if (disposed || document.hidden || scene.current) return;
+      import("./penDeskScene")
+        .then(({ createDeskScene }) => {
+          if (disposed || document.hidden || scene.current) return;
+          try {
+            scene.current = createDeskScene(container, [
+              humanLabel.current!,
+              botLabel.current!,
+            ]);
+            container
+              .querySelector("canvas")
+              ?.addEventListener("webglcontextlost", lost);
+            if (latest.current.inputRef)
+              latest.current.inputRef.current = scene.current.point;
+            scene.current.draw(latest.current);
+            setFailed(false);
+            setReady(true);
+          } catch {
+            setFailed(true);
+            latest.current.onMoving(false);
+          }
+        })
+        .catch(() => {
+          if (!disposed) setFailed(true);
+        });
+    };
+    const visibilityChanged = () => {
+      if (document.hidden) {
+        releaseScene();
+        setReady(false);
+        latest.current.onMoving(false);
+      } else {
+        startScene();
+      }
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
+    startScene();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf.current);
+      document.removeEventListener("visibilitychange", visibilityChanged);
+      releaseScene();
     };
   }, []);
   useEffect(() => {

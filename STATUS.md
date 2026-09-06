@@ -1,13 +1,21 @@
 # MELA STATUS
 
-## Current pass — verified cross-browser return (release verification pending)
+## Current pass — verified cross-browser return (released; independent-device check remains)
 
 - The reported Incognito failure is real: the deployed app stores profiles against anonymous browser-issued SpacetimeDB tokens. A user-supplied welcome-email address is not verified authentication and cannot safely reconstruct that identity in another browser.
 - Researched fact: SpacetimeDB documents that anonymous tokens cannot be recovered if the token is lost, and recommends OIDC for production identity lifecycle. SpacetimeAuth is its managed OIDC provider; it is currently beta. The configured Mela client has magic-link sign-in and the Railway `/callback` redirect registered.
 - Implemented an additive, secure migration path: a person opens their existing Mela browser, selects **Use on another device**, then completes the magic link. A private, random, ten-minute one-time challenge bridges the original profile to the authenticated identity. The bridge requires a Maincloud-validated SpacetimeAuth JWT with the exact issuer and Mela client audience; typing or knowing an email address never links a profile.
 - Existing games, memories, scores, crowd activity and match ownership remain attached to the original canonical identity. A private `identity_link` aliases only the authenticated identity to that canonical owner; the caller-only `my_identity_link` view lets the client render the same profile/matches after login without exposing the mapping globally. No profile/contact merge or historical-data rewrite occurs.
 - Local migration to `mela-pen-feel-0906` created only private `identity_link`, private expiring `profile_link_challenge`, and caller-only `my_identity_link`; no data was deleted. The UI exposes both **Already in Mela? Sign in with email** and the source-browser **Use on another device** action. Full deterministic suite (**94/94**), typecheck, module build, transport build and production frontend build pass. The OIDC callback itself cannot be completed against local development because only the Railway callback URL is registered.
-- **Not deployed yet.** Required release verification: publish the additive module, deploy Railway, then use Sreenath's existing original Mela browser plus the authorized mailbox to complete the real magic-link bridge and an independent Incognito return. Confirm the old profile/memories appear and no fresh profile is created. Do not claim cross-browser login until that check succeeds.
+- Released implementation `94bd9af`, pushed as Sreenath with no co-author. Maincloud `mela-cah23` accepted the additive publication with no data deletion. Railway deployment `99452a2d-3b47-4f04-87fa-c487b81f25d6` completed successfully on the Railway production URL only.
+- Production validation: the initially configured callback was rejected by SpacetimeAuth because it was not an active redirect-URI list member. It was added and saved; live sign-in then reached the magic-link screen. A real magic-link email arrived in the authorised inbox, was confirmed, and returned to the existing Sreenath profile with its already-live Pen Fight match still present. This verifies delivery, the configured callback, authenticated connection and canonical-profile continuity. It is **not** claimed as an independent Incognito/device verification yet.
+- Next task: use an independent browser or phone with `zreenathmenon@gmail.com`, select **Already in Mela? Sign in with email**, complete the magic link, and verify the retained Sreenath profile/memories appear without creating a new profile.
+
+## Current pass — 3D desk lifecycle hardening
+
+- Pen Fight now disposes its non-authoritative Three.js canvas when its browser tab becomes hidden and rebuilds it on return. This prevents hidden Mela tabs from unnecessarily retaining graphics contexts.
+- Production build/typecheck pass. Railway deployment `b4f0019c-5aea-47bb-ab53-4cf998f95a66` completed. In the Codex-controlled Chrome validation session, the browser itself reported `GL_VENDOR = Disabled`, `GL_RENDERER = Disabled`, and `Sandboxed = yes`; this environment cannot create any WebGL context, so it correctly displayed the existing simplified desk. That is not evidence that native Chrome/mobile hardware rendering regressed. A hardware-enabled browser recheck remains required.
+- Next task: verify the live Pen Fight desk on a normal hardware-accelerated Chrome or phone, including moving between Mela tabs, and record the outcome.
 
 ## Current pass — durable first-time signup and visible Pen Fight crowd QR
 
@@ -21,7 +29,7 @@
 - Release: `32668f9` was committed/pushed as Sreenath without a co-author. Railway deployment `04ffc22b-aea4-416b-98c4-27b3a95622aa` reached **SUCCESS**. A non-destructive live Railway bundle inspection found the three new shipped strings: the accurate existing-profile copy, delayed-email copy, and `SCAN · JOIN THE CROWD`. The retained lazy Three.js build warning is non-blocking.
 - Next task: ask the reporting person to retry the same new-email flow on the refreshed Railway page. If it still fails, capture the exact visible message and browser context; do not infer or alter another person's profile/contact data.
 
-## Deferred follow-up — verified cross-device profile access (not implemented)
+## Superseded planning record — verified cross-device profile access
 
 - Sreenath approved password-free email sign-in across browsers/phones and a way for existing people to connect a real email from their original authenticated browser. Existing signup, games, agent entry and history must remain intact.
 - Inspection confirms the current browser token is the identity credential. The private `email_contact` records, including user-supplied addresses, are unverified; welcome delivery is not proof of mailbox ownership. Do not recover or merge profiles by matching an email string. Multiple profiles may have the same unverified address.
@@ -29,8 +37,7 @@
 - Recommended implementation: native managed magic-link sign-in, with explicit authenticated legacy-profile linking and an authoritative identity-to-profile binding. Both the original browser identity and the new verified sign-in must prove ownership before linking; never silently merge duplicate profiles. Keep join/play available without requiring verification first. Returning sign-in must restore the linked profile through subscriptions and preserve QR destination context. Do not escrow users' non-expiring bearer tokens in an email/recovery database.
 - Setup completed: Sreenath signed in and enabled SpacetimeAuth. Dashboard verified project `project_034JneP1KlOl0g7vnqE8mB`, default client `client_034JneP1uzy8V3MhC39IXp`; the settings preview displays Send magic link. These IDs are public configuration, not secrets.
 - With Sreenath's explicit approval, saved the exact client redirect URI `https://mela-web-production.up.railway.app/callback` and post-logout URI `https://mela-web-production.up.railway.app/`. Dashboard confirmed both values and advanced Last Updated to 06/09/2026 04:50:00. No other client settings changed; no wildcard or personal-site URL added.
-- **No application code, schema or deployment changed in this task. Cross-device email recovery is not live.** Auth-provider setup is now present; prior application release evidence below remains the baseline. No new sign-in test or delivery result is claimed.
-- Next task: integrate the configured provider and implement/test verified legacy linking, repeat sign-in on an independent client, duplicate-address rejection, callback/replay/expiry failures, QR continuity and game/agent regressions before release. Confirm the client's public/private mode and appropriate PKCE/token-exchange arrangement before implementation; never embed a client secret in frontend code.
+- This planning record is superseded by the released authenticated linking implementation above. The provider integration, additive schema and Railway release are now live; the still-open item is the independent browser/device validation listed in the current pass, not reimplementation of the plan.
 
 ## Previous pass — signup identity/initial-loading fix
 
