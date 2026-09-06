@@ -1,0 +1,272 @@
+.strategy-cards {
+  margin-top: 18px;
+}
+.strategy-crowd-jump {
+  display: block;
+  margin: 4px auto;
+  padding: 8px 18px;
+  border-radius: 24px;
+  color: #145f59;
+  background: #e1efe7;
+  font-weight: 800;
+}
+.strategy-turn strong {
+  color: #a06505;
+  font-size: 32px;
+}
+.strategy-turn .strategy-bot {
+  color: #146b66;
+}
+.strategy-intro {
+  padding-top: 10px;
+}
+.strategy-intro h1 {
+  font-size: 36px;
+  margin: 6px 0;
+}
+.strategy-intro p {
+  margin: 8px 0;
+}
+.strategy-turn {
+  padding: 8px 0;
+}
+.strategy-turn strong {
+  font-size: 22px;
+  line-height: 1.2;
+}
+.strategy-turn small {
+  margin: 2px 0;
+}
+.four-cabinet {
+  max-width: 440px;
+  margin: 10px auto 18px;
+  padding: 12px 14px 0;
+  border-radius: 24px;
+  background: #e6c89c;
+  border: 2px solid #513819;
+  box-shadow:
+    0 9px 0 #805b30,
+    0 18px 28px #38270d20;
+}
+.four-slot.winning-disc {
+  outline: 3px solid #fff4a7;
+  outline-offset: 2px;
+}
+.four-slot.winning-disc i {
+  outline: 2px solid #fff;
+  outline-offset: -5px;
+}
+.four-controls,
+.four-board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.four-controls {
+  margin-bottom: 10px;
+}
+.four-controls button {
+  padding: 2px;
+  min-width: 0;
+  min-height: 50px;
+  border-radius: 12px;
+  background: #fff7df;
+  color: #473214;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 800;
+}
+.four-controls button span {
+  font-size: 26px;
+  line-height: 1;
+}
+.four-controls button small {
+  font-size: 11px;
+}
+.four-controls button:not(:disabled):hover {
+  background: #ffd278;
+  transform: translateY(2px);
+}
+.four-board {
+  padding: 12px;
+  background: linear-gradient(135deg, #216963, #123f3e);
+  border: 3px solid #123f3e;
+  border-radius: 14px;
+  box-shadow: inset 0 2px 2px #ffffff40;
+}
+.four-slot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #faf1da;
+  box-shadow: inset 0 4px 6px #0007;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.four-slot i {
+  width: 88%;
+  height: 88%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 16px;
+  color: transparent;
+}
+.four-slot.gold i {
+  background: radial-gradient(circle at 35% 25%, #ffe6a2, #df9b21);
+  color: #68450b;
+  border: 3px double #b77714;
+  box-shadow: 0 3px 3px #0005;
+}
+.four-slot.teal i {
+  background: radial-gradient(circle at 35% 25%, #c8f0e4, #63baa5);
+  color: #164d47;
+  border: 3px double #276f61;
+  box-shadow: 0 3px 3px #0005;
+}
+.four-slot.new-disc i {
+  animation: disc-land 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+  outline: 2px solid #fff;
+  outline-offset: -6px;
+}
+.strategy-caption {
+  text-align: center;
+  font-size: 13px;
+  color: #59482f;
+  padding: 14px 4px;
+  margin: 0;
+}
+.stick-table {
+  max-width: 550px;
+  margin: 18px auto;
+  padding: 24px;
+  border-radius: 24px;
+  background: repeating-linear-gradient(
+    2deg,
+    #eee0c6 0px,
+    #eee0c6 12px,
+    #e6d5b9 13px,
+    #eee0c6 15px
+  );
+  border: 2px solid #775c38;
+  box-shadow: 0 8px 0 #9b7950;
+}
+.stick-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  color: #3c2d19;
+}
+.stick-count strong {
+  font-size: 64px;
+  line-height: 1.1;
+  font-family: Georgia, serif;
+}
+.stick-pile {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 18px 15px;
+  max-width: 320px;
+  margin: 24px auto;
+  min-height: 214px;
+}
+.wood-stick {
+  height: 58px;
+  width: 9px;
+  margin: auto;
+  display: block;
+  background: linear-gradient(90deg, #a4662a, #f4d39a 45%, #bd843c);
+  border-radius: 4px;
+  box-shadow: 3px 4px 3px #4f33153b;
+  position: relative;
+  transition:
+    opacity 0.3s,
+    filter 0.3s;
+}
+.wood-stick:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 11px;
+  height: 13px;
+  border-radius: 6px 6px 3px 3px;
+  background: linear-gradient(90deg, #873123, #d57354);
+}
+.wood-stick.gone {
+  opacity: 0.12;
+  filter: grayscale(1);
+  box-shadow: none;
+}
+.stick-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.stick-choices button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 80px;
+  padding: 12px 4px;
+  border-radius: 14px;
+  background: #fff8e6;
+  color: #49371c;
+  font-weight: 800;
+}
+.stick-choices button span {
+  color: #a65329;
+  font-size: 24px;
+  letter-spacing: 4px;
+}
+.playground-shell .four-controls button:focus-visible,
+.playground-shell .stick-choices button:focus-visible {
+  outline: 3px solid #146b66;
+  outline-offset: 3px;
+}
+.strategy-art {
+  display: grid !important;
+  place-items: center;
+  font-size: 44px;
+  letter-spacing: 10px;
+  color: #216963;
+  background: #efe0bd;
+}
+@keyframes disc-land {
+  from {
+    transform: translateY(-70px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (max-width: 420px) {
+  .four-cabinet {
+    padding: 10px 6px 0;
+  }
+  .four-board {
+    gap: 4px;
+    padding: 7px;
+  }
+  .four-controls {
+    gap: 4px;
+  }
+  .stick-table {
+    padding: 18px 14px;
+  }
+  .four-slot i {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .four-slot.new-disc i {
+    animation: none;
+  }
+  .wood-stick {
+    transition: none;
+  }
+}

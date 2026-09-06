@@ -15,6 +15,7 @@ import { PEN_MOTION_PREFIX } from "../spacetimedb/src/penFightMotion";
 import { PenFight } from "./PenFight";
 import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
+import { StrategyGames } from "./StrategyGames";
 import { EmailRecap } from "./EmailRecap";
 import { signOut } from "./identity";
 import { checkDisplayName } from "../spacetimedb/src/displayNameRules";
@@ -61,6 +62,8 @@ const GAME_LABELS: Record<string, string> = {
   pen_fight: "Pen Fight",
   dots_boxes: "Dots & Boxes",
   gilli_danda: "Gilli Danda",
+  four_row: "Four in a Row",
+  last_stick: "Last Stick",
 };
 
 const PROFILE_LINK_NONCE_KEY = "mela-profile-link-nonce";
@@ -527,6 +530,8 @@ function App() {
   const createPenFight = useReducer(reducers.createPenFight);
   const createDotsBoxes = useReducer(reducers.createDotsBoxes);
   const createGilliDanda = useReducer(reducers.createGilliDanda);
+  const createFourRow = useReducer(reducers.createFourRow),
+    createLastStick = useReducer(reducers.createLastStick);
   const createAgentDuel = useReducer(reducers.createAgentDuel);
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
@@ -754,16 +759,26 @@ function App() {
       setCreatingMatch(false);
     }
   };
-  const startExperimentalGame = async (kind: "dots" | "gilli") => {
+  const startExperimentalGame = async (
+    kind: "dots" | "gilli" | "four" | "stick",
+  ) => {
     setCreatingMatch(true);
     setShowHome(false);
     setPinnedMatchId(null);
     try {
-      await (kind === "dots" ? createDotsBoxes() : createGilliDanda());
+      await (kind === "dots"
+        ? createDotsBoxes()
+        : kind === "four"
+          ? createFourRow()
+          : kind === "stick"
+            ? createLastStick()
+            : createGilliDanda());
       setFeedback(
         kind === "dots"
           ? "The notebook is open. Claim the grid."
-          : "The chalk is down. Lift and strike.",
+          : kind === "gilli"
+            ? "The chalk is down. Lift and strike."
+            : "The table is ready. Your move.",
       );
     } catch (reason) {
       setError(
@@ -887,7 +902,24 @@ function App() {
       (m) =>
         m.id === requestedMemoryId &&
         m.status === "complete" &&
-        ["dots_boxes", "gilli_danda"].includes(m.gameKind),
+        ["dots_boxes", "gilli_danda", "four_row", "last_stick"].includes(
+          m.gameKind,
+        ),
+    );
+  const strategyMatch = sharedPlayground || (me ? displayedMatch : undefined);
+  if (
+    strategyMatch &&
+    ["four_row", "last_stick"].includes(strategyMatch.gameKind)
+  )
+    return (
+      <StrategyGames
+        key={strategyMatch.id.toString()}
+        matchId={strategyMatch.id}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
     );
   if (sharedPlayground)
     return sharedPlayground.gameKind === "dots_boxes" ? (
@@ -1201,6 +1233,36 @@ function App() {
               <em>Lift the gilli. Find the sweet spot. Send it flying.</em>
               <span className="game-go">
                 {creatingMatch ? "Marking chalk…" : "Play →"}
+              </span>
+            </button>
+          </div>
+          <div className="game-cards strategy-cards">
+            <button
+              className="game-card"
+              disabled={creatingMatch}
+              onClick={() => startExperimentalGame("four")}
+            >
+              <span className="game-art strategy-art" aria-hidden="true">
+                ● ◆ ● ◆
+              </span>
+              <strong>Four in a Row</strong>
+              <em>Drop a disc. Build a line. Outsmart MelaBot.</em>
+              <span className="game-go">
+                {creatingMatch ? "Setting up…" : "Play →"}
+              </span>
+            </button>
+            <button
+              className="game-card"
+              disabled={creatingMatch}
+              onClick={() => startExperimentalGame("stick")}
+            >
+              <span className="game-art strategy-art" aria-hidden="true">
+                ╱ ╱ ╱
+              </span>
+              <strong>Last Stick</strong>
+              <em>Take one, two or three. Make the last one yours.</em>
+              <span className="game-go">
+                {creatingMatch ? "Setting up…" : "Play →"}
               </span>
             </button>
           </div>

@@ -122,7 +122,9 @@ export function PlaygroundMatch({
   const usePower = useReducer(reducers.useExperimentalCrowdPower);
   const join = useReducer(reducers.joinMatchAsSpectator);
   const dots = useReducer(reducers.createDotsBoxes),
-    gilli = useReducer(reducers.createGilliDanda);
+    gilli = useReducer(reducers.createGilliDanda),
+    four = useReducer(reducers.createFourRow),
+    stick = useReducer(reducers.createLastStick);
   const [target, setTarget] = useState("human"),
     [busy, setBusy] = useState("");
   const [notice, setNotice] = useState(""),
@@ -143,7 +145,11 @@ export function PlaygroundMatch({
   const powers: PlaygroundPower[] =
     match?.gameKind === "dots_boxes"
       ? ["chain_break", "cheer"]
-      : ["rhythm", "heckle", "cheer"];
+      : match?.gameKind === "four_row"
+        ? ["sidewind", "cheer"]
+        : match?.gameKind === "last_stick"
+          ? ["spark", "cheer"]
+          : ["rhythm", "heckle", "cheer"];
   const pending = effects.filter(
     (e) => e.matchId === matchId && Number(e.expiresAtMicros / 1000n) > now,
   );
@@ -287,7 +293,13 @@ export function PlaygroundMatch({
                       (max, m) => (m.id > max ? m.id : max),
                       0n,
                     );
-                    await (match?.gameKind === "dots_boxes" ? dots() : gilli());
+                    await (match?.gameKind === "dots_boxes"
+                      ? dots()
+                      : match?.gameKind === "four_row"
+                        ? four()
+                        : match?.gameKind === "last_stick"
+                          ? stick()
+                          : gilli());
                     setOwnAfter(latest);
                   },
                   "Your own match is ready.",
@@ -318,7 +330,7 @@ export function PlaygroundMatch({
           </button>
         </section>
       ) : (
-        <section className="pg-crowd">
+        <section className="pg-crowd" id="playground-crowd">
           <div className="pg-crowd-heading">
             <div>
               <p className="eyebrow">
@@ -377,6 +389,7 @@ export function PlaygroundMatch({
                     power !== "cheer" &&
                     pending.some((e) => e.target === target);
                   const unavailable =
+                    match?.status !== "active" ||
                     !connected ||
                     !!busy ||
                     remaining > 0 ||

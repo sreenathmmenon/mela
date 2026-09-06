@@ -66,6 +66,12 @@ import {
   validatePenFlick,
 } from "./penFightRules";
 import { decideDotsMove, resolveDotsMove } from "./dotsBoxesRules";
+import { FOUR_EMPTY, decideFour, resolveFour } from "./fourRules";
+import {
+  LAST_STICK_START,
+  decideLastStick,
+  resolveLastStick,
+} from "./lastStickRules";
 import {
   resolveGilliStrike,
   gilliTimingAt,
@@ -291,7 +297,30 @@ const spacetimedb = schema({
       seed: t.u64(),
     },
   ),
-  /** Public, compact board projection. Edge and box ownership are server-owned. */
+  /** Public projections; game-specific boards and turns remain server-owned. */
+  fourRowState: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      board: t.string(),
+      turn: t.string(),
+      revision: t.u32(),
+      lastCell: t.u32(),
+      lastOutcome: t.string(),
+    },
+  ),
+  lastStickState: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      remaining: t.u32(),
+      turn: t.string(),
+      revision: t.u32(),
+      humanTaken: t.u32(),
+      botTaken: t.u32(),
+      lastOutcome: t.string(),
+    },
+  ),
   dotsBoxesState: table(
     { public: true },
     {
@@ -595,7 +624,13 @@ export const visibleCrowdEffects = spacetimedb.view(
         const actor = canonicalIdentity(ctx);
         const match = ctx.db.match.id.find(effect.matchId);
         if (
-          !["pen_fight", "dots_boxes", "gilli_danda"].includes(match?.gameKind)
+          ![
+            "pen_fight",
+            "dots_boxes",
+            "gilli_danda",
+            "four_row",
+            "last_stick",
+          ].includes(match?.gameKind)
         )
           return true;
         const duel = ctx.db.agentDuel.matchId.find(effect.matchId);
@@ -2185,7 +2220,7 @@ export const createPenFight = spacetimedb.reducer((ctx: any) => {
 
 function createExperimentalMatch(
   ctx: any,
-  gameKind: "dots_boxes" | "gilli_danda",
+  gameKind: "dots_boxes" | "gilli_danda" | "four_row" | "last_stick",
 ) {
   const profile = player(ctx),
     identity = canonicalIdentity(ctx);
@@ -2335,6 +2370,137 @@ function scheduleExperimentalBot(
     nowMicros(ctx) + 4_000_000n,
   );
 }
+
+function startStrategyMatch(ctx: any, kind: "four_row" | "last_stick") {
+  const { matchId, profile } = createExperimentalMatch(ctx, kind);
+  if (kind === "four_row")
+    ctx.db.fourRowState.insert({
+      matchId,
+      board: FOUR_EMPTY,
+      turn: "human",
+      revision: 0,
+      lastCell: 42,
+      lastOutcome: "Choose a column. Make a connection.",
+    });
+  else
+    ctx.db.lastStickState.insert({
+      matchId,
+      remaining: LAST_STICK_START,
+      turn: "human",
+      revision: 0,
+      humanTaken: 0,
+      botTaken: 0,
+      lastOutcome: "21 sticks. The last one wins.",
+    });
+  emit(
+    ctx,
+    matchId,
+    `${profile.displayName} challenged MelaBot to ${kind === "four_row" ? "Four in a Row" : "Last Stick"}.`,
+  );
+  return matchId;
+}
+export const createFourRow = spacetimedb.reducer((ctx: any) => {
+  startStrategyMatch(ctx, "four_row");
+});
+export const createLastStick = spacetimedb.reducer((ctx: any) => {
+  startStrategyMatch(ctx, "last_stick");
+});
+
+function resolveStrategyTurn(
+  ctx: any,
+  match: any,
+  state: any,
+  side: "human" | "melabot",
+  choice: number,
+) {
+  const isFour = match.gameKind === "four_row";
+  const effect = effectsFor(ctx, match.id, side).find(
+    (e) => e.power === (isFour ? "sidewind" : "spark"),
+  );
+  const name =
+    side === "human"
+      ? ctx.db.playerProfile.identity.find(match.playerIdentity).displayName
+      : "MelaBot";
+  let winner = "",
+    outcome = "";
+  if (isFour) {
+    const result = resolveFour(state.board, choice, side, !!effect);
+    winner = result.winner;
+    outcome = `${name} dropped into column ${result.column + 1}.${effect ? ` ${effect.actorName}'s SIDEWIND ${result.shifted ? "shifted the disc" : "met a full lane — the disc stayed on course"}.` : ""}`;
+    ctx.db.fourRowState.matchId.update({
+      ...state,
+      board: result.board,
+      turn: winner ? "complete" : side === "human" ? "melabot" : "human",
+      revision: state.revision + 1,
+      lastCell: result.cell,
+      lastOutcome: outcome,
+    });
+  } else {
+    const result = resolveLastStick(state.remaining, choice, !!effect);
+    winner = result.complete ? side : "";
+    outcome = `${name} took ${choice}.${effect ? ` ${effect.actorName}'s SPARK ${result.bonus ? "took one more" : "found no extra stick"}.` : ""} ${result.remaining ? `${result.remaining} left.` : "The last stick is theirs!"}`;
+    ctx.db.lastStickState.matchId.update({
+      ...state,
+      remaining: result.remaining,
+      humanTaken: state.humanTaken + (side === "human" ? result.removed : 0),
+      botTaken: state.botTaken + (side === "melabot" ? result.removed : 0),
+      turn: winner ? "complete" : side === "human" ? "melabot" : "human",
+      revision: state.revision + 1,
+      lastOutcome: outcome,
+    });
+  }
+  if (effect) ctx.db.crowdEffect.id.delete(effect.id);
+  emit(ctx, match.id, outcome);
+  if (winner) {
+    finishExperimentalMatch(
+      ctx,
+      match,
+      winner,
+      winner === "human" ? 1 : 0,
+      winner === "melabot" ? 1 : 0,
+      winner === "draw"
+        ? "A full board. Neither side gave an inch."
+        : `${name} ${isFour ? "connected four" : "claimed the last stick"}. ${outcome}`,
+    );
+  } else if (side === "human") {
+    emit(ctx, match.id, "MelaBot is weighing the next move…");
+    scheduleExperimentalBot(
+      ctx,
+      "strategy_ai_wake",
+      match.id,
+      state.revision + 1,
+    );
+  }
+}
+export const playStrategyMove = spacetimedb.reducer(
+  { matchId: t.u64(), revision: t.u32(), choice: t.u32() },
+  (ctx: any, action: any) => {
+    const match = ctx.db.match.id.find(action.matchId);
+    if (
+      !match ||
+      match.status !== "active" ||
+      !["four_row", "last_stick"].includes(match.gameKind) ||
+      !match.playerIdentity.isEqual(canonicalIdentity(ctx))
+    )
+      throw new SenderError("Only this match's player can move.");
+    const state = (
+      match.gameKind === "four_row"
+        ? ctx.db.fourRowState
+        : ctx.db.lastStickState
+    ).matchId.find(match.id);
+    if (!state || state.turn !== "human" || state.revision !== action.revision)
+      throw new SenderError(
+        "The turn changed. Choose again from the live board.",
+      );
+    try {
+      resolveStrategyTurn(ctx, match, state, "human", action.choice);
+    } catch (e) {
+      throw new SenderError(
+        e instanceof Error ? e.message : "Move unavailable.",
+      );
+    }
+  },
+);
 
 function resolveDotsTurn(
   ctx: any,
@@ -2561,7 +2727,9 @@ export const rematchPlayground = spacetimedb.reducer(
     if (
       !previous ||
       previous.status !== "complete" ||
-      !["dots_boxes", "gilli_danda"].includes(previous.gameKind) ||
+      !["dots_boxes", "gilli_danda", "four_row", "last_stick"].includes(
+        previous.gameKind,
+      ) ||
       !previous.playerIdentity.isEqual(canonicalIdentity(ctx))
     )
       throw new SenderError("Only this match's player can start its rematch.");
@@ -2578,7 +2746,9 @@ export const rematchPlayground = spacetimedb.reducer(
     const nextMatchId =
       previous.gameKind === "dots_boxes"
         ? startDotsBoxes(ctx)
-        : startGilliDanda(ctx);
+        : previous.gameKind === "gilli_danda"
+          ? startGilliDanda(ctx)
+          : startStrategyMatch(ctx, previous.gameKind);
     ctx.db.playgroundRematch.insert({
       previousMatchId: matchId,
       nextMatchId,
@@ -2868,7 +3038,11 @@ export const useExperimentalCrowdPower = spacetimedb.reducer(
         ? ["chain_break", "cheer"]
         : match?.gameKind === "gilli_danda"
           ? ["rhythm", "heckle", "cheer"]
-          : [];
+          : match?.gameKind === "four_row"
+            ? ["sidewind", "cheer"]
+            : match?.gameKind === "last_stick"
+              ? ["spark", "cheer"]
+              : [];
     if (
       !match ||
       match.status !== "active" ||
@@ -3101,6 +3275,26 @@ export const processCrowdSchedule = spacetimedb.reducer(
       processAgentWake(ctx, match, arg);
       return;
     }
+    if (arg.kind === "strategy_ai_wake") {
+      if (!["four_row", "last_stick"].includes(match.gameKind)) return;
+      const state = (
+        match.gameKind === "four_row"
+          ? ctx.db.fourRowState
+          : ctx.db.lastStickState
+      ).matchId.find(match.id);
+      if (
+        !state ||
+        state.turn !== "melabot" ||
+        state.revision !== Number(arg.effectId)
+      )
+        return;
+      const choice =
+        match.gameKind === "four_row"
+          ? decideFour(state.board)
+          : decideLastStick(state.remaining);
+      resolveStrategyTurn(ctx, match, state, "melabot", choice);
+      return;
+    }
     if (arg.kind === "dots_ai_wake") {
       const state = ctx.db.dotsBoxesState.matchId.find(arg.matchId);
       if (
@@ -3204,7 +3398,7 @@ export const processCrowdSchedule = spacetimedb.reducer(
         emit(
           ctx,
           arg.matchId,
-          `${effect.actorName}'s ${effect.power.toUpperCase()} ran out before the flick.`,
+          `${effect.actorName}'s ${effect.power.toUpperCase()} ran out before the ${["four_row", "last_stick"].includes(match.gameKind) ? "move" : "flick"}.`,
         );
       }
       return;

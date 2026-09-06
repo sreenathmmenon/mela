@@ -1,4 +1,18 @@
 export const PLAYGROUND_POWERS = {
+  sidewind: {
+    label: "SIDEWIND",
+    cost: 20,
+    cooldown: 22,
+    duration: 25,
+    copy: "Shift their next disc one column right (left at the edge). Full neighbour? It stays put.",
+  },
+  spark: {
+    label: "SPARK",
+    cost: 20,
+    cooldown: 22,
+    duration: 25,
+    copy: "Their next take removes one extra stick, if any remain. The last stick still wins.",
+  },
   chain_break: {
     label: "CHAIN BREAK",
     cost: 16,
@@ -38,7 +52,11 @@ export function playgroundPower(
       ? ["chain_break", "cheer"]
       : gameKind === "gilli_danda"
         ? ["rhythm", "heckle", "cheer"]
-        : [];
+        : gameKind === "four_row"
+          ? ["sidewind", "cheer"]
+          : gameKind === "last_stick"
+            ? ["spark", "cheer"]
+            : [];
   if (!allowed.includes(power))
     throw new Error("Choose a power for this game.");
   return power as PlaygroundPower;

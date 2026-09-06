@@ -137,6 +137,16 @@ export const EmailMigration = __t.object("EmailMigration", {
 });
 export type EmailMigration = __Infer<typeof EmailMigration>;
 
+export const FourRowState = __t.object("FourRowState", {
+  matchId: __t.u64(),
+  board: __t.string(),
+  turn: __t.string(),
+  revision: __t.u32(),
+  lastCell: __t.u32(),
+  lastOutcome: __t.string(),
+});
+export type FourRowState = __Infer<typeof FourRowState>;
+
 export const GilliDandaState = __t.object("GilliDandaState", {
   matchId: __t.u64(),
   round: __t.u32(),
@@ -164,6 +174,17 @@ export const IdentityLink = __t.object("IdentityLink", {
   linkedAt: __t.timestamp(),
 });
 export type IdentityLink = __Infer<typeof IdentityLink>;
+
+export const LastStickState = __t.object("LastStickState", {
+  matchId: __t.u64(),
+  remaining: __t.u32(),
+  turn: __t.string(),
+  revision: __t.u32(),
+  humanTaken: __t.u32(),
+  botTaken: __t.u32(),
+  lastOutcome: __t.string(),
+});
+export type LastStickState = __Infer<typeof LastStickState>;
 
 export const LiveEvent = __t.object("LiveEvent", {
   id: __t.u64(),

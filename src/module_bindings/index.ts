@@ -41,7 +41,9 @@ import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
+import CreateFourRowReducer from "./create_four_row_reducer";
 import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
+import CreateLastStickReducer from "./create_last_stick_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
@@ -50,6 +52,7 @@ import LiftGilliReducer from "./lift_gilli_reducer";
 import OnboardReducer from "./onboard_reducer";
 import OnboardWithEmailReducer from "./onboard_with_email_reducer";
 import PlayBallReducer from "./play_ball_reducer";
+import PlayStrategyMoveReducer from "./play_strategy_move_reducer";
 import RematchPlaygroundReducer from "./rematch_playground_reducer";
 import StrikeGilliReducer from "./strike_gilli_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
@@ -66,8 +69,10 @@ import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
 import DotsBoxesStateRow from "./dots_boxes_state_table";
 import DuelCrowdCreditRow from "./duel_crowd_credit_table";
+import FourRowStateRow from "./four_row_state_table";
 import GilliDandaStateRow from "./gilli_danda_state_table";
 import GilliLaunchRow from "./gilli_launch_table";
+import LastStickStateRow from "./last_stick_state_table";
 import LiveEventRow from "./live_event_table";
 import MatchRow from "./match_table";
 import MatchCrowdRow from "./match_crowd_table";
@@ -216,6 +221,27 @@ const tablesSchema = __schema({
     },
     DuelCrowdCreditRow,
   ),
+  fourRowState: __table(
+    {
+      name: "four_row_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "four_row_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "four_row_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    FourRowStateRow,
+  ),
   gilliDandaState: __table(
     {
       name: "gilli_danda_state",
@@ -257,6 +283,27 @@ const tablesSchema = __schema({
       ],
     },
     GilliLaunchRow,
+  ),
+  lastStickState: __table(
+    {
+      name: "last_stick_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "last_stick_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "last_stick_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    LastStickStateRow,
   ),
   liveEvent: __table(
     {
@@ -626,7 +673,9 @@ const reducersSchema = __reducers(
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),
+  __reducerSchema("create_four_row", CreateFourRowReducer),
   __reducerSchema("create_gilli_danda", CreateGilliDandaReducer),
+  __reducerSchema("create_last_stick", CreateLastStickReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
   __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
   __reducerSchema("flick_pen", FlickPenReducer),
@@ -635,6 +684,7 @@ const reducersSchema = __reducers(
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("onboard_with_email", OnboardWithEmailReducer),
   __reducerSchema("play_ball", PlayBallReducer),
+  __reducerSchema("play_strategy_move", PlayStrategyMoveReducer),
   __reducerSchema("rematch_playground", RematchPlaygroundReducer),
   __reducerSchema("strike_gilli", StrikeGilliReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),

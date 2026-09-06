@@ -10,6 +10,7 @@ import {
 import { PenDesk } from "./PenDesk";
 import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
+import { StrategyGames } from "./StrategyGames";
 import { AgentDuelPanel } from "./AgentDuel";
 const ignoreMoving = () => {};
 
@@ -141,6 +142,18 @@ export default function BigScreen() {
     [events, displayedMatch],
   );
 
+  if (
+    displayedMatch &&
+    ["four_row", "last_stick"].includes(displayedMatch.gameKind)
+  )
+    return (
+      <StrategyGames
+        key={displayedMatch.id.toString()}
+        matchId={displayedMatch.id}
+        screen
+        onBack={() => location.assign(import.meta.env.BASE_URL)}
+      />
+    );
   if (displayedMatch?.gameKind === "dots_boxes")
     return (
       <DotsBoxes
