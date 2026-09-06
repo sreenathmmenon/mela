@@ -13,9 +13,9 @@
 
 ## Current pass — 3D desk lifecycle hardening
 
-- Pen Fight now disposes its non-authoritative Three.js canvas when its browser tab becomes hidden and rebuilds it on return. This prevents hidden Mela tabs from unnecessarily retaining graphics contexts.
-- Production build/typecheck pass. Railway deployment `b4f0019c-5aea-47bb-ab53-4cf998f95a66` completed. In the Codex-controlled Chrome validation session, the browser itself reported `GL_VENDOR = Disabled`, `GL_RENDERER = Disabled`, and `Sandboxed = yes`; this environment cannot create any WebGL context, so it correctly displayed the existing simplified desk. That is not evidence that native Chrome/mobile hardware rendering regressed. A hardware-enabled browser recheck remains required.
-- Next task: verify the live Pen Fight desk on a normal hardware-accelerated Chrome or phone, including moving between Mela tabs, and record the outcome.
+- Pen Fight disposes its non-authoritative Three.js canvas when its browser tab becomes hidden and rebuilds it on return. This prevents hidden Mela tabs from unnecessarily retaining graphics contexts.
+- Production build/typecheck pass. Railway deployment `b4f0019c-5aea-47bb-ab53-4cf998f95a66` completed. The Codex-controlled Chrome diagnostic reported `GL_VENDOR = Disabled`, `GL_RENDERER = Disabled`, and `Sandboxed = yes`, which prevents any WebGL canvas in that controlled session. Sreenath then confirmed that the real 3D desk appeared again in normal Chrome; do not treat the controlled-session diagnostic as a normal-browser regression.
+- Next task: continue only if a normal hardware-enabled browser reports the live Three.js desk missing again; capture the exact browser and live URL before changing the renderer.
 
 ## Current pass — durable first-time signup and visible Pen Fight crowd QR
 
