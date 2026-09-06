@@ -866,15 +866,20 @@ function App() {
       className={`mela-shell ${!displayedMatch && !requestedJoinMatchId ? "home-landing" : ""}`}
     >
       <header className="hero">
-        <p className="eyebrow">MELA · LIVE PLAYGROUND</p>
         <div className="hero-row">
           <div>
             <h1>Mela</h1>
-            <p className="subtitle">You play. The crowd changes the game.</p>
           </div>
-          <span className={`status ${connected ? "online" : "offline"}`}>
-            {connected ? "● Live" : "● Reconnecting"}
-          </span>
+          {!me && (
+            <button className="link-back" onClick={openAccount}>
+              Sign in
+            </button>
+          )}
+          {!connected && (
+            <span className="status offline" role="status">
+              Reconnecting…
+            </span>
+          )}
         </div>
       </header>
 
@@ -882,7 +887,6 @@ function App() {
         <HomeDiscovery
           onChoose={(game) => void enter(game)}
           busy={joining || !connected || !profilesReady || !identityLinksReady}
-          onSignIn={openAccount}
           live={liveMatchesToWatch
             .slice()
             .sort((a, b) => Number(b.id - a.id))
@@ -995,7 +999,6 @@ function App() {
         <section className="game-picker home-return-picker">
           <HomeDiscovery
             returning
-            onSignIn={openAccount}
             live={[]}
             busy={creatingMatch || !connected}
             onChoose={(kind) => {

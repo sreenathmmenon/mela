@@ -1,5 +1,11 @@
 # MELA STATUS
 
+## Current pass — games without slogans (2026-09-06)
+
+- Removed the entire promotional hero rather than substituting another tagline, plus repeated game-section headings, signup reassurance and decorative connected/Live badge. Mela and optional Sign in lead directly into the six games; actual disconnects still show Reconnecting. Crowd section has a functional Join a crowd heading. No gameplay, identity or database behavior changed.
+- Local 390×844 browser: no hero/online badge, six cards, content width = viewport width = 390px. Screenshot `output/playwright/no-slogans-mobile.png` visually reviewed: four complete game cards visible immediately. 126/126 tests and production build/typecheck pass; existing chunk warnings remain. Railway deployment `e11ccd0d-4da2-4afd-b2e1-1d1e568e0886` explicitly observed SUCCESS on the existing production service. No database publication or data changes. AGENTS.md records the explicit no-slogan preference. Focused source commit is recorded in Git under Sreenath's identity.
+- Next task: validate the released minimal entry layout with real users; retain actionable rules/errors and optional recovery, not promotional copy.
+
 ## Current pass — calmer games-first UI and mobile polish (2026-09-06)
 
 - Sreenath requested a final UI/UX pass focused on excessive text, whitespace, wrapping and mobile usability. Shortened the homepage to one invitation, one brief promise and a title/one-line-description/play action per game. Removed repeated slogan/tagline layers. Mobile now uses two illustrated cards per row; returning players reuse the same six-game presentation. School-desk/notebook/wood and warm ink/paper identity retained, with no invented cultural or popularity claims.

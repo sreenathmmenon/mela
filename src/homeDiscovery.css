@@ -344,6 +344,7 @@
 }
 .home-discovery {
   min-width: 0;
+  padding-top: 24px;
 }
 .home-extra {
   margin: 24px 0;

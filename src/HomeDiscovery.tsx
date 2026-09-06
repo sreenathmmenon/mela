@@ -53,49 +53,18 @@ export const HOME_GAMES = [
 
 export function HomeDiscovery({
   onChoose,
-  onSignIn,
   live,
   busy = false,
   returning = false,
 }: {
   onChoose: (name: string) => void;
-  onSignIn: () => void;
   busy?: boolean;
   returning?: boolean;
   live: Array<{ id: bigint; host: string; game: string; watching: number }>;
 }) {
   return (
     <div className="home-discovery">
-      {!returning && (
-        <section className="home-invitation" aria-labelledby="home-promise">
-          <p className="eyebrow">THE PLAYGROUND IS OPEN</p>
-          <h2 id="home-promise">
-            Little games.
-            <br />
-            <em>Big rivalries.</em>
-          </h2>
-          <p>You vs MelaBot. Friends in the crowd. Every match remembered.</p>
-          <div className="home-actions">
-            <a className="primary" href="#explore-games">
-              Let’s play ↓
-            </a>
-            <button className="secondary" onClick={onSignIn}>
-              Saved your progress?
-            </button>
-          </div>
-        </section>
-      )}
-      <section
-        id="explore-games"
-        className="home-games"
-        aria-labelledby="home-games-title"
-      >
-        <div className="home-section-heading">
-          <h2 id="home-games-title">
-            {returning ? "One more game?" : "Pick your game"}
-          </h2>
-          <p>No signup. Just play.</p>
-        </div>
+      <section id="explore-games" className="home-games" aria-label="Games">
         <div className="home-game-grid">
           {HOME_GAMES.map((game) => (
             <button
@@ -113,7 +82,6 @@ export function HomeDiscovery({
                   <>
                     <i className="home-pen one" />
                     <i className="home-pen two" />
-                    <span className="home-chalk">YOUR MOVE ↗</span>
                   </>
                 ) : game.art === "book" ? (
                   <>
@@ -157,8 +125,7 @@ export function HomeDiscovery({
       </section>
       {!returning && (
         <section className="home-live" aria-labelledby="home-live-title">
-          <h2 id="home-live-title">Better with a crowd.</h2>
-          <p>Pick a side. Change the next move.</p>
+          <h2 id="home-live-title">Join a crowd</h2>
           {live.length ? (
             <ul>
               {live.map((match) => (

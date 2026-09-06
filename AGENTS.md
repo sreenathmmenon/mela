@@ -51,6 +51,7 @@ Use narrow subscriptions for a player’s current world/match plus relevant even
 - Use typed contracts and clear, small modules; keep reducer validation close to state transitions.
 - Preserve backwards-compatible migrations and document every schema/reducer change.
 - Keep UI mobile-first and big-screen readable; ensure keyboard access, semantic controls, contrast, and visible focus.
+- Homepage copy is functional, not promotional: Sreenath rejected taglines, slogan heroes, decorative Live badges and repeated invitations to play. Lead directly with games; keep brief rules/action labels, optional sign-in and actionable connection errors. Do not reintroduce slogans in later polish passes.
 - Keep events append-only where practical; protect user inputs and avoid exposing secrets or internal errors.
 - Prefer deterministic tests for game rules; test invalid actions, concurrent actions, reconnects, and multi-client synchronization.
 - Run formatter/lint/typecheck/tests/build after meaningful increments. Verify the local product in a browser before calling a feature complete.
