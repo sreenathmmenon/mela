@@ -364,10 +364,14 @@ export function PenFight({
     );
   if (!state)
     return (
-      <section className="pen-empty" aria-live="polite">
-        <h2>Setting the desk for this match…</h2>
-        <p>Your live Pen Fight state is arriving from Mela.</p>
-      </section>
+      <main className="pen-shell game-loading" aria-busy="true">
+        <section className="pen-empty" role="status">
+          <h1>Pen Fight</h1>
+          <p>Preparing the desk…</p>
+          <button onClick={onBack}>← Games</button>
+          <div className="game-loading-board" aria-hidden="true" />
+        </section>
+      </main>
     );
   // The opening flick is capped by the server for fairness; mirror that here so
   // the power bar cannot promise strength the reducer will refuse.
@@ -510,26 +514,56 @@ export function PenFight({
         );
     }
   };
+  const crowdInvite = (
+    <section
+      className="pen-join pen-join-visible"
+      id="pen-invite"
+      aria-label="Invite the crowd"
+    >
+      <QRCodeSVG
+        value={url(match.id, completed)}
+        size={116}
+        aria-label={
+          completed
+            ? "QR code to revisit this duel"
+            : "QR code to join this match as a spectator"
+        }
+      />
+      <div>
+        <strong>{completed ? "KEEP THIS MATCH" : "INVITE YOUR CROWD"}</strong>
+        <span>
+          {completed
+            ? "Scan to revisit this duel."
+            : "Scan to watch. Tap to influence."}
+        </span>
+        <a href={url(match.id, completed)}>
+          {completed ? "Open remembered duel" : "Open crowd link"}
+        </a>
+        <button
+          className="secondary"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(url(match.id, completed));
+              setNote("Desk link copied. Invite your crowd.");
+            } catch {
+              setNote("Copy the match link above to invite a friend.");
+            }
+          }}
+        >
+          Copy invite
+        </button>
+      </div>
+    </section>
+  );
   return (
     <main className="pen-shell">
       <header className="pen-top">
         <div>
-          <p className="eyebrow">MELA · PEN FIGHT</p>
-          <h1>
-            {duel
-              ? completed
-                ? "Two minds. One remembered desk."
-                : "Agents plan. The crowd interferes."
-              : completed
-                ? "A desk to remember."
-                : owns
-                  ? "Your pen. Your move."
-                  : "You’re in the crowd."}
-          </h1>
+          <h1>Pen Fight</h1>
           <p>Knock your rival off. First to two rounds.</p>
         </div>
         <button className="secondary" onClick={onBack}>
-          Choose game
+          ← Games
         </button>
         <button
           className="secondary"
@@ -539,6 +573,9 @@ export function PenFight({
           Sound {muted ? "off" : "on"}
         </button>
       </header>
+      <a className="game-invite-link" href="#pen-invite">
+        Invite friends ↗
+      </a>
       <AgentDuelPanel matchId={match.id} />
       {owns && (record?.matchesPlayed ?? 0) > 0 && (
         <p className="pen-rivalry">
@@ -565,44 +602,6 @@ export function PenFight({
         <span>
           <strong>{state.botRounds}</strong> {duel?.rightName ?? "MelaBot"}
         </span>
-      </section>
-      <section
-        className="pen-join pen-join-visible"
-        aria-label="Invite the crowd"
-      >
-        <QRCodeSVG
-          value={url(match.id, completed)}
-          size={116}
-          aria-label={
-            completed
-              ? "QR code to revisit this duel"
-              : "QR code to join this match as a spectator"
-          }
-        />
-        <div>
-          <strong>{completed ? "KEEP THIS MATCH" : "INVITE YOUR CROWD"}</strong>
-          <span>
-            {completed
-              ? "Scan to revisit this duel."
-              : "Scan to watch. Tap to influence."}
-          </span>
-          <a href={url(match.id, completed)}>
-            {completed ? "Open remembered duel" : "Open crowd link"}
-          </a>
-          <button
-            className="secondary"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(url(match.id, completed));
-                setNote("Desk link copied. Invite your crowd.");
-              } catch {
-                setNote("Copy the match link above to invite a friend.");
-              }
-            }}
-          >
-            Copy invite
-          </button>
-        </div>
       </section>
       <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
         <div className="pen-turn">
@@ -940,6 +939,7 @@ export function PenFight({
           </p>
         </section>
       )}
+      {owns && crowdInvite}
       {owns && !completed && (
         <details className="pen-picker">
           <summary>Your {penName} · Change pen</summary>
@@ -963,7 +963,11 @@ export function PenFight({
           </p>
         </details>
       )}
-      <p className="pen-result" role="status">
+      <p
+        className="pen-result"
+        role="status"
+        hidden={state.lastOutcome === "AIM YOUR FIRST FLICK"}
+      >
         {state.lastOutcome}
         {state.turnsInRound >= 6 && !completed
           ? " · Final exchanges—safer positioning decides the round at 8 turns."
@@ -1204,6 +1208,7 @@ export function PenFight({
           )}
         </section>
       )}
+      {!owns && crowdInvite}
     </main>
   );
 }

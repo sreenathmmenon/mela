@@ -67,15 +67,9 @@ export function StrategyGames({
       title={isFour ? "Four in a Row" : "Last Stick"}
     >
       <section className="pg-title strategy-intro">
-        <p className="eyebrow">
-          {isFour
-            ? "A LITTLE PATIENCE. A PERFECT CONNECTION."
-            : "ONE TINY PILE. A BIG BLUFF."}
-        </p>
-        <h1>{isFour ? "Find your four." : "Make the last one yours."}</h1>
         <p>
           {isFour
-            ? "Drop a disc. Connect four. Outthink MelaBot."
+            ? "Connect four discs in any direction."
             : "Take 1, 2 or 3. Whoever takes the last stick wins."}
         </p>
       </section>
@@ -208,7 +202,14 @@ export function StrategyGames({
               </p>
             </div>
           ) : null}
-          <p className="pg-moment" role="status">
+          <p
+            className="pg-moment"
+            role="status"
+            hidden={
+              state.lastOutcome === "Choose a column. Make a connection." ||
+              state.lastOutcome === "21 sticks. The last one wins."
+            }
+          >
             {state.lastOutcome}
           </p>
           {error && (
@@ -217,11 +218,7 @@ export function StrategyGames({
             </p>
           )}
           <details className="pg-how">
-            <summary>
-              {isFour
-                ? "The little moves that win"
-                : "A small pile, a clever trick"}
-            </summary>
+            <summary>How to play</summary>
             <p>
               {isFour
                 ? "Connect four gold discs horizontally, vertically or diagonally. Each arrow drops into its column. A full board without a line is a draw. MelaBot looks ahead, so watch its teal threats. The crowd can send a SIDEWIND: your next disc shifts one column right, or left at the right edge, unless that neighbour is full. The chosen column must be open."

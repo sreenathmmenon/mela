@@ -94,9 +94,7 @@ export function GilliDanda({
       onBack={onBack}
     >
       <section className="pg-title">
-        <p className="eyebrow">THE WHOLE LANE IS WATCHING.</p>
-        <h1>One beautiful strike.</h1>
-        <p>Lift it. Catch the moment. Make the wood sing.</p>
+        <p>Lift the gilli, then strike when the marker reaches gold.</p>
       </section>
       {!state ? (
         <p role="status">Marking the chalk…</p>
@@ -263,8 +261,10 @@ export function GilliDanda({
             <section className="pg-strike">
               {!clock.ready && (
                 <p role="status">
-                  Syncing the timing with Mela…{" "}
-                  <button onClick={clock.retry}>Retry timing</button>
+                  Preparing your swing…{" "}
+                  {clock.failed && (
+                    <button onClick={clock.retry}>Retry timing</button>
+                  )}
                 </p>
               )}
               {clock.slow && (
@@ -320,13 +320,13 @@ export function GilliDanda({
                       ? "STRIKE!"
                       : "LIFT THE GILLI"}
               </button>
-              <p>
-                Lift first. Tap Strike (or press Enter on the button) when the
-                marker reaches gold. A stronger swing needs cleaner timing.
-              </p>
+              <p>Stronger swings need more precise timing.</p>
             </section>
           )}
-          <p className="pg-moment">
+          <p
+            className="pg-moment"
+            hidden={state.lastOutcome === "LIFT THE GILLI"}
+          >
             {state.lastOutcome.replace(/You/g, isPlayer ? "You" : humanName)}
           </p>
           {error && (
@@ -335,7 +335,7 @@ export function GilliDanda({
             </p>
           )}
           <details className="pg-how">
-            <summary>How the lane is won</summary>
+            <summary>How to play</summary>
             <p>
               Five strikes each. Most total paces wins. Gentle swings offer a
               wide contact window; Thunder rewards precise timing and can miss

@@ -49,9 +49,7 @@ export function DotsBoxes({
       onBack={onBack}
     >
       <section className="pg-title">
-        <p className="eyebrow">ONE NOTEBOOK. NINE LITTLE VICTORIES.</p>
-        <h1>Between the dots.</h1>
-        <p>Draw the fourth side. Sign your square. Go again.</p>
+        <p>Complete a box to score and play again.</p>
       </section>
       {!state ? (
         <p role="status">Opening the notebook…</p>
@@ -163,7 +161,11 @@ export function DotsBoxes({
                   : "The newest line is highlighted"}
             </p>
           </div>
-          <p className="pg-moment" role="status">
+          <p
+            className="pg-moment"
+            role="status"
+            hidden={state.lastOutcome === "DRAW THE FIRST LINE"}
+          >
             {state.lastOutcome.replace(/You/g, isPlayer ? "You" : humanName)}
           </p>
           {error && (
@@ -172,7 +174,7 @@ export function DotsBoxes({
             </p>
           )}
           <details className="pg-how">
-            <summary>How to own the notebook</summary>
+            <summary>How to play</summary>
             <p>
               Tap an empty space between neighbouring dots. Closing the fourth
               side earns the box and another turn. The most boxes wins. Avoid

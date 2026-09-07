@@ -209,7 +209,6 @@ function App() {
   const [profiles, profilesReady] = useTable(tables.playerProfile);
   const [identityLinks, identityLinksReady] = useTable(tables.myIdentityLink);
   const [melaProfiles] = useTable(tables.melaProfile);
-  const [presence] = useTable(tables.worldPresence);
   const [matches, matchesReady] = useTable(tables.match);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
@@ -863,12 +862,12 @@ function App() {
 
   return (
     <main
-      className={`mela-shell ${!displayedMatch && !requestedJoinMatchId ? "home-landing" : ""}`}
+      className={`mela-shell ${displayedMatch ? "game-cricket" : ""} ${!displayedMatch && !requestedJoinMatchId ? "home-landing" : ""}`}
     >
       <header className="hero">
         <div className="hero-row">
           <div>
-            <h1>Mela</h1>
+            <h1>{displayedMatch ? "Book Cricket" : "Mela"}</h1>
           </div>
           {!me && (
             <button className="link-back" onClick={openAccount}>
@@ -960,7 +959,6 @@ function App() {
       {me && displayedMatch && (
         <section className="identity">
           <span>
-            Playing as <strong>{me.displayName}</strong>
             {displayedMatch && (
               <button
                 className="link-back"
@@ -973,13 +971,11 @@ function App() {
                   setError(null);
                 }}
               >
-                ← Mela home
+                ← Games
               </button>
             )}
           </span>
           <span>
-            {presence.filter((row) => row.state === "online").length} people in
-            Mela
             <button
               className="link-back"
               onClick={() => {
@@ -1341,9 +1337,8 @@ function App() {
                   includeMargin
                 />
                 <div>
-                  <p className="eyebrow">BRING IN THE CROWD</p>
-                  <strong>Scan to join this match</strong>
-                  <span>Scan to watch and influence. No signup.</span>
+                  <strong>Invite friends</strong>
+                  <span>Scan to watch and influence.</span>
                   <a
                     href={screenUrlFor(activeMatch.id)}
                     target="_blank"

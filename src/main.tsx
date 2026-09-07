@@ -10,6 +10,7 @@ import { AUTH_TOKEN_KEY } from "./identity.ts";
 import { initAnalytics } from "./analytics.ts";
 import { WebMCPTools } from "./AgentDuel";
 import { AccountControls } from "./AccountControls";
+import "./gameLayout.css";
 import {
   AUTH_RETURN_TO_KEY,
   PROFILE_LINK_NONCE_KEY,

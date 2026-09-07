@@ -1,4 +1,5 @@
 import "./homeDiscovery.css";
+import { useState } from "react";
 
 export const HOME_GAMES = [
   {
@@ -62,6 +63,7 @@ export function HomeDiscovery({
   returning?: boolean;
   live: Array<{ id: bigint; host: string; game: string; watching: number }>;
 }) {
+  const [selected, setSelected] = useState<string | null>(null);
   return (
     <div className="home-discovery">
       <section id="explore-games" className="home-games" aria-label="Games">
@@ -70,7 +72,11 @@ export function HomeDiscovery({
             <button
               key={game.kind}
               className="home-game"
-              onClick={() => onChoose(game.kind)}
+              onClick={() => {
+                setSelected(game.kind);
+                onChoose(game.kind);
+              }}
+              aria-busy={busy && selected === game.kind}
               disabled={busy}
               aria-label={`Play ${game.name}`}
             >
@@ -117,7 +123,7 @@ export function HomeDiscovery({
               <span className="home-game-copy">
                 <strong>{game.name}</strong>
                 <span>{game.copy}</span>
-                <b>{busy ? "Opening…" : "Play →"}</b>
+                <b>{busy && selected === game.kind ? "Opening…" : "Play →"}</b>
               </span>
             </button>
           ))}

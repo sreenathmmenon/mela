@@ -53,15 +53,8 @@ export function PlaygroundMatch({
   children: ReactNode;
   onBack: () => void;
 }) {
-  const {
-    match,
-    identity,
-    humanName,
-    isPlayer,
-    isSpectator,
-    connected,
-    spectators,
-  } = usePlaygroundMatch(matchId, screen);
+  const { match, identity, humanName, isPlayer, isSpectator, connected } =
+    usePlaygroundMatch(matchId, screen);
   const [crowds] = useTable(tables.matchCrowd);
   const [cooldowns] = useTable(tables.ownSpectatorCooldown);
   const [effects] = useTable(tables.visibleCrowdEffects);
@@ -176,11 +169,9 @@ export function PlaygroundMatch({
     <main className={`playground-shell ${screen ? "playground-screen" : ""}`}>
       <header className="pg-header">
         <button onClick={onBack} className="link-back">
-          ← Mela
+          ← Games
         </button>
-        <span>
-          {title} · #{matchId.toString()}
-        </span>
+        <h1>{title}</h1>
         <button
           onClick={() => {
             const m = toggleMuted();
@@ -333,14 +324,7 @@ export function PlaygroundMatch({
         <section className="pg-crowd" id="playground-crowd">
           <div className="pg-crowd-heading">
             <div>
-              <p className="eyebrow">
-                {isSpectator ? "YOU ARE THE CROWD" : "MAKE ROOM FOR THE CROWD"}
-              </p>
-              <h2>
-                {isSpectator
-                  ? "Your moment to interfere."
-                  : `${spectators.length} watching. Every move matters.`}
-              </h2>
+              <h2>{isSpectator ? "Crowd moves" : "Invite friends"}</h2>
             </div>
             <div className="pg-energy">
               <strong>{crowd?.energy ?? "—"}</strong>
@@ -443,8 +427,7 @@ export function PlaygroundMatch({
             <div className="pg-invite">
               <QRCodeSVG value={url} size={132} />
               <div>
-                <h3>Scan. Join. Change the game.</h3>
-                <p>One phone per spectator. Same match, live.</p>
+                <p>Scan to watch and influence this match.</p>
                 {!screen && (
                   <button
                     onClick={() =>
@@ -493,10 +476,7 @@ export function PlaygroundMatch({
             ))}
           </ol>
         ) : (
-          <p>
-            The next move starts the story. Earlier results live in match
-            memory.
-          </p>
+          <p>Moves will appear here.</p>
         )}
       </section>
     </main>

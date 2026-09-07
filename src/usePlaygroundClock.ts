@@ -12,13 +12,19 @@ export function usePlaygroundClock() {
   const { isActive } = useSpacetimeDB();
   const sample = useRef<ClockSample>();
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [slow, setSlow] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
     sample.current = undefined;
     setReady(false);
+    setFailed(false);
     if (!isActive) return;
+    // Presentation-only retry affordance; never substitutes a client clock.
+    const waiting = window.setTimeout(() => {
+      if (!cancelled && !sample.current) setFailed(true);
+    }, 8000);
     // Three bounded samples per connection/foreground return, never hot polling.
     void (async () => {
       for (let i = 0; i < 3; i++) {
@@ -36,9 +42,11 @@ export function usePlaygroundClock() {
           if (cancelled) return;
         }
       }
+      if (!cancelled && !sample.current) setFailed(true);
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(waiting);
     };
   }, [isActive, readClock, attempt]);
   useEffect(() => {
@@ -50,6 +58,7 @@ export function usePlaygroundClock() {
   }, []);
   return {
     ready,
+    failed,
     slow,
     retry: () => setAttempt((n) => n + 1),
     now: () =>
