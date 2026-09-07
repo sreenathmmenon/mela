@@ -133,6 +133,7 @@ export function PenDeskFallback({
   bot,
   motion,
   aim,
+  grip,
   pull,
   power,
   interactive,
@@ -152,6 +153,7 @@ export function PenDeskFallback({
   bot: DeskPoint;
   motion?: PenMotion;
   aim: DeskPoint;
+  grip?: DeskPoint | null;
   pull: DeskPoint | null;
   power: number;
   interactive: boolean;
@@ -320,10 +322,11 @@ export function PenDeskFallback({
     [],
   );
   const guide = directionGuide(human, aim);
+  const origin = grip ?? human;
   const length = Math.min(160, guide?.distance ?? 0);
   const end = {
-    x: human.x + (guide?.x ?? 0) * length,
-    y: human.y + (guide?.y ?? 0) * length,
+    x: origin.x + (guide?.x ?? 0) * length,
+    y: origin.y + (guide?.y ?? 0) * length,
   };
   const flash = motion ? contactFlashPoint(motion, mirrored) : null;
   const color =
@@ -440,10 +443,10 @@ export function PenDeskFallback({
       {interactive && (
         <g className={aiming ? "desk-aim is-pulling" : "desk-aim"}>
           <line
-            x1={human.x}
-            y1={human.y}
-            x2={aim.x}
-            y2={aim.y}
+            x1={origin.x}
+            y1={origin.y}
+            x2={origin.x + aim.x - human.x}
+            y2={origin.y + aim.y - human.y}
             stroke="#fff0c5"
             strokeWidth="3"
             strokeDasharray="15 12"
@@ -467,8 +470,8 @@ export function PenDeskFallback({
             strokeDasharray={aiming ? undefined : "5 9"}
           />
           <line
-            x1={human.x}
-            y1={human.y}
+            x1={origin.x}
+            y1={origin.y}
             x2={end.x}
             y2={end.y}
             stroke="#fff8de"
@@ -476,8 +479,8 @@ export function PenDeskFallback({
             opacity=".65"
           />
           <line
-            x1={human.x}
-            y1={human.y}
+            x1={origin.x}
+            y1={origin.y}
             x2={end.x}
             y2={end.y}
             stroke={ink}
@@ -488,8 +491,8 @@ export function PenDeskFallback({
           {pull && aiming && (
             <>
               <line
-                x1={human.x}
-                y1={human.y}
+                x1={origin.x}
+                y1={origin.y}
                 x2={pull.x}
                 y2={pull.y}
                 stroke="#fff9dc"

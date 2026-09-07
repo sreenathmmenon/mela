@@ -14,6 +14,7 @@ import { contactFlashPoint, directionGuide } from "./penContactPresentation";
 
 export type DeskFrame = {
   pull?: DeskPoint | null;
+  grip?: DeskPoint | null;
   human: DeskPoint;
   bot: DeskPoint;
   aim: DeskPoint;
@@ -470,13 +471,18 @@ export function createDeskScene(
     ring.rotation.z = humanSide * HUMAN_PEN_YAW;
     finger.visible = tether.visible =
       frame.aiming && !!frame.pull && progress >= 1;
+    const grip = frame.grip ?? h;
     if (frame.pull) {
-      const delta = new T.Vector3(frame.pull.x - h.x, 0, frame.pull.y - h.y);
+      const delta = new T.Vector3(
+        frame.pull.x - grip.x,
+        0,
+        frame.pull.y - grip.y,
+      );
       tether.scale.y = delta.length();
       tether.position.set(
-        (frame.pull.x + h.x) / 2 - 500,
+        (frame.pull.x + grip.x) / 2 - 500,
         5,
-        (frame.pull.y + h.y) / 2 - 500,
+        (frame.pull.y + grip.y) / 2 - 500,
       );
       if (delta.length() > 0)
         tether.quaternion.setFromUnitVectors(
@@ -487,7 +493,7 @@ export function createDeskScene(
     }
     const direction = new T.Vector3(frame.aim.x - h.x, 0, frame.aim.y - h.y);
     if (direction.length() < 1) direction.set(1, 0, 0);
-    arrow.position.set(h.x - 500, 5, h.y - 500);
+    arrow.position.set(grip.x - 500, 5, grip.y - 500);
     arrow.setDirection(direction.normalize());
     // Solid arrow shows direction. Dashed guide reaches the chosen aim point.
     // Neither claims a seed/crowd-dependent travel distance or outcome.
@@ -506,8 +512,13 @@ export function createDeskScene(
     );
     guideLine.visible = frame.interactive && progress >= 1 && !!guide;
     const positions = guideGeometry.attributes.position as T.BufferAttribute;
-    positions.setXYZ(0, h.x - 500, 3, h.y - 500);
-    positions.setXYZ(1, frame.aim.x - 500, 3, frame.aim.y - 500);
+    positions.setXYZ(0, grip.x - 500, 3, grip.y - 500);
+    positions.setXYZ(
+      1,
+      grip.x + frame.aim.x - h.x - 500,
+      3,
+      grip.y + frame.aim.y - h.y - 500,
+    );
     positions.needsUpdate = true;
     guideGeometry.computeBoundingSphere();
     guideLine.computeLineDistances();
@@ -530,6 +541,7 @@ export function createDeskScene(
     host.dataset.bot = `${b.x.toFixed(1)},${b.y.toFixed(1)}`;
     host.dataset.animating = String(progress < 1);
     host.dataset.aim = `${frame.aim.x},${frame.aim.y}`;
+    host.dataset.grip = `${grip.x},${grip.y}`;
     host.dataset.orientation = frame.mirrored ? "right-seat" : "left-seat";
     host.dataset.camera = cameraView;
     host.dataset.cameraPosition = camera.position

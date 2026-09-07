@@ -1,5 +1,15 @@
 # MELA STATUS
 
+## Current pass — Pen Fight touch-point control (2026-09-07)
+
+- Replaced preset target/contact controls with direct pen interaction: touch the cap, barrel or tip of your own pen, pull back and release. The selected point becomes the visible arrow/tether origin and determines the bounded contact bias submitted with the normal reducer action. An off-centre pull can therefore create a glancing result; a centre pull remains neutral. Keyboard controls remain as a neutral, accessible fallback.
+- The browser still only proposes intent. The existing SpacetimeDB reducer validates the action and the existing deterministic server rules resolve collision, contact, score and outcome. No browser physics, score, winner, crowd, AI, schema or reducer contract was added or trusted.
+- Verification: added deterministic coverage for cap/barrel/tip mapping, mirrored seats, clamping, neutral zero-direction behavior and distinct repeatable authoritative outcomes. Full suite **137/137**, frontend typecheck, production frontend build, transport build and whitespace check passed.
+- Real local Chrome evidence: an actual overhead-view drag began on the player pen, locked the camera selector, exposed its precise grip (`117.7,496.5`) and produced authoritative aim (`719,507`). Its committed contact appeared in the live event feed, then MelaBot acted from the updated world. Forced WebGL loss showed the SVG recovery desk; Restore 3D returned the live canvas without changing the match. The simplified view and 3D view both use the selected grip as their guide origin. No new page error was captured after the final code reload; prior local HMR errors from an intermediate removed symbol are not release evidence.
+- Scope: frontend intent/presentation plus tests only. The existing `contact` action field and server validation/resolution path are retained for human, AI and agent modes. No Maincloud publication required.
+- Release: verification and Railway delivery in progress; not yet claimed live.
+- Next task: publish the frontend update, then run a read-only production smoke check of the new direct-control UI.
+
 ## Current pass — selectable Pen Fight cameras (2026-09-07)
 
 - Added five remembered views: 3D desk, overhead, behind your pen, sideline and pen-follow. Pen-follow tracks committed shot motion and returns to the fitted aiming view. Camera changes during shots blend; switching is locked during an active aiming drag. Preferences are local, optional presentation state. Three.js remains lazy-loaded.

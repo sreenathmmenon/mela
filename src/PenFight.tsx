@@ -26,8 +26,7 @@ import {
 import "./pens.css";
 import "./penFightExperience.css";
 import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
-import { boundedAim, canGrabPen } from "./penFightInput";
-import { penAimPoint } from "../spacetimedb/src/penGeometry";
+import { boundedAim, canGrabPen, penGrip, gripContact } from "./penFightInput";
 import { saveDuelCard } from "./penDuelCard";
 import { readDeskView, type DeskView } from "./penCameraSettings";
 import { seatKind } from "../spacetimedb/src/agentDuelRules";
@@ -175,7 +174,15 @@ export function PenFight({
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const deskInput = useRef<DeskInput | null>(null);
   const dragRevision = useRef<string>();
-  const shot = useRef<{ x: number; y: number; force: number } | null>(null);
+  const shot = useRef<{
+    x: number;
+    y: number;
+    force: number;
+    contact: number;
+  } | null>(null);
+  const [gripPoint, setGripPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const memoryCard = useRef<HTMLElement>(null);
   const lastAnimatedRevision = useRef<string>();
   useEffect(() => {
@@ -184,7 +191,6 @@ export function PenFight({
   }, []);
   const [aim, setAim] = useState({ x: 740, y: 500 });
   const [force, setForce] = useState(60);
-  const [shotContact, setShotContact] = useState(50);
   const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -306,7 +312,6 @@ export function PenFight({
   const completed = match?.status === "complete";
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
-    setShotContact(50);
     setReplayKey(0);
   }, [match?.id]);
   // Start each authoritative human turn from the opponent's CURRENT position,
@@ -391,7 +396,18 @@ export function PenFight({
       MIN_FORCE + (drawn / PULL_MAX) * (ceiling - MIN_FORCE),
     );
     setForce(nextForce);
-    shot.current = { ...nextAim, force: nextForce };
+    const grip = penGrip(
+      start,
+      { x: state.humanX, y: state.humanY },
+      rightHuman,
+    );
+    const contact = gripContact(
+      grip,
+      { x: state.humanX, y: state.humanY },
+      { x: ux, y: uy },
+    );
+    setGripPoint(grip);
+    shot.current = { ...nextAim, force: nextForce, contact };
     setPullPoint(point);
   };
   // Presentation only: the desk reacts to what the server already resolved.
@@ -520,6 +536,7 @@ export function PenFight({
     x: number;
     y: number;
     force: number;
+    contact: number;
   }) => {
     if (
       busy.current ||
@@ -547,7 +564,7 @@ export function PenFight({
         aimX: gesture?.x ?? aim.x,
         aimY: gesture?.y ?? aim.y,
         force: gesture?.force ?? cappedForce,
-        contact: shotContact,
+        contact: gesture?.contact ?? 50,
       };
       if (duel)
         await seatFlick({
@@ -1024,6 +1041,13 @@ export function PenFight({
                         x: event.clientX,
                         y: event.clientY,
                       };
+                      setGripPoint(
+                        penGrip(
+                          { x, y },
+                          { x: state.humanX, y: state.humanY },
+                          rightHuman,
+                        ),
+                      );
                       dragRevision.current = revision;
                       shot.current = null;
                       event.currentTarget.setPointerCapture(event.pointerId);
@@ -1037,6 +1061,7 @@ export function PenFight({
                 if (!aiming) return;
                 setAiming(false);
                 setPullPoint(null);
+                setGripPoint(null);
                 if (dragRevision.current !== revision) {
                   dragStart.current = null;
                   setNote("The desk moved. Line up your next flick.");
@@ -1063,12 +1088,14 @@ export function PenFight({
               onPointerCancel={() => {
                 setAiming(false);
                 setPullPoint(null);
+                setGripPoint(null);
                 dragStart.current = null;
                 shot.current = null;
               }}
               onLostPointerCapture={() => {
                 setAiming(false);
                 setPullPoint(null);
+                setGripPoint(null);
                 dragStart.current = null;
                 shot.current = null;
               }}
@@ -1113,6 +1140,7 @@ export function PenFight({
                 bot={{ x: state.botX, y: state.botY }}
                 motion={displayMotion}
                 aim={aim}
+                grip={aiming ? gripPoint : null}
                 pull={pullPoint}
                 power={powerPct}
                 interactive={
@@ -1134,7 +1162,7 @@ export function PenFight({
                 <div className="desk-gesture-hint">
                   {aiming
                     ? `Release to flick · ${powerPct}% force`
-                    : "Tap to aim · pull your pen to flick"}
+                    : "Touch any part of your pen · pull back · release · off-centre glances"}
                 </div>
               )}
             </div>
@@ -1165,101 +1193,6 @@ export function PenFight({
                     : "Watch the desk."}
                 </strong>
               </div>
-              <fieldset
-                className="pen-target-controls"
-                disabled={
-                  pending || moving || !conn.isActive || state.turn !== "human"
-                }
-              >
-                <legend>Aim at their pen</legend>
-                {(
-                  [
-                    [-150, "Cap"],
-                    [0, "Middle"],
-                    [150, "Tip"],
-                  ] as const
-                ).map(([offset, label]) => {
-                  const point = penAimPoint(
-                    { x: state.botX, y: state.botY },
-                    rightHuman ? "human" : "melabot",
-                    offset,
-                  );
-                  const x = Math.max(0, Math.min(1000, Math.round(point.x))),
-                    y = Math.max(0, Math.min(1000, Math.round(point.y)));
-                  return (
-                    <button
-                      key={label}
-                      aria-pressed={aim.x === x && aim.y === y}
-                      onClick={() => setAim({ x, y })}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-                <small>Side hits can glance.</small>
-              </fieldset>
-              <details className="pen-shot-options">
-                <summary>
-                  Shot craft ·{" "}
-                  {shotContact < 50
-                    ? "Cut left"
-                    : shotContact > 50
-                      ? "Cut right"
-                      : "Straight"}
-                </summary>
-                <fieldset
-                  disabled={
-                    pending ||
-                    moving ||
-                    !conn.isActive ||
-                    state.turn !== "human"
-                  }
-                >
-                  <legend>Contact bias</legend>
-                  <div className="pen-cut-options">
-                    {[
-                      [20, "Cut left"],
-                      [50, "Straight"],
-                      [80, "Cut right"],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        aria-pressed={shotContact === value}
-                        onClick={() => setShotContact(Number(value))}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p>
-                    Cut shots send the struck pen to either side of contact.
-                    Your own pen can carry past it.
-                  </p>
-                  <label htmlFor={`fine-aim-${match.id}`}>Fine aim</label>
-                  <input
-                    id={`fine-aim-${match.id}`}
-                    type="range"
-                    min={-180}
-                    max={180}
-                    step={1}
-                    value={Math.round(
-                      (Math.atan2(aim.y - state.humanY, aim.x - state.humanX) *
-                        180) /
-                        Math.PI,
-                    )}
-                    onChange={(event) => {
-                      const angle =
-                        (Number(event.target.value) * Math.PI) / 180;
-                      const next = boundedAim(
-                        { x: state.humanX, y: state.humanY },
-                        { x: Math.cos(angle), y: Math.sin(angle) },
-                      );
-                      if (next) setAim(next);
-                    }}
-                    aria-valuetext={`${Math.round((Math.atan2(aim.y - state.humanY, aim.x - state.humanX) * 180) / Math.PI)} degrees`}
-                  />
-                </fieldset>
-              </details>
               <p className="eyebrow">
                 {moving
                   ? "LET THE PENS SETTLE"

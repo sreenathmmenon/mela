@@ -5,8 +5,68 @@ import {
   canGrabPen,
   HUMAN_PEN_YAW,
   shotCue,
+  penGrip,
+  gripContact,
 } from "../src/penFightInput";
 import type { PenMotion } from "../spacetimedb/src/penFightMotion";
+import { penAimPoint } from "../spacetimedb/src/penGeometry";
+import { resolvePenFlick } from "../spacetimedb/src/penFightRules";
+
+test("finger position continuously selects legal contact bias in either seat", () => {
+  const centre = { x: 260, y: 500 };
+  for (const mirrored of [false, true]) {
+    const values = [-150, 0, 150].map((offset) => {
+      const grip = penGrip(
+        penAimPoint(centre, mirrored ? "melabot" : "human", offset),
+        centre,
+        mirrored,
+      );
+      const right = gripContact(grip, centre, { x: 1, y: 0 });
+      const left = gripContact(grip, centre, { x: -1, y: 0 });
+      assert.equal(right + left, 100);
+      assert.ok(Number.isInteger(right) && right >= 0 && right <= 100);
+      return right;
+    });
+    assert.ok(values[0] > values[1] && values[1] > values[2]);
+    assert.equal(values[1], 50);
+    const clamped = penGrip(
+      penAimPoint(centre, "human", 10000),
+      centre,
+      mirrored,
+    );
+    assert.ok(
+      Math.hypot(clamped.x - centre.x, clamped.y - centre.y) <= 186.0001,
+    );
+  }
+  assert.equal(gripContact(centre, centre, { x: 0, y: 0 }), 50);
+});
+
+test("different finger positions reach distinct deterministic authoritative outcomes", () => {
+  const centre = { x: 260, y: 500 };
+  const results = [-150, 0, 150].map((offset) => {
+    const input = {
+      actorX: 260,
+      actorY: 500,
+      targetX: 740,
+      targetY: 500,
+      aimX: 740,
+      aimY: 500,
+      force: 66,
+      contact: gripContact(
+        penGrip(penAimPoint(centre, "human", offset), centre),
+        centre,
+        { x: 1, y: 0 },
+      ),
+      seed: 1n,
+      effects: { nudge: false, tilt: false, guard: false },
+    };
+    const result = resolvePenFlick(input);
+    assert.deepEqual(result, resolvePenFlick(input));
+    assert.equal(result.hit, true);
+    return result.motion.targetY;
+  });
+  assert.equal(new Set(results).size, 3);
+});
 
 test("an edge diagonal retains its angle instead of clipping axes separately", () => {
   const from = { x: 950, y: 500 };
