@@ -360,13 +360,48 @@ export function PenFight({
     shot.current = { ...nextAim, force: nextForce };
     setPullPoint(point);
   };
-  // Presentation only: the desk reacts to what the server already resolved —
-  // a shudder on contact, a gold flash when a round is decided.
+  // Presentation only: the desk reacts to what the server already resolved.
+  // The contact callback from PenDesk is timed to the committed motion, rather
+  // than to subscription arrival, so the visual weight lands when the pens do.
   const lastOutcome = state?.lastOutcome;
   const revision = state
     ? `${state.matchId}:${state.round}:${state.turnsInRound}:${state.turn}`
     : undefined;
-  const [deskFx, setDeskFx] = useState({ impact: false, round: false });
+  const [deskFx, setDeskFx] = useState({
+    impact: false,
+    round: false,
+    knockout: false,
+  });
+  const deskFxTimer = useRef<number>();
+  const clearDeskFx = useCallback(() => {
+    window.clearTimeout(deskFxTimer.current);
+    setDeskFx({ impact: false, round: false, knockout: false });
+  }, []);
+  useEffect(() => () => window.clearTimeout(deskFxTimer.current), []);
+  const showImpact = useCallback(
+    (motion: PenMotion) => {
+      window.clearTimeout(deskFxTimer.current);
+      setDeskFx({
+        impact: true,
+        round: false,
+        knockout: motion.actorOut || motion.targetOut,
+      });
+      deskFxTimer.current = window.setTimeout(clearDeskFx, 260);
+    },
+    [clearDeskFx],
+  );
+  const showFall = useCallback(
+    (motion: PenMotion) => {
+      window.clearTimeout(deskFxTimer.current);
+      setDeskFx({
+        impact: false,
+        round: true,
+        knockout: motion.actorOut || motion.targetOut,
+      });
+      deskFxTimer.current = window.setTimeout(clearDeskFx, 850);
+    },
+    [clearDeskFx],
+  );
   useEffect(() => {
     if (!revision || revision === lastAnimatedRevision.current) return;
     const previous = lastAnimatedRevision.current;
@@ -379,16 +414,10 @@ export function PenFight({
       lastOutcome === "AIM YOUR FIRST FLICK"
     )
       return;
-    const round =
-      lastOutcome.includes("TAKES ROUND") || lastOutcome.includes("WINS");
-    // A knocked-off pen is the round ending; anything else that moved is a hit.
-    setDeskFx({ impact: false, round });
-    const timer = window.setTimeout(
-      () => setDeskFx({ impact: false, round: false }),
-      round ? 850 : 480,
-    );
-    return () => window.clearTimeout(timer);
-  }, [lastOutcome, revision]);
+    // A server update may arrive before its replay starts. Reset stale visual
+    // state here; PenDesk invokes showImpact/showFall at the actual frame.
+    clearDeskFx();
+  }, [lastOutcome, revision, clearDeskFx]);
   // A pen close to the border is one nudge from ending the round.
   const nearEdge = (v: number) => v < 130 || v > 870;
   const humanTeeter = Boolean(
@@ -678,7 +707,9 @@ export function PenFight({
           <strong>{state.botRounds}</strong> {opponent}
         </span>
       </section>
-      <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
+      <section
+        className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""} ${deskFx.knockout ? "knockout" : ""}`}
+      >
         <div className="pen-turn">
           <strong>
             {moving
@@ -704,7 +735,7 @@ export function PenFight({
           </span>
         </div>
         <div
-          className={`pen-arena ${deskFx.impact ? "impact" : ""} ${edgeDanger ? "danger" : ""}`}
+          className={`pen-arena ${deskFx.impact ? "impact" : ""} ${deskFx.knockout ? "knockout" : ""} ${edgeDanger ? "danger" : ""}`}
           tabIndex={owns && !completed ? 0 : undefined}
           aria-label={
             owns
@@ -867,6 +898,8 @@ export function PenFight({
             humanName={human}
             botName={opponent}
             onMoving={setMoving}
+            onImpact={showImpact}
+            onFall={showFall}
             completed={completed}
           />
           {owns && !completed && !moving && state.turn === "human" && (

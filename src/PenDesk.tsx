@@ -12,6 +12,9 @@ type Props = DeskFrame & {
   humanName: string;
   botName?: string;
   onMoving: (moving: boolean) => void;
+  /** Presentation callbacks fire from the committed motion timeline only. */
+  onImpact?: (motion: PenMotion) => void;
+  onFall?: (motion: PenMotion) => void;
   inputRef?: { current: DeskInput | null };
 };
 
@@ -135,11 +138,17 @@ export function PenDesk(props: Props) {
       updateCue(progress);
       if (progress >= 0.38 && !contact) {
         contact = true;
-        if (motion.hit) playSound("contact");
+        if (motion.hit) {
+          playSound("contact");
+          latest.current.onImpact?.(motion);
+        }
       }
       if (progress >= 0.75 && !fall) {
         fall = true;
-        if (motion.actorOut || motion.targetOut) playSound("fall");
+        if (motion.actorOut || motion.targetOut) {
+          playSound("fall");
+          latest.current.onFall?.(motion);
+        }
       }
       if (progress < 1) raf.current = requestAnimationFrame(step);
       else {

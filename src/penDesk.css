@@ -6,6 +6,11 @@
   background: #e7e6d9;
   box-shadow: 0 14px 40px #203d3215;
 }
+.pen-shell .pen-arena-wrap.knockout {
+  box-shadow:
+    0 0 0 5px #f6c35445,
+    0 14px 40px #203d3215;
+}
 .pen-shell .pen-arena {
   aspect-ratio: 1.12;
   border: 0;

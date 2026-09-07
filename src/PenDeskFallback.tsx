@@ -138,6 +138,8 @@ export function PenDeskFallback({
   pen,
   humanName,
   onMoving,
+  onImpact,
+  onFall,
   completed,
 }: {
   human: DeskPoint;
@@ -151,6 +153,8 @@ export function PenDeskFallback({
   pen: string;
   humanName: string;
   onMoving: (moving: boolean) => void;
+  onImpact?: (motion: PenMotion) => void;
+  onFall?: (motion: PenMotion) => void;
   completed: boolean;
 }) {
   const uid = useId().replace(/:/g, "");
@@ -250,10 +254,16 @@ export function PenDeskFallback({
     activeAnimations.current = animations;
     playSound("flick");
     const contactTimer = window.setTimeout(() => {
-      if (motion.hit) playSound("contact");
+      if (motion.hit) {
+        playSound("contact");
+        onImpact?.(motion);
+      }
     }, SHOT_DURATION * 0.38);
     const fallTimer = window.setTimeout(() => {
-      if (motion.actorOut || motion.targetOut) playSound("fall");
+      if (motion.actorOut || motion.targetOut) {
+        playSound("fall");
+        onFall?.(motion);
+      }
     }, SHOT_DURATION * 0.75);
     const endTimer = window.setTimeout(() => {
       animations.forEach((animation) => animation.cancel());
@@ -265,7 +275,7 @@ export function PenDeskFallback({
       window.clearTimeout(endTimer);
       animations.forEach((animation) => animation.cancel());
     };
-  }, [motion, onMoving]);
+  }, [motion, onMoving, onImpact, onFall]);
   useEffect(
     () => () =>
       activeAnimations.current.forEach((animation) => animation.cancel()),

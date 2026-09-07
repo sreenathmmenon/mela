@@ -1905,7 +1905,32 @@ button:disabled {
   cursor: crosshair;
 }
 .pen-arena.impact {
-  animation: desk-shake 0.45s var(--ease-out);
+  animation: desk-shake 0.26s var(--ease-out);
+}
+.pen-arena.impact::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    #fff7cc80 0 4%,
+    transparent 27%
+  );
+  mix-blend-mode: screen;
+  animation: pen-contact-flash 0.24s ease-out both;
+}
+.pen-arena.knockout::after {
+  background: radial-gradient(
+    circle at center,
+    #ffd166a6 0 5%,
+    transparent 35%
+  );
+}
+.pen-arena-wrap.knockout {
+  box-shadow:
+    0 0 0 5px #f6c35445,
+    var(--shadow-hard-lg);
 }
 
 /* Hatched edge: the part of the desk that ends the round. */
@@ -2804,6 +2829,19 @@ button:disabled {
     transform: translate(2px, 1px);
   }
 }
+@keyframes pen-contact-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
 @keyframes teeter {
   0%,
   100% {
@@ -2881,6 +2919,7 @@ button:disabled {
   .aim-dot,
   .screen-join,
   .pen-arena.impact,
+  .pen-arena.impact::after,
   .pen-arena.danger .danger-zone,
   .offline {
     animation: none;
