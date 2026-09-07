@@ -90,3 +90,37 @@
     align-items: start;
   }
 }
+.human-seat-lobby {
+  max-width: 620px;
+  margin: 16px auto;
+  padding: 20px;
+}
+.human-seat-lobby h2 {
+  font-size: 24px;
+  margin: 0 0 12px;
+}
+.human-seat-lobby p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.four-agent-compact {
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+.four-agent-compact .duel-invite h2 {
+  font-size: 1.1rem;
+  margin: 4px 0;
+}
+.four-agent-compact .duel-invite p {
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
+.four-agent-compact .duel-code {
+  padding: 8px;
+}
+.four-agent-compact .duel-code strong {
+  font-size: 1.2rem;
+}
+.four-agent-compact .duel-notice {
+  display: none;
+}

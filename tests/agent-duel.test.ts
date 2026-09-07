@@ -60,7 +60,14 @@ test("duplicate, stale and wrong-phase schedules cannot advance a turn", () => {
 test("both transports have exactly the same minimal tool contract and no creation tool", () => {
   assert.deepEqual(
     AGENT_TOOLS.map((t) => t.name),
-    ["mela_get_desk", "mela_claim_seat", "mela_flick"],
+    [
+      "mela_get_board",
+      "mela_drop_four",
+      "mela_list_matches",
+      "mela_get_desk",
+      "mela_claim_seat",
+      "mela_flick",
+    ],
   );
   for (const tool of AGENT_TOOLS)
     assert.equal(tool.inputSchema.additionalProperties, false);

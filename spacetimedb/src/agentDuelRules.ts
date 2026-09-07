@@ -1,6 +1,14 @@
 import { validatePenFlick } from "./penFightRules";
 
 export const DUEL_RULES = { waitMicros: 30_000_000n, intentMicros: 3_000_000n };
+export function seatKind(
+  mode: string,
+  side: string,
+): "human" | "agent" | "bot" {
+  if (mode === "friends") return "human";
+  if (mode === "human_agent") return side === "human" ? "human" : "agent";
+  return mode === "melabot" && side === "bot" ? "bot" : "agent";
+}
 export function validateAgentAction(
   state: { round: number; turnsInRound: number; turn: string },
   action: {

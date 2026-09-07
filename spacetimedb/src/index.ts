@@ -1,6 +1,7 @@
 import { ScheduleAt, SenderError, schema, table, t } from "spacetimedb/server";
 import { summarizeRoom } from "./roomRules";
 import {
+  seatKind,
   DUEL_RULES,
   validateAgentAction as checkAgentAction,
   wakeIsCurrent,
@@ -550,6 +551,20 @@ const spacetimedb = schema({
       contact: t.u32(),
     },
   ),
+  agentFallbackRecord: table(
+    { public: true },
+    { matchId: t.u64().primaryKey(), leftTurns: t.u32(), rightTurns: t.u32() },
+  ),
+  fourAgentProposal: table(
+    { public: false },
+    {
+      matchId: t.u64().primaryKey(),
+      revision: t.u32(),
+      duelRevision: t.u64(),
+      actor: t.string(),
+      choice: t.u32(),
+    },
+  ),
   duelCrowdCredit: table(
     { public: true },
     {
@@ -639,6 +654,36 @@ export const setRoomPresence = spacetimedb.reducer(
       ctx.db.roomConnection.connectionId.update(row);
     else ctx.db.roomConnection.insert(row);
   },
+);
+
+export const penSeatPresence = spacetimedb.anonymousView(
+  { public: true },
+  t.array(
+    t.row("PenSeatPresenceProjection", {
+      matchId: t.u64().primaryKey(),
+      leftPresent: t.bool(),
+      rightPresent: t.bool(),
+    }),
+  ),
+  (ctx: any) =>
+    Array.from(ctx.db.agentDuel.iter() as Iterable<any>)
+      .filter((duel) => ctx.db.match.id.find(duel.matchId)?.status === "active")
+      .map((duel) => {
+        const visits = Array.from(
+          ctx.db.roomConnection.matchId.filter(duel.matchId) as Iterable<any>,
+        ).filter((v) =>
+          ctx.db.connectionSession.connectionId.find(v.connectionId),
+        );
+        return {
+          matchId: duel.matchId,
+          leftPresent: visits.some((v) =>
+            duel.leftIdentity?.isEqual(canonicalIdentity(ctx, v.identity)),
+          ),
+          rightPresent: visits.some((v) =>
+            duel.rightIdentity?.isEqual(canonicalIdentity(ctx, v.identity)),
+          ),
+        };
+      }),
 );
 
 /**
@@ -1014,6 +1059,7 @@ const abandonOwnActiveMatches = (ctx: any) => {
       endedAt: ctx.timestamp,
     });
     applyMetricDelta(ctx, abandonedMatchDelta());
+    ctx.db.fourAgentProposal.matchId.delete(existing.id);
     emit(ctx, existing.id, "This match was left for a new one.");
   }
 };
@@ -1341,6 +1387,9 @@ function finishPenMatch(
   const duel = ctx.db.agentDuel.matchId.find(match.id);
   const leftName = duel?.leftName ?? human?.displayName ?? "Player";
   const rightName = duel?.rightName ?? "MelaBot";
+  const substitutions = ctx.db.agentFallbackRecord.matchId.find(match.id);
+  const fallbackTurns =
+    (substitutions?.leftTurns ?? 0) + (substitutions?.rightTurns ?? 0);
   const credits = Array.from(ctx.db.duelCrowdCredit.iter() as Iterable<any>)
     .filter((c) => c.matchId === match.id)
     .map((c) => `${c.name}'s ${c.power.toUpperCase()}`);
@@ -1360,18 +1409,30 @@ function finishPenMatch(
     ).length,
     crowdActions: activity?.actions ?? 0,
     crowdEnergySpent: activity?.energySpent ?? 0,
-    notableMoment: `${winner === "human" ? leftName : rightName} ${knockout ? "won with a desk-edge knockout." : "held the safer desk position."}${credits.length ? " Crowd moves that landed: " + [...new Set(credits)].join(", ") + "." : ""}`,
+    notableMoment: `${winner === "human" ? leftName : rightName} ${knockout ? "won with a desk-edge knockout." : "held the safer desk position."}${credits.length ? " Crowd moves that landed: " + [...new Set(credits)].join(", ") + "." : ""}${fallbackTurns ? ` MelaBot covered ${fallbackTurns} missed agent turns.` : ""}`,
     completedAt: ctx.timestamp,
   });
   const win = winner === "human";
-  if (!duel) {
-    const profile = ensureMelaProfile(ctx, match.playerIdentity);
-    const progress = playerProgressAfterMatch(profile.progressPoints, win);
+  const humanFinishers = !duel
+    ? [{ identity: match.playerIdentity, won: win }]
+    : ["human", "bot"]
+        .filter((side) => seatKind(duel.mode, side) === "human")
+        .map((side) => ({
+          identity: side === "human" ? duel.leftIdentity : duel.rightIdentity,
+          won: side === "human" ? win : !win,
+        }));
+  for (const finisher of humanFinishers) {
+    if (!finisher.identity) continue;
+    const profile = ensureMelaProfile(ctx, finisher.identity);
+    const progress = playerProgressAfterMatch(
+      profile.progressPoints,
+      finisher.won,
+    );
     ctx.db.melaProfile.identity.update({
       ...profile,
       ...progress,
       matchesPlayed: profile.matchesPlayed + 1,
-      matchesWon: profile.matchesWon + (win ? 1 : 0),
+      matchesWon: profile.matchesWon + (finisher.won ? 1 : 0),
       updatedAt: ctx.timestamp,
     });
   }
@@ -1449,6 +1510,14 @@ function resolvePenFlick(
   const human = side === "human";
   const actor = human ? "human" : "melabot";
   const target = human ? "melabot" : "human";
+  const seated = ctx.db.agentDuel.matchId.find(match.id);
+  const actorName = seated
+    ? human
+      ? seated.leftName
+      : seated.rightName
+    : human
+      ? "Human"
+      : "MelaBot";
   const actorEffects = penEffectsFor(ctx, match.id, actor);
   const targetEffects = penEffectsFor(ctx, match.id, target);
   const resolution = resolvePenFightPhysics({
@@ -1476,7 +1545,7 @@ function resolvePenFlick(
     emit(
       ctx,
       match.id,
-      `${effect.actorName}'s ${label} changed ${actor === "human" ? "the human's" : "MelaBot's"} flick.`,
+      `${effect.actorName}'s ${label} changed ${seated ? actorName + "'s" : actor === "human" ? "the human's" : "MelaBot's"} flick.`,
     );
     ctx.db.crowdEffect.id.delete(effect.id);
     creditDuelCrowd(ctx, match.id, effect);
@@ -1601,9 +1670,9 @@ function resolvePenFlick(
       next.botX = 740;
       next.botY = 500;
       next.turn = next.round % 2 === 0 ? "bot" : "human";
-      next.lastOutcome = `${winner.toUpperCase()} TAKES ROUND ${state.round}`;
+      next.lastOutcome = `${seated ? (winner === "human" ? seated.leftName : seated.rightName) : winner.toUpperCase()} TAKES ROUND ${state.round}`;
       emit(ctx, match.id, next.lastOutcome);
-      if (next.turn === "bot")
+      if (next.turn === "bot" && !seated)
         scheduleMelaBotWake(ctx, match.id, next.turnsInRound);
     }
   } else {
@@ -1611,10 +1680,9 @@ function resolvePenFlick(
     emit(
       ctx,
       match.id,
-      `${human ? "Human" : "MelaBot"} ${resolution.hit ? "made contact" : "missed"}`,
+      `${actorName} ${resolution.hit ? "made contact" : "missed"}`,
     );
-    if (!human) {
-    } else {
+    if (human && !seated) {
       emit(ctx, match.id, "MelaBot is lining up a flick…");
       scheduleMelaBotWake(ctx, match.id, next.turnsInRound);
     }
@@ -1623,43 +1691,86 @@ function resolvePenFlick(
   if (ctx.db.agentDuel.matchId.find(match.id)) beginAgentTurn(ctx, match.id);
 }
 
+function configureDuel(ctx: any, matchId: bigint, mode: string) {
+  const humanHost = seatKind(mode, "human") === "human";
+  const host = player(ctx);
+  ctx.db.agentDuel.insert({
+    matchId,
+    mode,
+    phase: "waiting",
+    revision: 0n,
+    leftIdentity: humanHost ? canonicalIdentity(ctx) : undefined,
+    rightIdentity: undefined,
+    leftName: humanHost ? host.displayName : "Waiting for agent",
+    rightName:
+      mode === "melabot"
+        ? "MelaBot"
+        : mode === "friends"
+          ? "Waiting for friend"
+          : "Waiting for agent",
+    leftIntent: "",
+    rightIntent: "",
+    deadlineMicros: 0n,
+    notice: "The crowd is open. An agent can claim the teal seat.",
+  });
+  for (const p of ctx.db.matchParticipant.iter())
+    if (
+      p.matchId === matchId &&
+      !(humanHost && p.role === "player") &&
+      !(mode === "melabot" && p.role !== "player")
+    )
+      ctx.db.matchParticipant.id.update({
+        ...p,
+        actorKind: mode === "friends" ? "human" : "external_ai",
+        identity: undefined,
+        displayName:
+          mode === "friends" ? "Waiting for friend" : "Waiting for agent",
+      });
+
+  beginAgentTurn(ctx, matchId);
+  return matchId;
+}
 export const createAgentDuel = spacetimedb.reducer(
   { mode: t.string() },
   (ctx: any, { mode }: any) => {
-    if (!["melabot", "duel"].includes(mode))
-      throw new SenderError("Choose MelaBot or two agents.");
-    const matchId = createPenMatch(ctx);
-    ctx.db.agentDuel.insert({
-      matchId,
-      mode,
-      phase: "waiting",
-      revision: 0n,
-      leftIdentity: undefined,
-      rightIdentity: undefined,
-      leftName: "Waiting for agent",
-      rightName: mode === "melabot" ? "MelaBot" : "Waiting for agent",
-      leftIntent: "",
-      rightIntent: "",
-      deadlineMicros: 0n,
-      notice: "The crowd is open. An agent can claim the teal seat.",
-    });
-    for (const p of ctx.db.matchParticipant.iter())
-      if (p.matchId === matchId && (p.role === "player" || mode === "duel"))
-        ctx.db.matchParticipant.id.update({
-          ...p,
-          actorKind: "external_ai",
-          identity: undefined,
-          displayName: "Waiting for agent",
-        });
-    beginAgentTurn(ctx, matchId);
+    if (!["melabot", "duel", "friends", "human_agent"].includes(mode))
+      throw new SenderError("Choose a supported opponent mode.");
+    ensureGuest(ctx);
+    configureDuel(ctx, createPenMatch(ctx), mode);
+  },
+);
+export const createFourRowDuel = spacetimedb.reducer(
+  { mode: t.string() },
+  (ctx: any, { mode }: any) => {
+    if (!["melabot", "duel", "friends", "human_agent"].includes(mode))
+      throw new SenderError("Choose a supported opponent mode.");
+    ensureGuest(ctx);
+    configureDuel(ctx, startStrategyMatch(ctx, "four_row"), mode);
   },
 );
 
 function beginAgentTurn(ctx: any, matchId: bigint) {
+  if (ctx.db.match.id.find(matchId)?.gameKind === "four_row") {
+    beginFourSeatTurn(ctx, matchId);
+    return;
+  }
   const duel = ctx.db.agentDuel.matchId.find(matchId);
   const state = ctx.db.penFightState.matchId.find(matchId);
   if (!duel || !state) return;
   const revision = duel.revision + 1n;
+  if (["friends", "human_agent"].includes(duel.mode) && !duel.rightIdentity) {
+    ctx.db.agentDuel.matchId.update({
+      ...duel,
+      revision,
+      phase: "lobby",
+      deadlineMicros: 0n,
+      notice:
+        duel.mode === "friends"
+          ? "Invite a friend to take the other pen."
+          : "Waiting for an agent to take the other pen.",
+    });
+    return;
+  }
   if (state.turn === "complete") {
     ctx.db.agentDuel.matchId.update({
       ...duel,
@@ -1674,13 +1785,16 @@ function beginAgentTurn(ctx: any, matchId: bigint) {
     ...duel,
     revision,
     phase: "waiting",
-    deadlineMicros: nowMicros(ctx) + DUEL_RULES.waitMicros,
+    deadlineMicros:
+      seatKind(duel.mode, state.turn) === "human"
+        ? 0n
+        : nowMicros(ctx) + DUEL_RULES.waitMicros,
     notice: `${state.turn === "human" ? duel.leftName : duel.rightName} is choosing a shot.`,
   };
   ctx.db.agentDuel.matchId.update(next);
   if (state.turn === "bot" && duel.mode === "melabot") {
     queueFallback(ctx, matchId, "MelaBot is choosing its shot.");
-  } else {
+  } else if (next.deadlineMicros !== 0n) {
     scheduleCrowdTask(
       ctx,
       "agent_timeout",
@@ -1695,39 +1809,137 @@ function sideFor(duel: any, identity: any) {
   if (duel.rightIdentity?.isEqual(identity)) return "bot";
   throw new SenderError("Claim an available agent seat first.");
 }
+function beginFourSeatTurn(ctx: any, matchId: bigint) {
+  const duel = ctx.db.agentDuel.matchId.find(matchId),
+    state = ctx.db.fourRowState.matchId.find(matchId);
+  if (!duel || !state) return;
+  const complete = state.turn === "complete";
+  const ready =
+    (duel.leftIdentity || seatKind(duel.mode, "human") === "bot") &&
+    (duel.rightIdentity || seatKind(duel.mode, "bot") === "bot");
+  const side = state.turn === "human" ? "human" : "bot";
+  const kind = seatKind(duel.mode, side),
+    revision = duel.revision + 1n;
+  const deadlineMicros =
+    !complete && ready && kind !== "human"
+      ? nowMicros(ctx) + (kind === "bot" ? 2_000_000n : DUEL_RULES.waitMicros)
+      : 0n;
+  const phase = complete ? "complete" : ready ? "waiting" : "lobby";
+  ctx.db.agentDuel.matchId.update({
+    ...duel,
+    revision,
+    phase,
+    deadlineMicros,
+    notice: complete
+      ? "Result saved in Mela."
+      : !ready
+        ? "Waiting for both seats."
+        : `${side === "human" ? duel.leftName : duel.rightName} is choosing a column.`,
+  });
+  if (deadlineMicros)
+    scheduleCrowdTask(
+      ctx,
+      "four_agent_timeout",
+      matchId,
+      revision,
+      deadlineMicros,
+    );
+}
+function playFourSeat(ctx: any, action: any, kind: "human" | "agent") {
+  const match = ctx.db.match.id.find(action.matchId),
+    duel = ctx.db.agentDuel.matchId.find(action.matchId),
+    state = ctx.db.fourRowState.matchId.find(action.matchId);
+  if (
+    match?.gameKind !== "four_row" ||
+    match.status !== "active" ||
+    !duel ||
+    !state ||
+    duel.phase !== "waiting"
+  )
+    throw new SenderError("Wait for both seats and the current turn.");
+  const side = sideFor(duel, canonicalIdentity(ctx)),
+    actor = side === "human" ? "human" : "melabot";
+  if (
+    seatKind(duel.mode, side) !== kind ||
+    state.turn !== actor ||
+    state.revision !== action.revision
+  )
+    throw new SenderError("That seat or turn is unavailable.");
+  // Check the public move before committing a proposal; pending crowd effects
+  // are deliberately resolved only when the scheduled move lands.
+  resolveFour(state.board, action.choice, actor);
+  if (kind === "agent") {
+    const revision = duel.revision + 1n;
+    const deadlineMicros = nowMicros(ctx) + DUEL_RULES.intentMicros;
+    ctx.db.fourAgentProposal.insert({
+      matchId: match.id,
+      revision: state.revision,
+      duelRevision: revision,
+      actor,
+      choice: action.choice,
+    });
+    const notice = `${side === "human" ? duel.leftName : duel.rightName} chose column ${action.choice + 1}.`;
+    ctx.db.agentDuel.matchId.update({
+      ...duel,
+      phase: "intent",
+      revision,
+      deadlineMicros,
+      notice,
+    });
+    emit(ctx, match.id, notice);
+    scheduleCrowdTask(
+      ctx,
+      "four_agent_move",
+      match.id,
+      revision,
+      deadlineMicros,
+    );
+  } else resolveStrategyTurn(ctx, match, state, actor, action.choice);
+}
+export const agentDropFour = spacetimedb.reducer(
+  { matchId: t.u64(), revision: t.u32(), choice: t.u32() },
+  (ctx: any, action: any) => {
+    try {
+      playFourSeat(ctx, action, "agent");
+    } catch (e) {
+      throw new SenderError(e instanceof Error ? e.message : "Illegal column.");
+    }
+  },
+);
 export const claimAgentSeat = spacetimedb.reducer(
   { matchId: t.u64(), side: t.string(), name: t.string() },
   (ctx: any, action: any) => {
+    const identity = canonicalIdentity(ctx);
     const match = ctx.db.match.id.find(action.matchId);
     const duel = ctx.db.agentDuel.matchId.find(action.matchId);
     if (!duel || match?.status !== "active")
       throw new SenderError("Ask a human host to open an Agent Duel first.");
     if (
       !["human", "bot"].includes(action.side) ||
-      (action.side === "bot" && duel.mode !== "duel")
+      seatKind(duel.mode, action.side) !== "agent"
     )
-      throw new SenderError("That seat belongs to MelaBot.");
+      throw new SenderError("That seat is not available to an external agent.");
     const check = checkDisplayName(action.name.trim());
     if (!check.ok)
       throw new SenderError(check.message ?? "Choose a valid agent name.");
     const other =
       action.side === "human" ? duel.rightIdentity : duel.leftIdentity;
-    if (other?.isEqual(ctx.sender))
+    if (other && canonicalIdentity(ctx, other).isEqual(identity))
       throw new SenderError("Use an independent identity for the other seat.");
     if (
       Array.from(ctx.db.matchSpectator.iter()).some(
         (s: any) =>
-          s.matchId === action.matchId && s.identity.isEqual(ctx.sender),
+          s.matchId === action.matchId && s.identity.isEqual(identity),
       )
     )
       throw new SenderError("A spectator cannot also control an agent seat.");
     const key = action.side === "human" ? "leftIdentity" : "rightIdentity";
-    if (duel[key] && !duel[key].isEqual(ctx.sender))
+    if (duel[key] && !canonicalIdentity(ctx, duel[key]).isEqual(identity))
       throw new SenderError("That seat is already claimed.");
     const nameKey = action.side === "human" ? "leftName" : "rightName";
     ctx.db.agentDuel.matchId.update({
       ...duel,
-      [key]: ctx.sender,
+      [key]: identity,
       [nameKey]: action.name.trim(),
       notice: `${action.name.trim()} joined the ${action.side === "human" ? "teal" : "rust"} seat.`,
     });
@@ -1737,13 +1949,94 @@ export const claimAgentSeat = spacetimedb.reducer(
         ctx.db.matchParticipant.id.update({
           ...participant,
           actorKind: "external_ai",
-          identity: ctx.sender,
+          identity,
           displayName: action.name.trim(),
         });
     emit(
       ctx,
       action.matchId,
       `${action.name.trim()} claimed the ${role} seat.`,
+    );
+    if (duel.phase === "lobby") beginAgentTurn(ctx, action.matchId);
+  },
+);
+
+function joinHumanSeatInternal(ctx: any, { matchId }: any) {
+  const identity = canonicalIdentity(ctx);
+  const duel = ctx.db.agentDuel.matchId.find(matchId);
+  const match = ctx.db.match.id.find(matchId);
+  if (!duel || duel.mode !== "friends" || match?.status !== "active")
+    throw new SenderError("This friend invitation is no longer available.");
+  if (duel.leftIdentity?.isEqual(identity))
+    throw new SenderError("You already own the first seat.");
+  if (duel.rightIdentity && !duel.rightIdentity.isEqual(identity))
+    throw new SenderError("A friend has already taken this seat.");
+  if (spectatorFor(ctx, matchId, identity))
+    throw new SenderError(
+      "You are watching this match. A spectator cannot also play.",
+    );
+  if (duel.rightIdentity?.isEqual(identity)) return;
+  ensureGuest(ctx);
+  const profile = player(ctx);
+  ctx.db.agentDuel.matchId.update({
+    ...duel,
+    rightIdentity: identity,
+    rightName: profile.displayName,
+  });
+  for (const p of ctx.db.matchParticipant.iter())
+    if (p.matchId === matchId && p.role === "opponent")
+      ctx.db.matchParticipant.id.update({
+        ...p,
+        actorKind: "human",
+        identity,
+        displayName: profile.displayName,
+      });
+  emit(ctx, matchId, `${profile.displayName} joined. Both players are ready.`);
+  beginAgentTurn(ctx, matchId);
+}
+export const joinHumanPenSeat = spacetimedb.reducer(
+  { matchId: t.u64() },
+  joinHumanSeatInternal,
+);
+export const joinHumanSeat = spacetimedb.reducer(
+  { matchId: t.u64() },
+  joinHumanSeatInternal,
+);
+
+export const humanPenFlick = spacetimedb.reducer(
+  {
+    matchId: t.u64(),
+    round: t.u32(),
+    turnNumber: t.u32(),
+    aimX: t.u32(),
+    aimY: t.u32(),
+    force: t.u32(),
+    contact: t.u32(),
+  },
+  (ctx: any, action: any) => {
+    const duel = ctx.db.agentDuel.matchId.find(action.matchId);
+    const match = ctx.db.match.id.find(action.matchId);
+    const state = ctx.db.penFightState.matchId.find(action.matchId);
+    if (
+      !duel ||
+      !state ||
+      match?.status !== "active" ||
+      duel.phase !== "waiting"
+    )
+      throw new SenderError("Wait for both pens and your turn.");
+    const side = sideFor(duel, canonicalIdentity(ctx));
+    if (seatKind(duel.mode, side) !== "human")
+      throw new SenderError("This is not a human seat.");
+    validateAgentAction(state, { ...action, intent: "Human flick" }, side);
+    resolvePenFlick(
+      ctx,
+      match,
+      state,
+      side === "human" ? "human" : "melabot",
+      action.aimX,
+      action.aimY,
+      action.force,
+      action.contact,
     );
   },
 );
@@ -1766,7 +2059,9 @@ export const agentFlick = spacetimedb.reducer(
     const state = ctx.db.penFightState.matchId.find(action.matchId);
     if (!duel || !state || match?.status !== "active")
       throw new SenderError("This duel is not active.");
-    const side = sideFor(duel, ctx.sender);
+    const side = sideFor(duel, identity);
+    if (seatKind(duel.mode, side) !== "agent")
+      throw new SenderError("Use the human seat action for this seat.");
     if (duel.phase !== "waiting")
       throw new SenderError(
         "A shot is already committed. Wait for the desk to settle.",
@@ -1810,6 +2105,18 @@ function queueFallback(ctx: any, matchId: bigint, notice: string) {
   let duel = ctx.db.agentDuel.matchId.find(matchId);
   const state = ctx.db.penFightState.matchId.find(matchId);
   const side = state.turn;
+  if (seatKind(duel.mode, side) === "human")
+    throw new SenderError("Human turns cannot be substituted.");
+  if (seatKind(duel.mode, side) === "agent") {
+    const record = ctx.db.agentFallbackRecord.matchId.find(matchId);
+    const next = {
+      matchId,
+      leftTurns: (record?.leftTurns ?? 0) + (side === "human" ? 1 : 0),
+      rightTurns: (record?.rightTurns ?? 0) + (side === "bot" ? 1 : 0),
+    };
+    if (record) ctx.db.agentFallbackRecord.matchId.update(next);
+    else ctx.db.agentFallbackRecord.insert(next);
+  }
   if (side === "human" && !duel.leftIdentity)
     duel = { ...duel, leftName: "Teal fallback" };
   if (side === "bot" && duel.mode === "duel" && !duel.rightIdentity)
@@ -2452,19 +2759,32 @@ function finishExperimentalMatch(
     endedAt: ctx.timestamp,
   });
   const human = ctx.db.playerProfile.identity.find(match.playerIdentity),
-    progression = ensureMelaProfile(ctx, match.playerIdentity),
     metrics = metricsIdentityFor(ctx, match.playerIdentity);
-  const update = playerProgressAfterMatch(
-    progression.progressPoints,
-    winner === "human",
-  );
-  ctx.db.melaProfile.identity.update({
-    ...progression,
-    ...update,
-    matchesPlayed: progression.matchesPlayed + 1,
-    matchesWon: progression.matchesWon + (winner === "human" ? 1 : 0),
-    updatedAt: ctx.timestamp,
-  });
+  const contest = ctx.db.agentDuel.matchId.find(match.id);
+  const people = contest
+    ? ["human", "bot"]
+        .filter((s) => seatKind(contest.mode, s) === "human")
+        .map((s) => ({
+          identity:
+            s === "human" ? contest.leftIdentity : contest.rightIdentity,
+          won: winner === (s === "human" ? "human" : "melabot"),
+        }))
+    : [{ identity: match.playerIdentity, won: winner === "human" }];
+  for (const person of people) {
+    if (!person.identity) continue;
+    const progression = ensureMelaProfile(ctx, person.identity);
+    const update = playerProgressAfterMatch(
+      progression.progressPoints,
+      person.won,
+    );
+    ctx.db.melaProfile.identity.update({
+      ...progression,
+      ...update,
+      matchesPlayed: progression.matchesPlayed + 1,
+      matchesWon: progression.matchesWon + (person.won ? 1 : 0),
+      updatedAt: ctx.timestamp,
+    });
+  }
   ctx.db.matchHistory.insert({
     id: nextId(ctx.db.matchHistory.iter()),
     matchId: match.id,
@@ -2477,12 +2797,16 @@ function finishExperimentalMatch(
     actions: 0,
     energySpent: 0,
   };
+  const fallback = ctx.db.agentFallbackRecord.matchId.find(match.id);
+  const covered = (fallback?.leftTurns ?? 0) + (fallback?.rightTurns ?? 0);
+  if (covered)
+    notableMoment += ` MelaBot covered ${covered} missed agent turns.`;
   ctx.db.matchMemory.insert({
     matchId: match.id,
     sequence: match.id,
     gameKind: match.gameKind,
-    humanName: human.displayName,
-    aiName: "MelaBot",
+    humanName: contest?.leftName ?? human.displayName,
+    aiName: contest?.rightName ?? "MelaBot",
     winner,
     humanScore,
     humanWickets: 0,
@@ -2516,6 +2840,7 @@ function finishExperimentalMatch(
   for (const effect of ctx.db.crowdEffect.iter())
     if (effect.matchId === match.id) ctx.db.crowdEffect.id.delete(effect.id);
   ctx.db.gilliLaunch.matchId.delete(match.id);
+  ctx.db.fourAgentProposal.matchId.delete(match.id);
 }
 
 function scheduleExperimentalBot(
@@ -2557,7 +2882,7 @@ function startStrategyMatch(ctx: any, kind: "four_row" | "last_stick") {
   emit(
     ctx,
     matchId,
-    `${profile.displayName} challenged MelaBot to ${kind === "four_row" ? "Four in a Row" : "Last Stick"}.`,
+    `${profile.displayName} opened ${kind === "four_row" ? "Four in a Row" : "Last Stick"}.`,
   );
   return matchId;
 }
@@ -2576,11 +2901,15 @@ function resolveStrategyTurn(
   choice: number,
 ) {
   const isFour = match.gameKind === "four_row";
+  const contest = ctx.db.agentDuel.matchId.find(match.id);
   const effect = effectsFor(ctx, match.id, side).find(
     (e) => e.power === (isFour ? "sidewind" : "spark"),
   );
-  const name =
-    side === "human"
+  const name = contest
+    ? side === "human"
+      ? contest.leftName
+      : contest.rightName
+    : side === "human"
       ? ctx.db.playerProfile.identity.find(match.playerIdentity).displayName
       : "MelaBot";
   let winner = "",
@@ -2624,7 +2953,7 @@ function resolveStrategyTurn(
         ? "A full board. Neither side gave an inch."
         : `${name} ${isFour ? "connected four" : "claimed the last stick"}. ${outcome}`,
     );
-  } else if (side === "human") {
+  } else if (side === "human" && !contest) {
     emit(ctx, match.id, "MelaBot is weighing the next move…");
     scheduleExperimentalBot(
       ctx,
@@ -2633,10 +2962,19 @@ function resolveStrategyTurn(
       state.revision + 1,
     );
   }
+  if (contest) beginFourSeatTurn(ctx, match.id);
 }
 export const playStrategyMove = spacetimedb.reducer(
   { matchId: t.u64(), revision: t.u32(), choice: t.u32() },
   (ctx: any, action: any) => {
+    if (ctx.db.agentDuel.matchId.find(action.matchId)) {
+      try {
+        playFourSeat(ctx, action, "human");
+      } catch (e) {
+        throw new SenderError(e instanceof Error ? e.message : "Illegal move.");
+      }
+      return;
+    }
     const match = ctx.db.match.id.find(action.matchId);
     if (
       !match ||
@@ -2911,6 +3249,8 @@ export const rematchPlayground = spacetimedb.reducer(
         : previous.gameKind === "gilli_danda"
           ? startGilliDanda(ctx)
           : startStrategyMatch(ctx, previous.gameKind);
+    const contest = ctx.db.agentDuel.matchId.find(matchId);
+    if (contest) configureDuel(ctx, nextMatchId, contest.mode);
     ctx.db.playgroundRematch.insert({
       previousMatchId: matchId,
       nextMatchId,
@@ -3438,7 +3778,70 @@ export const processCrowdSchedule = spacetimedb.reducer(
       processAgentWake(ctx, match, arg);
       return;
     }
+    if (arg.kind === "four_agent_move") {
+      const duel = ctx.db.agentDuel.matchId.find(match.id),
+        state = ctx.db.fourRowState.matchId.find(match.id),
+        proposal = ctx.db.fourAgentProposal.matchId.find(match.id);
+      if (
+        match.gameKind !== "four_row" ||
+        !duel ||
+        !state ||
+        !proposal ||
+        duel.phase !== "intent" ||
+        duel.revision !== arg.effectId ||
+        proposal.duelRevision !== arg.effectId ||
+        proposal.revision !== state.revision ||
+        proposal.actor !== state.turn
+      )
+        return;
+      ctx.db.fourAgentProposal.matchId.delete(match.id);
+      resolveStrategyTurn(ctx, match, state, proposal.actor, proposal.choice);
+      return;
+    }
+    if (arg.kind === "four_agent_timeout") {
+      const duel = ctx.db.agentDuel.matchId.find(match.id),
+        state = ctx.db.fourRowState.matchId.find(match.id);
+      if (
+        match.gameKind !== "four_row" ||
+        !duel ||
+        !state ||
+        duel.phase !== "waiting" ||
+        duel.revision !== arg.effectId
+      )
+        return;
+      const side = state.turn === "human" ? "human" : "bot",
+        kind = seatKind(duel.mode, side);
+      if (kind === "human") return;
+      const observed =
+        side === "human"
+          ? state.board.replace(/[hb]/g, (c: string) => (c === "h" ? "b" : "h"))
+          : state.board;
+      if (kind === "agent") {
+        const record = ctx.db.agentFallbackRecord.matchId.find(match.id);
+        const next = {
+          matchId: match.id,
+          leftTurns: (record?.leftTurns ?? 0) + (side === "human" ? 1 : 0),
+          rightTurns: (record?.rightTurns ?? 0) + (side === "bot" ? 1 : 0),
+        };
+        if (record) ctx.db.agentFallbackRecord.matchId.update(next);
+        else ctx.db.agentFallbackRecord.insert(next);
+        emit(
+          ctx,
+          match.id,
+          `MelaBot policy covers ${side === "human" ? duel.leftName : duel.rightName}'s missed turn.`,
+        );
+      }
+      resolveStrategyTurn(
+        ctx,
+        match,
+        state,
+        side === "human" ? "human" : "melabot",
+        decideFour(observed),
+      );
+      return;
+    }
     if (arg.kind === "strategy_ai_wake") {
+      if (ctx.db.agentDuel.matchId.find(match.id)) return;
       if (!["four_row", "last_stick"].includes(match.gameKind)) return;
       const state = (
         match.gameKind === "four_row"

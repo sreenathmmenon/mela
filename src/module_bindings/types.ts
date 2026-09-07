@@ -32,6 +32,13 @@ export const AgentDuel = __t.object("AgentDuel", {
 });
 export type AgentDuel = __Infer<typeof AgentDuel>;
 
+export const AgentFallbackRecord = __t.object("AgentFallbackRecord", {
+  matchId: __t.u64(),
+  leftTurns: __t.u32(),
+  rightTurns: __t.u32(),
+});
+export type AgentFallbackRecord = __Infer<typeof AgentFallbackRecord>;
+
 export const AgentProposal = __t.object("AgentProposal", {
   matchId: __t.u64(),
   revision: __t.u64(),
@@ -142,6 +149,15 @@ export const EmailMigration = __t.object("EmailMigration", {
   id: __t.u32(),
 });
 export type EmailMigration = __Infer<typeof EmailMigration>;
+
+export const FourAgentProposal = __t.object("FourAgentProposal", {
+  matchId: __t.u64(),
+  revision: __t.u32(),
+  duelRevision: __t.u64(),
+  actor: __t.string(),
+  choice: __t.u32(),
+});
+export type FourAgentProposal = __Infer<typeof FourAgentProposal>;
 
 export const FourRowState = __t.object("FourRowState", {
   matchId: __t.u64(),
@@ -415,6 +431,21 @@ export const PenFightState = __t.object("PenFightState", {
   seed: __t.u64(),
 });
 export type PenFightState = __Infer<typeof PenFightState>;
+
+export const PenSeatPresence = __t.object("PenSeatPresence", {});
+export type PenSeatPresence = __Infer<typeof PenSeatPresence>;
+
+export const PenSeatPresenceProjection = __t.object(
+  "PenSeatPresenceProjection",
+  {
+    matchId: __t.u64(),
+    leftPresent: __t.bool(),
+    rightPresent: __t.bool(),
+  },
+);
+export type PenSeatPresenceProjection = __Infer<
+  typeof PenSeatPresenceProjection
+>;
 
 export const PlayerProfile = __t.object("PlayerProfile", {
   identity: __t.identity(),

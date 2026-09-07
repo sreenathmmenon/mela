@@ -28,6 +28,7 @@ import "./penFightExperience.css";
 import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
 import { boundedAim, canGrabPen } from "./penFightInput";
 import { penAimPoint } from "../spacetimedb/src/penGeometry";
+import { seatKind } from "../spacetimedb/src/agentDuelRules";
 import {
   PEN_MOTION_PREFIX,
   readPenMotion,
@@ -88,7 +89,8 @@ export function PenFight({
   onRematch?: () => void;
 }) {
   const conn = useSpacetimeDB();
-  const identity = conn.identity;
+  const [identityLinks] = useTable(tables.myIdentityLink);
+  const identity = identityLinks[0]?.canonicalIdentity ?? conn.identity;
   const [matches] = useTable(tables.match);
   const [rooms] = useTable(tables.roomActivity);
   const [duels] = useTable(tables.agentDuel);
@@ -190,7 +192,7 @@ export function PenFight({
       (row) => row.status === "active" && row.gameKind === "pen_fight",
     ) ??
     matches.filter((row) => row.gameKind === "pen_fight").slice(-1)[0];
-  const state = match
+  const rawState = match
     ? states.find((row) => row.matchId === match.id)
     : undefined;
   const crowd = match
@@ -200,8 +202,53 @@ export function PenFight({
     ? profiles.find((row) => row.identity.isEqual(identity))
     : undefined;
   const duel = duels.find((row) => row.matchId === match?.id);
+  const seat =
+    identity && duel?.leftIdentity?.isEqual(identity)
+      ? "human"
+      : identity && duel?.rightIdentity?.isEqual(identity)
+        ? "bot"
+        : undefined;
+  const rightHuman =
+    seat === "bot" && duel && seatKind(duel.mode, seat) === "human";
+  const perspective =
+    rawState && rightHuman
+      ? {
+          ...rawState,
+          humanX: rawState.botX,
+          humanY: rawState.botY,
+          botX: rawState.humanX,
+          botY: rawState.humanY,
+          humanRounds: rawState.botRounds,
+          botRounds: rawState.humanRounds,
+          turn:
+            rawState.turn === "human"
+              ? "bot"
+              : rawState.turn === "bot"
+                ? "human"
+                : rawState.turn,
+        }
+      : rawState;
+  const state =
+    perspective && duel && ["lobby", "intent"].includes(duel.phase)
+      ? { ...perspective, turn: "waiting" }
+      : perspective;
   const owns = Boolean(
-    !duel && match && identity && match.playerIdentity.isEqual(identity),
+    duel
+      ? seat && seatKind(duel.mode, seat) === "human"
+      : match && identity && match.playerIdentity.isEqual(identity),
+  );
+  const displayMotion = useMemo(
+    () =>
+      rightHuman && motion
+        ? {
+            ...motion,
+            actor:
+              motion.actor === "human"
+                ? ("melabot" as const)
+                : ("human" as const),
+          }
+        : motion,
+    [rightHuman, motion],
   );
   /** Crowd effects standing on this match right now, oldest first. */
   const liveEffects = useMemo(
@@ -216,11 +263,13 @@ export function PenFight({
     ),
   );
   const flick = useReducer(reducers.flickPen);
+  const seatFlick = useReducer(reducers.humanPenFlick);
   const join = useReducer(reducers.joinMatchAsSpectator);
   const power = useReducer(reducers.usePenFightCrowdPower);
   const rematch = useReducer(reducers.createPenFight);
+  const rematchSeats = useReducer(reducers.createAgentDuel);
   const human =
-    duel?.leftName ??
+    (rightHuman ? duel?.rightName : duel?.leftName) ??
     (match
       ? (participants.find(
           (row) => row.matchId === match.id && row.role === "player",
@@ -374,6 +423,17 @@ export function PenFight({
         </section>
       </main>
     );
+  if (match.status !== "active" && match.status !== "complete")
+    return (
+      <main className="pen-shell">
+        <h1>Pen Fight</h1>
+        <p>
+          This match closed before a result. Your profile and earlier results
+          are safe.
+        </p>
+        <button onClick={onBack}>← Games</button>
+      </main>
+    );
   // The opening flick is capped by the server for fairness; mirror that here so
   // the power bar cannot promise strength the reducer will refuse.
   const isOpening = state.turnsInRound < 2;
@@ -422,7 +482,7 @@ export function PenFight({
     busy.current = true;
     setPending(true);
     try {
-      await flick({
+      const action = {
         matchId: match.id,
         aimX: gesture?.x ?? aim.x,
         aimY: gesture?.y ?? aim.y,
@@ -430,7 +490,14 @@ export function PenFight({
         // Contact stays centred: one gesture beats two, and a spin control can
         // be added later as a dial if players actually ask for it.
         contact: 50,
-      });
+      };
+      if (duel)
+        await seatFlick({
+          ...action,
+          round: rawState!.round,
+          turnNumber: rawState!.turnsInRound,
+        });
+      else await flick(action);
       setNote("");
     } catch {
       setNote("That flick is not legal right now.");
@@ -468,7 +535,7 @@ export function PenFight({
           ? "In range. Pull back and aim through its middle."
           : "Pull back, release. A longer pull means more force.";
 
-  const opponent = duel?.rightName ?? "MelaBot";
+  const opponent = (rightHuman ? duel?.leftName : duel?.rightName) ?? "MelaBot";
   const actor = state.turn === "human" ? human : opponent;
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
@@ -575,6 +642,7 @@ export function PenFight({
       </header>
       {spectating &&
         match.status === "active" &&
+        !duel &&
         rooms.find((r) => r.matchId === match.id)?.hostPresent === false && (
           <p className="game-room-notice" role="status">
             The host has left this room. You can stay or choose another game.
@@ -607,14 +675,14 @@ export function PenFight({
         </span>
         <b>ROUND {state.round} · FIRST TO 2</b>
         <span>
-          <strong>{state.botRounds}</strong> {duel?.rightName ?? "MelaBot"}
+          <strong>{state.botRounds}</strong> {opponent}
         </span>
       </section>
       <section className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""}`}>
         <div className="pen-turn">
           <strong>
             {moving
-              ? `${motion?.actor === "human" ? human.toUpperCase() : "MELABOT"}’S FLICK`
+              ? `${displayMotion?.actor === "human" ? human.toUpperCase() : opponent.toUpperCase()}’S FLICK`
               : completed
                 ? "DUEL REMEMBERED"
                 : `${actor.toUpperCase()}’S TURN`}
@@ -787,7 +855,7 @@ export function PenFight({
             inputRef={deskInput}
             human={{ x: state.humanX, y: state.humanY }}
             bot={{ x: state.botX, y: state.botY }}
-            motion={motion}
+            motion={displayMotion}
             aim={aim}
             pull={pullPoint}
             power={powerPct}
@@ -849,7 +917,9 @@ export function PenFight({
             {moving
               ? "LET THE PENS SETTLE"
               : state.turn !== "human"
-                ? "MELABOT’S TURN · WATCH THE DESK"
+                ? duel?.phase === "lobby"
+                  ? "WAITING FOR YOUR OPPONENT"
+                  : `${opponent.toUpperCase()}’S TURN · WATCH THE DESK`
                 : aiming
                   ? "RELEASE TO FLICK"
                   : "AIM · SET YOUR POWER · FLICK"}
@@ -1188,7 +1258,8 @@ export function PenFight({
                 busy.current = true;
                 setPending(true);
                 try {
-                  await rematch();
+                  if (duel) await rematchSeats({ mode: duel.mode });
+                  else await rematch();
                   onRematch?.();
                   setNote("Fresh desk. Your next duel starts now.");
                 } catch {
@@ -1199,7 +1270,11 @@ export function PenFight({
                 }
               }}
             >
-              {pending ? "SETTING YOUR DESK…" : "SAME PEN. FRESH DESK."}
+              {pending
+                ? "Opening…"
+                : duel
+                  ? "Play again · same mode"
+                  : "Play again"}
             </button>
           )}
           <button className="secondary wide" onClick={() => void share()}>

@@ -143,6 +143,10 @@ function screenUrlFor(matchId: bigint) {
 function App() {
   const { openAccount } = useMelaAccount();
   const [joining, setJoining] = useState(false);
+  const [seatInvite, setSeatInvite] = useState(() => {
+    const value = new URLSearchParams(location.search).get("seat");
+    return value && /^[1-9][0-9]{0,19}$/.test(value) ? BigInt(value) : null;
+  });
   const joinBusy = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -215,6 +219,8 @@ function App() {
   const [melaProfiles] = useTable(tables.melaProfile);
   const [matches, matchesReady] = useTable(tables.match);
   const [rooms] = useTable(tables.roomActivity);
+  const [seatPresence] = useTable(tables.penSeatPresence);
+  const [penDuels] = useTable(tables.agentDuel);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
@@ -257,12 +263,18 @@ function App() {
       Boolean(
         myIdentity &&
         (match.playerIdentity.isEqual(myIdentity) ||
+          participants.some(
+            (p) =>
+              p.matchId === match.id &&
+              p.identity?.isEqual(myIdentity) &&
+              p.role !== "spectator",
+          ) ||
           spectators.some(
             (row) =>
               row.matchId === match.id && row.identity.isEqual(myIdentity),
           )),
       ),
-    [myIdentity, spectators],
+    [myIdentity, spectators, participants],
   );
   const newest = (rows: typeof matches) =>
     rows.reduce<(typeof matches)[number] | undefined>(
@@ -284,7 +296,17 @@ function App() {
   const resumableMatch = newest(
     matches.filter(
       (m) =>
-        m.status === "active" && Boolean(myIdentity?.isEqual(m.playerIdentity)),
+        m.status === "active" &&
+        Boolean(
+          myIdentity &&
+          (myIdentity.isEqual(m.playerIdentity) ||
+            participants.some(
+              (p) =>
+                p.matchId === m.id &&
+                p.actorKind === "human" &&
+                p.identity?.isEqual(myIdentity),
+            )),
+        ),
     ),
   );
   const displayedMatch = showHome
@@ -300,7 +322,17 @@ function App() {
     (match) =>
       match.status === "active" &&
       (!myIdentity || !match.playerIdentity.isEqual(myIdentity)) &&
-      rooms.some((room) => room.matchId === match.id && room.hostPresent),
+      !participants.some(
+        (p) =>
+          p.matchId === match.id &&
+          myIdentity &&
+          p.identity?.isEqual(myIdentity) &&
+          p.role !== "spectator",
+      ) &&
+      (rooms.some((room) => room.matchId === match.id && room.hostPresent) ||
+        seatPresence.some(
+          (s) => s.matchId === match.id && (s.leftPresent || s.rightPresent),
+        )),
   );
   const discoverableRooms = liveMatchesToWatch
     .slice()
@@ -308,11 +340,17 @@ function App() {
     .slice(0, 12)
     .map((match) => ({
       id: match.id,
-      game: GAME_LABELS[match.gameKind] ?? match.gameKind,
+      game: penDuels.some((d) => d.matchId === match.id)
+        ? `${GAME_LABELS[match.gameKind] ?? match.gameKind} · ${penDuels.find((d) => d.matchId === match.id)?.mode === "friends" ? "Friends" : penDuels.find((d) => d.matchId === match.id)?.mode === "human_agent" ? "Human vs agent" : "Agent match"}`
+        : (GAME_LABELS[match.gameKind] ?? match.gameKind),
       host:
+        (penDuels.find((d) => d.matchId === match.id)
+          ? `${penDuels.find((d) => d.matchId === match.id)!.leftName} vs ${penDuels.find((d) => d.matchId === match.id)!.rightName}`
+          : undefined) ??
         participants.find(
           (p) => p.matchId === match.id && p.actorKind === "human",
-        )?.displayName ?? "Mela player",
+        )?.displayName ??
+        "Mela player",
       watching:
         rooms.find((room) => room.matchId === match.id)?.spectators ?? 0,
     }));
@@ -566,6 +604,60 @@ function App() {
   const createFourRow = useReducer(reducers.createFourRow),
     createLastStick = useReducer(reducers.createLastStick);
   const createAgentDuel = useReducer(reducers.createAgentDuel);
+  const claimHumanSeat = useReducer(reducers.joinHumanSeat);
+  const createFourDuel = useReducer(reducers.createFourRowDuel);
+  const openPenMode = async (mode: string, gameKind = "pen_fight") => {
+    if (joinBusy.current || !connected) return;
+    joinBusy.current = true;
+    setJoining(true);
+    setError(null);
+    try {
+      if (gameKind === "four_row") await createFourDuel({ mode });
+      else await createAgentDuel({ mode });
+      setRequestedMemoryId(null);
+      setPinnedMatchId(null);
+      setShowHome(false);
+    } catch {
+      setError("Could not open that match. Please try again.");
+    } finally {
+      joinBusy.current = false;
+      setJoining(false);
+    }
+  };
+  const modes = (
+    <section className="home-memories" aria-label="Choose your opponent">
+      <h2>Play together</h2>
+      {["pen_fight", "four_row"].map((kind) => (
+        <section
+          key={kind}
+          aria-label={GAME_LABELS[kind] + " opponents"}
+          className="opponent-choice"
+        >
+          <h3>{GAME_LABELS[kind]}</h3>
+          <div className="duel-launch">
+            <button
+              disabled={joining || !connected}
+              onClick={() => void openPenMode("friends", kind)}
+            >
+              Play with a friend
+            </button>
+            <button
+              disabled={joining || !connected}
+              onClick={() => void openPenMode("human_agent", kind)}
+            >
+              Challenge an agent
+            </button>
+            <button
+              disabled={joining || !connected}
+              onClick={() => void openPenMode("duel", kind)}
+            >
+              Host two agents
+            </button>
+          </div>
+        </section>
+      ))}
+    </section>
+  );
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
@@ -598,6 +690,10 @@ function App() {
     const alreadyIn = Boolean(
       myIdentity &&
       (target.playerIdentity.isEqual(myIdentity) ||
+        participants.some(
+          (row) =>
+            row.matchId === target.id && row.identity?.isEqual(myIdentity),
+        ) ||
         spectators.some(
           (row) =>
             row.matchId === target.id && row.identity.isEqual(myIdentity),
@@ -774,6 +870,65 @@ function App() {
     }
   };
 
+  if (seatInvite)
+    return (
+      <main className="mela-shell">
+        <section className="join-card">
+          <h1>Join your friend</h1>
+          <p>
+            {
+              GAME_LABELS[
+                matches.find((m) => m.id === seatInvite)?.gameKind ??
+                  "pen_fight"
+              ]
+            }{" "}
+            · Your friend goes first.
+          </p>
+          {error && <p role="alert">{error}</p>}
+          <button
+            disabled={!connected || joining}
+            onClick={async () => {
+              setJoining(true);
+              setError(null);
+              try {
+                const own = Boolean(
+                  canonicalIdentity &&
+                  matches
+                    .find((m) => m.id === seatInvite)
+                    ?.playerIdentity.isEqual(canonicalIdentity),
+                );
+                if (!own) await claimHumanSeat({ matchId: seatInvite });
+                setPinnedMatchId(seatInvite);
+                setShowHome(false);
+                setSeatInvite(null);
+                const url = new URL(location.href);
+                url.searchParams.delete("seat");
+                window.history.replaceState(null, "", url);
+              } catch (e) {
+                setError(
+                  e instanceof Error ? e.message : "This seat is unavailable.",
+                );
+              } finally {
+                setJoining(false);
+              }
+            }}
+          >
+            {joining ? "Joining…" : "Join game"}
+          </button>
+          <button
+            onClick={() => {
+              setSeatInvite(null);
+              setShowHome(true);
+              const url = new URL(location.href);
+              url.searchParams.delete("seat");
+              window.history.replaceState(null, "", url);
+            }}
+          >
+            Games
+          </button>
+        </section>
+      </main>
+    );
   // Sharing a completed duel is read-only: strangers do not join an ended
   // match or receive participation credit just for opening its memory.
   const sharedBookMemory =
@@ -940,12 +1095,17 @@ function App() {
       </header>
 
       {!me && !requestedJoinMatchId && (
-        <HomeDiscovery
-          onChoose={(game) => void enter(game)}
-          busy={joining || !connected || !profilesReady || !identityLinksReady}
-          live={discoverableRooms}
-          onWatch={(id) => void watchMatch(id)}
-        />
+        <>
+          <HomeDiscovery
+            onChoose={(game) => void enter(game)}
+            busy={
+              joining || !connected || !profilesReady || !identityLinksReady
+            }
+            live={discoverableRooms}
+            onWatch={(id) => void watchMatch(id)}
+          />
+          {modes}
+        </>
       )}
       {!me && (!connected || !profilesReady) && (
         <section id="join-mela" className="join-card" role="status">
@@ -1112,6 +1272,7 @@ function App() {
               </ul>
             </section>
           )}
+          {modes}
           {rivalry && (
             <details className="home-extra">
               <summary>Your rivalry</summary>

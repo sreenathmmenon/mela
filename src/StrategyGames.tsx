@@ -15,8 +15,16 @@ export function StrategyGames({
   onBack: () => void;
   screen?: boolean;
 }) {
-  const { match, isPlayer, isSpectator, connected, humanName } =
-    usePlaygroundMatch(matchId, screen);
+  const {
+    match,
+    isPlayer,
+    isSpectator,
+    connected,
+    humanName,
+    opponentName,
+    playerSide,
+    contest,
+  } = usePlaygroundMatch(matchId, screen);
   const [fours] = useTable(tables.fourRowState),
     [sticks] = useTable(tables.lastStickState);
   const four = fours.find((s) => s.matchId === matchId),
@@ -40,7 +48,8 @@ export function StrategyGames({
     isPlayer &&
     connected &&
     match?.status === "active" &&
-    state?.turn === "human" &&
+    state?.turn === playerSide &&
+    (!contest || contest.phase === "waiting") &&
     !busy;
   // Decoration only, gated by committed completion; never chooses the winner.
   const winning =
@@ -97,7 +106,9 @@ export function StrategyGames({
         <>
           <section className="pg-score strategy-turn">
             <div>
-              <span>{isPlayer ? "You" : humanName}</span>
+              <span>
+                {isPlayer && playerSide === "human" ? "You" : humanName}
+              </span>
               <strong aria-label="Gold player">●</strong>
               <small>GOLD</small>
             </div>
@@ -107,17 +118,21 @@ export function StrategyGames({
                 : state.turn === "complete"
                   ? match?.winner === "draw"
                     ? "A worthy draw."
-                    : `${match?.winner === "human" ? (isPlayer ? "You win!" : `${humanName} wins!`) : "MelaBot wins this one."}`
+                    : isPlayer && match?.winner === playerSide
+                      ? "You win!"
+                      : `${match?.winner === "human" ? humanName : opponentName} wins.`
                   : busy
                     ? "Your move is on its way…"
-                    : state.turn === "melabot"
-                      ? "MelaBot is thinking…"
-                      : isPlayer
+                    : contest?.phase === "lobby"
+                      ? "Waiting for your opponent."
+                      : isPlayer && state.turn === playerSide
                         ? "Your move."
-                        : `${humanName}'s move.`}
+                        : `${state.turn === "human" ? humanName : opponentName}'s move.`}
             </p>
             <div>
-              <span>MelaBot</span>
+              <span>
+                {isPlayer && playerSide === "melabot" ? "You" : opponentName}
+              </span>
               <strong className="strategy-bot" aria-label="Teal opponent">
                 ◆
               </strong>
@@ -221,13 +236,12 @@ export function StrategyGames({
             <summary>How to play</summary>
             <p>
               {isFour
-                ? "Connect four gold discs horizontally, vertically or diagonally. Each arrow drops into its column. A full board without a line is a draw. MelaBot looks ahead, so watch its teal threats. The crowd can send a SIDEWIND: your next disc shifts one column right, or left at the right edge, unless that neighbour is full. The chosen column must be open."
+                ? "Connect four of your discs horizontally, vertically or diagonally. Each arrow drops into its column. A full board without a line is a draw. The crowd can send a SIDEWIND: your next disc shifts one column right, or left at the right edge, unless that neighbour is full. The chosen column must be open."
                 : "Start with 21 sticks and alternate taking one, two or three. Take the final stick to win. Try leaving multiples of four — but the crowd can change the arithmetic. SPARK removes one extra stick after the chosen take, if one remains. That extra stick counts for the same player, including the winning last stick."}
             </p>
             <p>
-              Crowd effects are revealed when the move lands. Players and
-              MelaBot follow the same rules. Keyboard: Tab to a move, then
-              Enter.
+              Crowd effects are revealed when the move lands. Players and agents
+              follow the same rules. Keyboard: Tab to a move, then Enter.
             </p>
           </details>
         </>

@@ -34,6 +34,7 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AgentDropFourReducer from "./agent_drop_four_reducer";
 import AgentFlickReducer from "./agent_flick_reducer";
 import BeginProfileLinkReducer from "./begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
@@ -42,12 +43,16 @@ import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
 import CreateFourRowReducer from "./create_four_row_reducer";
+import CreateFourRowDuelReducer from "./create_four_row_duel_reducer";
 import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
 import CreateLastStickReducer from "./create_last_stick_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
 import EnterGameReducer from "./enter_game_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
+import HumanPenFlickReducer from "./human_pen_flick_reducer";
+import JoinHumanPenSeatReducer from "./join_human_pen_seat_reducer";
+import JoinHumanSeatReducer from "./join_human_seat_reducer";
 import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import LiftGilliReducer from "./lift_gilli_reducer";
 import OnboardReducer from "./onboard_reducer";
@@ -66,6 +71,7 @@ import * as PlaygroundClockProcedure from "./playground_clock_procedure";
 
 // Import all table schema definitions
 import AgentDuelRow from "./agent_duel_table";
+import AgentFallbackRecordRow from "./agent_fallback_record_table";
 import AiCharacterRow from "./ai_character_table";
 import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
@@ -91,6 +97,7 @@ import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
 import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
 import PenFightRecordRow from "./pen_fight_record_table";
+import PenSeatPresenceRow from "./pen_seat_presence_table";
 import PlayerProfileRow from "./player_profile_table";
 import PlaygroundRematchRow from "./playground_rematch_table";
 import RoomActivityRow from "./room_activity_table";
@@ -123,6 +130,27 @@ const tablesSchema = __schema({
       ],
     },
     AgentDuelRow,
+  ),
+  agentFallbackRecord: __table(
+    {
+      name: "agent_fallback_record",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "agent_fallback_record_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "agent_fallback_record_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    AgentFallbackRecordRow,
   ),
   aiCharacter: __table(
     {
@@ -666,6 +694,14 @@ const tablesSchema = __schema({
     },
     PenDeskStateRow,
   ),
+  penSeatPresence: __table(
+    {
+      name: "pen_seat_presence",
+      indexes: [],
+      constraints: [],
+    },
+    PenSeatPresenceRow,
+  ),
   roomActivity: __table(
     {
       name: "room_activity",
@@ -686,6 +722,7 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("agent_drop_four", AgentDropFourReducer),
   __reducerSchema("agent_flick", AgentFlickReducer),
   __reducerSchema("begin_profile_link", BeginProfileLinkReducer),
   __reducerSchema("claim_agent_seat", ClaimAgentSeatReducer),
@@ -694,12 +731,16 @@ const reducersSchema = __reducers(
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),
   __reducerSchema("create_four_row", CreateFourRowReducer),
+  __reducerSchema("create_four_row_duel", CreateFourRowDuelReducer),
   __reducerSchema("create_gilli_danda", CreateGilliDandaReducer),
   __reducerSchema("create_last_stick", CreateLastStickReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
   __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
   __reducerSchema("enter_game", EnterGameReducer),
   __reducerSchema("flick_pen", FlickPenReducer),
+  __reducerSchema("human_pen_flick", HumanPenFlickReducer),
+  __reducerSchema("join_human_pen_seat", JoinHumanPenSeatReducer),
+  __reducerSchema("join_human_seat", JoinHumanSeatReducer),
   __reducerSchema("join_match_as_spectator", JoinMatchAsSpectatorReducer),
   __reducerSchema("lift_gilli", LiftGilliReducer),
   __reducerSchema("onboard", OnboardReducer),

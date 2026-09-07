@@ -6,6 +6,7 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AgentDropFourReducer from "../agent_drop_four_reducer";
 import AgentFlickReducer from "../agent_flick_reducer";
 import BeginProfileLinkReducer from "../begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "../claim_agent_seat_reducer";
@@ -14,12 +15,16 @@ import CreateAgentDuelReducer from "../create_agent_duel_reducer";
 import CreateBookCricketReducer from "../create_book_cricket_reducer";
 import CreateDotsBoxesReducer from "../create_dots_boxes_reducer";
 import CreateFourRowReducer from "../create_four_row_reducer";
+import CreateFourRowDuelReducer from "../create_four_row_duel_reducer";
 import CreateGilliDandaReducer from "../create_gilli_danda_reducer";
 import CreateLastStickReducer from "../create_last_stick_reducer";
 import CreatePenFightReducer from "../create_pen_fight_reducer";
 import DrawDotsEdgeReducer from "../draw_dots_edge_reducer";
 import EnterGameReducer from "../enter_game_reducer";
 import FlickPenReducer from "../flick_pen_reducer";
+import HumanPenFlickReducer from "../human_pen_flick_reducer";
+import JoinHumanPenSeatReducer from "../join_human_pen_seat_reducer";
+import JoinHumanSeatReducer from "../join_human_seat_reducer";
 import JoinMatchAsSpectatorReducer from "../join_match_as_spectator_reducer";
 import LiftGilliReducer from "../lift_gilli_reducer";
 import OnboardReducer from "../onboard_reducer";
@@ -33,6 +38,7 @@ import UseCrowdPowerReducer from "../use_crowd_power_reducer";
 import UseExperimentalCrowdPowerReducer from "../use_experimental_crowd_power_reducer";
 import UsePenFightCrowdPowerReducer from "../use_pen_fight_crowd_power_reducer";
 
+export type AgentDropFourParams = __Infer<typeof AgentDropFourReducer>;
 export type AgentFlickParams = __Infer<typeof AgentFlickReducer>;
 export type BeginProfileLinkParams = __Infer<typeof BeginProfileLinkReducer>;
 export type ClaimAgentSeatParams = __Infer<typeof ClaimAgentSeatReducer>;
@@ -43,12 +49,16 @@ export type CreateAgentDuelParams = __Infer<typeof CreateAgentDuelReducer>;
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type CreateDotsBoxesParams = __Infer<typeof CreateDotsBoxesReducer>;
 export type CreateFourRowParams = __Infer<typeof CreateFourRowReducer>;
+export type CreateFourRowDuelParams = __Infer<typeof CreateFourRowDuelReducer>;
 export type CreateGilliDandaParams = __Infer<typeof CreateGilliDandaReducer>;
 export type CreateLastStickParams = __Infer<typeof CreateLastStickReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
 export type DrawDotsEdgeParams = __Infer<typeof DrawDotsEdgeReducer>;
 export type EnterGameParams = __Infer<typeof EnterGameReducer>;
 export type FlickPenParams = __Infer<typeof FlickPenReducer>;
+export type HumanPenFlickParams = __Infer<typeof HumanPenFlickReducer>;
+export type JoinHumanPenSeatParams = __Infer<typeof JoinHumanPenSeatReducer>;
+export type JoinHumanSeatParams = __Infer<typeof JoinHumanSeatReducer>;
 export type JoinMatchAsSpectatorParams = __Infer<
   typeof JoinMatchAsSpectatorReducer
 >;

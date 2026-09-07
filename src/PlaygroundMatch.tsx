@@ -9,6 +9,7 @@ import {
 } from "../spacetimedb/src/playgroundCrowdRules";
 import { isMuted, toggleMuted, playSound } from "./sound";
 import "./playground.css";
+import { AgentDuelPanel } from "./AgentDuel";
 
 export function usePlaygroundMatch(matchId: bigint, screen = false) {
   const conn = useSpacetimeDB();
@@ -16,13 +17,33 @@ export function usePlaygroundMatch(matchId: bigint, screen = false) {
   const [matches] = useTable(tables.match);
   const [participants] = useTable(tables.matchParticipant);
   const [spectators] = useTable(tables.matchSpectator);
+  const [duels] = useTable(tables.agentDuel);
   const identity = links[0]?.canonicalIdentity ?? conn.identity;
   const match = matches.find((m) => m.id === matchId);
   const humanName =
-    participants.find((p) => p.matchId === matchId && p.actorKind === "human")
+    participants.find((p) => p.matchId === matchId && p.role === "player")
       ?.displayName ?? "Player";
-  const isPlayer =
-    !screen && !!identity && !!match?.playerIdentity.isEqual(identity);
+  const opponentName =
+    participants.find((p) => p.matchId === matchId && p.role === "opponent")
+      ?.displayName ?? "MelaBot";
+  const contest = duels.find((d) => d.matchId === matchId);
+  const ownSeat = participants.find(
+    (p) =>
+      p.matchId === matchId &&
+      p.actorKind === "human" &&
+      identity &&
+      p.identity?.isEqual(identity),
+  );
+  const playerSide = contest
+    ? ownSeat?.role === "player"
+      ? "human"
+      : ownSeat?.role === "opponent"
+        ? "melabot"
+        : undefined
+    : identity && match?.playerIdentity.isEqual(identity)
+      ? "human"
+      : undefined;
+  const isPlayer = !screen && !!identity && !!playerSide;
   const isSpectator =
     !screen &&
     !!identity &&
@@ -33,6 +54,9 @@ export function usePlaygroundMatch(matchId: bigint, screen = false) {
     match,
     identity,
     humanName,
+    opponentName,
+    playerSide,
+    contest,
     isPlayer,
     isSpectator,
     connected: conn.isActive,
@@ -53,8 +77,16 @@ export function PlaygroundMatch({
   children: ReactNode;
   onBack: () => void;
 }) {
-  const { match, identity, humanName, isPlayer, isSpectator, connected } =
-    usePlaygroundMatch(matchId, screen);
+  const {
+    match,
+    identity,
+    humanName,
+    opponentName,
+    contest,
+    isPlayer,
+    isSpectator,
+    connected,
+  } = usePlaygroundMatch(matchId, screen);
   const [crowds] = useTable(tables.matchCrowd);
   const [rooms] = useTable(tables.roomActivity);
   const [cooldowns] = useTable(tables.ownSpectatorCooldown);
@@ -83,6 +115,7 @@ export function PlaygroundMatch({
       location.assign(`${import.meta.env.BASE_URL}?join=${created.id}`);
   }, [matches, ownAfter, identity]);
   const rematch = useReducer(reducers.rematchPlayground);
+  const createFourDuel = useReducer(reducers.createFourRowDuel);
   const [requestedRematch, setRequestedRematch] = useState(false);
   useEffect(() => {
     if (requestedRematch && nextMatchId)
@@ -189,9 +222,11 @@ export function PlaygroundMatch({
           live.
         </p>
       )}
+      {contest && <AgentDuelPanel matchId={matchId} />}
       {children}
       {isSpectator &&
         match?.status === "active" &&
+        !contest &&
         rooms.find((r) => r.matchId === matchId)?.hostPresent === false && (
           <p className="game-room-notice" role="status">
             The host has left this room. You can stay or choose another game.
@@ -261,22 +296,38 @@ export function PlaygroundMatch({
                 action(
                   "rematch",
                   async () => {
+                    if (contest) {
+                      const latest = matches.reduce(
+                        (id, m) => (m.id > id ? m.id : id),
+                        0n,
+                      );
+                      await createFourDuel({ mode: contest.mode });
+                      setOwnAfter(latest);
+                      return;
+                    }
                     await rematch({ matchId });
                     setRequestedRematch(true);
                   },
-                  "Your rematch is ready. The crowd has been invited.",
+                  contest
+                    ? "New match ready. Share its invitation with your opponent."
+                    : "Your rematch is ready. The crowd has been invited.",
                 )
               }
             >
-              Rematch · invite this crowd →
+              {contest
+                ? "Play again · same mode →"
+                : "Rematch · invite this crowd →"}
             </button>
           ) : (
             !screen && (
               <div className="pg-next-match">
-                <h3>Stay for the next one.</h3>
+                <h3>
+                  {contest ? "Play another round?" : "Stay for the next one."}
+                </h3>
                 <p>
-                  If {humanName} starts a rematch, your invitation will appear
-                  here. No new QR needed.
+                  {contest
+                    ? "Ask a player for the next crowd link, or choose your own game below."
+                    : `If ${humanName} starts a rematch, your invitation will appear here. No new QR needed.`}
                 </p>
               </div>
             )
@@ -357,7 +408,7 @@ export function PlaygroundMatch({
                     aria-pressed={target === side}
                     onClick={() => setTarget(side)}
                   >
-                    {side === "human" ? humanName : "MelaBot"}
+                    {side === "human" ? humanName : opponentName}
                   </button>
                 ))}
               </fieldset>
@@ -395,7 +446,7 @@ export function PlaygroundMatch({
                         action(
                           power,
                           () => usePower({ matchId, power, target }),
-                          `${rule.label} accepted${power === "cheer" ? ". The pool has refreshed." : ` for ${target === "human" ? humanName : "MelaBot"}. Watch the next move.`}`,
+                          `${rule.label} accepted${power === "cheer" ? ". The pool has refreshed." : ` for ${target === "human" ? humanName : opponentName}. Watch the next move.`}`,
                         )
                       }
                     >
@@ -425,7 +476,7 @@ export function PlaygroundMatch({
                   {pending
                     .map(
                       (e) =>
-                        `${e.actorName}'s ${e.power.replace(/_/g, " ")} → ${e.target === "human" ? humanName : "MelaBot"}`,
+                        `${e.actorName}'s ${e.power.replace(/_/g, " ")} → ${e.target === "human" ? humanName : opponentName}`,
                     )
                     .join(" · ")}
                 </p>
