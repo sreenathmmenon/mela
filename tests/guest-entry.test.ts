@@ -17,9 +17,10 @@ test("guest nicknames are deterministic, valid-length presentation only", () => 
   }
   assert.throws(() => guestName("not-an-identity"));
 });
-test("entry only accepts the six implemented games and lobby", () => {
-  assert.equal(ENTRY_GAMES.length, 7);
+test("entry only accepts every implemented game and the lobby", () => {
+  assert.equal(ENTRY_GAMES.length, 8);
   for (const game of ENTRY_GAMES) assert.ok(validEntryGame(game));
+  assert.ok(validEntryGame("stick_cricket"));
   for (const game of ["", "Pen Fight", "constructor", "unknown"])
     assert.equal(validEntryGame(game), false);
 });

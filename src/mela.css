@@ -3196,6 +3196,158 @@ button:disabled {
 }
 
 /* ---------- Book Cricket: the book ---------- */
+/* ---------- Stick Cricket: an independent one-over pitch ---------- */
+.stick-cricket-stage {
+  overflow: hidden;
+  max-width: 720px;
+  margin: 16px auto 10px;
+  border: 2px solid #263126;
+  border-radius: 18px;
+  background: #174c37;
+  box-shadow: 0 16px 34px -22px #000b;
+}
+.stick-cricket-stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.stick-cricket-stage figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  background: #12382e;
+  color: #fff2cf;
+  font-weight: 800;
+}
+.stick-cricket-stage figcaption small {
+  color: #c8e1bc;
+  font-weight: 650;
+  text-align: right;
+}
+.stick-cricket-stage.human-batting .stick-batter {
+  transform: translate(390px, 347px);
+}
+.stick-cricket-stage.human-batting .stick-bowler {
+  transform: translate(510px, 248px);
+}
+.stick-cricket-stage.bot-batting .stick-batter {
+  transform: translate(510px, 347px) scaleX(-1);
+}
+.stick-cricket-stage.bot-batting .stick-bowler {
+  transform: translate(390px, 248px) scaleX(-1);
+}
+.stick-ball {
+  transform: translate(450px, 248px);
+  opacity: 0;
+}
+.stick-cricket-stage.delivery-live .stick-ball {
+  opacity: 1;
+  animation: stick-delivery 0.52s cubic-bezier(0.25, 0.65, 0.35, 1) forwards;
+}
+.stick-cricket-stage.delivery-resolved:not(.wicket) .stick-ball {
+  opacity: 1;
+  animation: stick-shot 0.58s cubic-bezier(0.16, 0.7, 0.25, 1) forwards;
+}
+.stick-cricket-stage.delivery-resolved.boundary .stick-ball {
+  animation: stick-boundary 0.82s cubic-bezier(0.17, 0.75, 0.28, 1) forwards;
+}
+.stick-cricket-stage.delivery-resolved.wicket .stick-ball {
+  opacity: 1;
+  animation: stick-wicket 0.44s ease-out forwards;
+}
+.stick-cricket-stage.delivery-live .stick-bowler {
+  animation: stick-runup 0.52s ease-out;
+}
+.stick-cricket-stage.delivery-resolved .stick-batter {
+  animation: stick-swing 0.38s ease-out;
+}
+.stick-cricket-stage.delivery-resolved.wicket .near {
+  animation: stick-stumps 0.4s ease-out;
+}
+.stick-cricket-stage.boundary .stick-crowd {
+  animation: stick-cheer 0.6s ease-in-out 2;
+}
+@keyframes stick-delivery {
+  from {
+    transform: translate(450px, 248px);
+  }
+  to {
+    transform: translate(450px, 329px);
+  }
+}
+@keyframes stick-shot {
+  from {
+    transform: translate(450px, 329px);
+  }
+  to {
+    transform: translate(300px, 235px);
+    opacity: 0;
+  }
+}
+@keyframes stick-boundary {
+  from {
+    transform: translate(450px, 329px);
+  }
+  to {
+    transform: translate(155px, 80px);
+    opacity: 0;
+  }
+}
+@keyframes stick-wicket {
+  0% {
+    transform: translate(450px, 329px);
+  }
+  60% {
+    transform: translate(450px, 376px);
+  }
+  100% {
+    transform: translate(474px, 372px);
+    opacity: 0;
+  }
+}
+@keyframes stick-runup {
+  from {
+    transform: translate(450px, 205px);
+  }
+  to {
+    transform: translate(450px, 248px);
+  }
+}
+@keyframes stick-swing {
+  50% {
+    transform: translate(450px, 347px) rotate(-7deg);
+  }
+}
+@keyframes stick-stumps {
+  50% {
+    transform: translate(450px, 382px) rotate(8deg);
+  }
+}
+@keyframes stick-cheer {
+  50% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stick-cricket-stage * {
+    animation: none !important;
+  }
+}
+@media (max-width: 640px) {
+  .stick-cricket-stage {
+    margin-inline: -2px;
+    border-radius: 13px;
+  }
+  .stick-cricket-stage figcaption {
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+  .stick-cricket-stage figcaption small {
+    max-width: 46%;
+  }
+}
 /* The page number in the corner is the whole explanation. Nobody is told to
    take the last digit — they see 236, then 6 runs, and work it out on ball two.
    Page-block thickness is stacked box-shadows, not geometry: ~1KB, no library. */

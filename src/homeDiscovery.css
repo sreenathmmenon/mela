@@ -166,6 +166,57 @@
 .home-art-book {
   background: #f0dac4;
 }
+.home-art-cricket {
+  background: linear-gradient(#92d1db 0 48%, #4e9b5d 49% 100%);
+}
+.home-cricket {
+  position: relative;
+  width: 150px;
+  height: 118px;
+  display: block;
+}
+.home-cricket-bat {
+  position: absolute;
+  width: 18px;
+  height: 99px;
+  left: 43px;
+  top: 12px;
+  background: linear-gradient(90deg, #a96d32, #f1c77d, #9a5c28);
+  border-radius: 11px 11px 5px 5px;
+  transform: rotate(-31deg);
+  box-shadow: 4px 4px 2px #2346;
+}
+.home-cricket-bat::before {
+  content: "";
+  position: absolute;
+  height: 27px;
+  width: 18px;
+  top: -21px;
+  background: #273f4b;
+  border-radius: 8px;
+}
+.home-cricket-ball {
+  position: absolute;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #bd4335;
+  border: 2px dashed #ffd1b0;
+  right: 29px;
+  top: 37px;
+  box-shadow: 2px 3px 2px #2347;
+}
+.home-cricket-stumps {
+  position: absolute;
+  bottom: 7px;
+  right: 17px;
+  width: 5px;
+  height: 43px;
+  background: #f7e5b3;
+  box-shadow:
+    9px 0 #f7e5b3,
+    18px 0 #f7e5b3;
+}
 .home-book {
   display: grid;
   place-items: center;
@@ -1130,6 +1181,9 @@
 }
 .home-game:not(:hover) .home-book {
   animation: home-book-rock 5.4s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-cricket-ball {
+  animation: home-ball-roll 5.1s ease-in-out infinite;
 }
 .home-game:not(:hover) .home-ball {
   animation: home-ball-roll 5.4s ease-in-out infinite;

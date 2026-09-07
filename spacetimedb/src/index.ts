@@ -1151,26 +1151,30 @@ function completeMatch(ctx: any, match: any, state: any, winner: string) {
     matchesWon: humanProgress.matchesWon + (winner === "human" ? 1 : 0),
     updatedAt: ctx.timestamp,
   });
-  const record = ctx.db.bookCricketRecord.identity.find(match.playerIdentity);
-  const nextRecord = nextBookCricketRecord(
-    record ?? { matchesPlayed: 0, wins: 0, runsScored: 0, highestScore: 0 },
-    state.humanScore,
-    winner === "human",
-  );
-  if (record)
-    ctx.db.bookCricketRecord.identity.update({
-      ...record,
-      ...nextRecord,
-      displayName: human.displayName,
-      updatedAt: ctx.timestamp,
-    });
-  else
-    ctx.db.bookCricketRecord.insert({
-      identity: match.playerIdentity,
-      displayName: human.displayName,
-      ...nextRecord,
-      updatedAt: ctx.timestamp,
-    });
+  // Stick Cricket is a separate game: its results belong in shared Mela memory
+  // but must never quietly alter Book Cricket's game-specific leaderboard.
+  if (match.gameKind === "book_cricket") {
+    const record = ctx.db.bookCricketRecord.identity.find(match.playerIdentity);
+    const nextRecord = nextBookCricketRecord(
+      record ?? { matchesPlayed: 0, wins: 0, runsScored: 0, highestScore: 0 },
+      state.humanScore,
+      winner === "human",
+    );
+    if (record)
+      ctx.db.bookCricketRecord.identity.update({
+        ...record,
+        ...nextRecord,
+        displayName: human.displayName,
+        updatedAt: ctx.timestamp,
+      });
+    else
+      ctx.db.bookCricketRecord.insert({
+        identity: match.playerIdentity,
+        displayName: human.displayName,
+        ...nextRecord,
+        updatedAt: ctx.timestamp,
+      });
+  }
 
   let crowdParticipants = 0;
   for (const spectator of ctx.db.matchSpectator.iter()) {
@@ -2334,7 +2338,8 @@ export const enterGame = spacetimedb.reducer(
       )
     )
       return;
-    if (gameKind === "book_cricket") startBookCricket(ctx);
+    if (gameKind === "book_cricket" || gameKind === "stick_cricket")
+      startBookCricket(ctx, gameKind);
     else if (gameKind === "pen_fight") createPenMatch(ctx);
     else if (gameKind === "dots_boxes") startDotsBoxes(ctx);
     else if (gameKind === "gilli_danda") startGilliDanda(ctx);
@@ -2513,7 +2518,7 @@ export const completeProfileLink = spacetimedb.reducer(
     ctx.db.profileLinkChallenge.nonce.delete(nonce);
   },
 );
-function startBookCricket(ctx: any) {
+function startBookCricket(ctx: any, gameKind = "book_cricket") {
   const p = player(ctx);
   const identity = canonicalIdentity(ctx);
   // Mela hosts many concurrent matches; only one live match per identity keeps
@@ -2538,7 +2543,7 @@ function startBookCricket(ctx: any) {
   ctx.db.match.insert({
     id: matchId,
     worldId: WORLD_ID,
-    gameKind: "book_cricket",
+    gameKind,
     playerIdentity: identity,
     status: "active",
     winner: "",
@@ -3658,7 +3663,7 @@ export const useCrowdPower = spacetimedb.reducer(
     if (
       !match ||
       match.status !== "active" ||
-      match.gameKind !== "book_cricket"
+      !["book_cricket", "stick_cricket"].includes(match.gameKind)
     )
       return rejectCrowdPower(ctx, matchId, power, "match is not live");
     if (!spectatorFor(ctx, matchId, identity))

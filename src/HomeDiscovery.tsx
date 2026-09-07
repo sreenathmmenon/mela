@@ -19,6 +19,14 @@ export const HOME_GAMES = [
     art: "book",
   },
   {
+    kind: "stick_cricket",
+    name: "Stick Cricket",
+    tag: "BAT. BOWL. ONE OVER.",
+    copy: "Six balls each. Beat MelaBot's score.",
+    crowd: "Every cheer can shape the next ball.",
+    art: "cricket",
+  },
+  {
     kind: "dots_boxes",
     name: "Dots & Boxes",
     tag: "JUST ONE MORE SQUARE",
@@ -121,6 +129,12 @@ export function HomeDiscovery({
                     <i className="home-book">6</i>
                     <i className="home-ball" />
                   </>
+                ) : game.art === "cricket" ? (
+                  <span className="home-cricket">
+                    <i className="home-cricket-bat" />
+                    <i className="home-cricket-ball" />
+                    <i className="home-cricket-stumps" />
+                  </span>
                 ) : game.art === "dots" ? (
                   <span className="home-dot-board">
                     {Array.from({ length: 9 }, (_, i) => (

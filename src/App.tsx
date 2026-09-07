@@ -13,6 +13,7 @@ import { StrategyGames } from "./StrategyGames";
 import { HomeDiscovery } from "./HomeDiscovery";
 import { EmailRecap } from "./EmailRecap";
 import { isMuted, playSound, toggleMuted } from "./sound";
+import { StickCricketStage } from "./StickCricketStage";
 
 const POWER_CARDS = [
   {
@@ -52,6 +53,7 @@ const POWER_CARDS = [
 /** gameKind as stored in the database, mapped to how Mela names it on screen. */
 const GAME_LABELS: Record<string, string> = {
   book_cricket: "Book Cricket",
+  stick_cricket: "Stick Cricket",
   pen_fight: "Pen Fight",
   dots_boxes: "Dots & Boxes",
   gilli_danda: "Gilli Danda",
@@ -375,6 +377,7 @@ function App() {
   const matchState = displayedMatch
     ? states.find((state) => state.matchId === displayedMatch.id)
     : undefined;
+  const isStickCricket = displayedMatch?.gameKind === "stick_cricket";
   const crowd = displayedMatch
     ? crowds.find((row) => row.matchId === displayedMatch.id)
     : undefined;
@@ -405,7 +408,7 @@ function App() {
     ? memories.find((row) => row.matchId === displayedMatch.id)
     : undefined;
   const recentMemories = memories
-    .filter((row) => row.gameKind === "book_cricket")
+    .filter((row) => ["book_cricket", "stick_cricket"].includes(row.gameKind))
     .sort((a, b) => Number(b.sequence - a.sequence))
     .slice(0, 3);
   const myRecentMemories = memories
@@ -564,6 +567,13 @@ function App() {
     : 0;
   const liveOutcome = matchState?.lastOutcome ?? "";
   const liveSwing = matchState?.lastCrowdSwing ?? "";
+  // A rematch has its own delivery story. Never let the last ball of the
+  // previous match remain painted on a brand-new pitch while subscriptions
+  // settle.
+  useEffect(() => {
+    setSuspense(false);
+    setRevealed(null);
+  }, [displayedMatch?.id]);
   useEffect(() => {
     if (!matchState || liveOutcome === "START" || ballsBowled === 0) return;
     if (revealed?.ball === ballsBowled) return;
@@ -783,6 +793,24 @@ function App() {
       setCreatingMatch(false);
     }
   };
+  const startStickCricket = async () => {
+    setCreatingMatch(true);
+    setShowHome(false);
+    setPinnedMatchId(null);
+    try {
+      await enterGame({ gameKind: "stick_cricket" });
+      setError(null);
+      setFeedback("Take guard. Six balls to set the score.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to start Stick Cricket.",
+      );
+    } finally {
+      setCreatingMatch(false);
+    }
+  };
   const startPenFight = async () => {
     setCreatingMatch(true);
     setShowHome(false);
@@ -838,7 +866,9 @@ function App() {
       await playBall({ matchId: displayedMatch.id, style });
       setError(null);
       setFeedback(
-        `${style.toUpperCase()} locked in. The world has resolved your ball.`,
+        isStickCricket
+          ? "Shot committed. The ball is in play."
+          : `${style.toUpperCase()} locked in. The world has resolved your ball.`,
       );
     } catch (reason) {
       setError(
@@ -1084,7 +1114,11 @@ function App() {
       <header className="hero">
         <div className="hero-row">
           <div>
-            <h1>{displayedMatch ? "Book Cricket" : "Mela"}</h1>
+            <h1>
+              {displayedMatch
+                ? (GAME_LABELS[displayedMatch.gameKind] ?? "Mela")
+                : "Mela"}
+            </h1>
           </div>
           {me ? (
             <button
@@ -1234,6 +1268,7 @@ function App() {
             onChoose={(kind) => {
               setRequestedMemoryId(null);
               if (kind === "book_cricket") void startMatch();
+              else if (kind === "stick_cricket") void startStickCricket();
               else if (kind === "pen_fight") void startPenFight();
               else
                 void startExperimentalGame(
@@ -1350,9 +1385,20 @@ function App() {
                 game.
               </p>
             )}
-          <section className="scoreboard" aria-label="Live Book Cricket score">
+          <section
+            className="scoreboard"
+            aria-label={
+              isStickCricket
+                ? "Live Stick Cricket score"
+                : "Live Book Cricket score"
+            }
+          >
             <div className="match-kicker">
-              <span>BOOK CRICKET · FIRST TO THE TARGET</span>
+              <span>
+                {isStickCricket
+                  ? "STICK CRICKET · ONE OVER EACH"
+                  : "BOOK CRICKET · FIRST TO THE TARGET"}
+              </span>
               <span>
                 {rooms.find((room) => room.matchId === displayedMatch.id)
                   ?.spectators ?? 0}{" "}
@@ -1407,10 +1453,21 @@ function App() {
                   ? `MelaBot needs ${botRunsNeeded} run${botRunsNeeded === 1 ? "" : "s"} from ${botBallsLeft} ball${botBallsLeft === 1 ? "" : "s"}.`
                   : `Target ${matchState.target} · match complete.`}
             </p>
+            {isStickCricket && (
+              <StickCricketStage
+                batting={matchState.turn === "bot" ? "bot" : "human"}
+                battingName={matchState.turn === "bot" ? "MelaBot" : humanName}
+                bowlingName={matchState.turn === "bot" ? humanName : "MelaBot"}
+                ball={ballsBowled}
+                suspense={suspense}
+                outcome={revealed?.outcome}
+                crowdSwing={revealed?.swing}
+              />
+            )}
             {/* The book IS the explanation. A page number in the corner, the
                 way every real book has one — nobody is told to take the last
                 digit, they see 236 then they see 6 runs and work it out. */}
-            {matchState.lastPage > 0 && (
+            {!isStickCricket && matchState.lastPage > 0 && (
               <div className={`mela-book ${suspense ? "flipping" : ""}`}>
                 <div className="book-page left">
                   <span className="page-no">
@@ -1428,7 +1485,9 @@ function App() {
             )}
             {suspense && (
               <div className="delivery-result waiting" role="status">
-                <span>Opening the book…</span>
+                <span>
+                  {isStickCricket ? "The bowler runs in…" : "Opening the book…"}
+                </span>
               </div>
             )}
             {!suspense && revealed && (
@@ -1481,7 +1540,9 @@ function App() {
               <div className="player-actions">
                 {matchState.humanBalls === 0 && (
                   <p className="how-to-play">
-                    Open the book. The page number is your runs.
+                    {isStickCricket
+                      ? "Take guard. Your first shot sets the tone."
+                      : "Open the book. The page number is your runs."}
                   </p>
                 )}
                 {/* What the crowd has spent is deliberately NOT shown before
@@ -1505,7 +1566,13 @@ function App() {
                       disabled={pendingStyle !== null}
                       onClick={() => playDelivery("balanced")}
                     >
-                      {pendingStyle ? "Opening…" : "OPEN THE BOOK"}
+                      {pendingStyle
+                        ? isStickCricket
+                          ? "BOWLING…"
+                          : "Opening…"
+                        : isStickCricket
+                          ? "PLAY FIRST BALL"
+                          : "OPEN THE BOOK"}
                     </button>
                   </div>
                 ) : (
@@ -1519,8 +1586,20 @@ function App() {
                           disabled={pendingStyle !== null}
                           onClick={() => playDelivery(choice.style)}
                         >
-                          <strong>{choice.title}</strong>
-                          <span>{choice.risk}</span>
+                          <strong>
+                            {isStickCricket
+                              ? choice.style === "safe"
+                                ? "PLAY DEFENSIVELY"
+                                : "GO AERIAL"
+                              : choice.title}
+                          </strong>
+                          <span>
+                            {isStickCricket
+                              ? choice.style === "safe"
+                                ? "Protect your wicket. Work the gaps."
+                                : "Chase the boundary — accept the risk."
+                              : choice.risk}
+                          </span>
                           {pendingStyle === choice.style && (
                             <small>Opening the book…</small>
                           )}
@@ -1604,7 +1683,12 @@ function App() {
                 </span>
                 <span>{memory.crowdActions} crowd moves</span>
               </div>
-              <button className="primary wide" onClick={() => createMatch()}>
+              <button
+                className="primary wide"
+                onClick={() =>
+                  isStickCricket ? void startStickCricket() : void createMatch()
+                }
+              >
                 Play again vs MelaBot
               </button>
               <EmailRecap
