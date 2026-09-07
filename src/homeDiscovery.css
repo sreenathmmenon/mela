@@ -910,3 +910,121 @@
     font-size: 13px;
   }
 }
+
+/* Lightweight game previews: motion without GIF payloads or autoplay video. */
+.home-game:not(:hover) .home-pen.one {
+  animation: home-pen-teal 4.8s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-pen.two {
+  animation: home-pen-rust 4.8s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-book {
+  animation: home-book-rock 5.4s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-ball {
+  animation: home-ball-roll 5.4s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-dot-board {
+  animation: home-board-nudge 5s ease-in-out infinite;
+}
+.home-game:not(:hover) .home-disc-board {
+  animation: home-board-nudge 5.7s ease-in-out infinite reverse;
+}
+.home-game:not(:hover) .home-wood {
+  animation: home-wood-sway 5.2s ease-in-out infinite;
+}
+.home-game:nth-child(3n) .home-dot-board,
+.home-game:nth-child(3n) .home-wood {
+  animation-delay: -1.4s;
+}
+
+@keyframes home-pen-teal {
+  0%,
+  68%,
+  100% {
+    translate: 0 0;
+  }
+  76% {
+    translate: 7px -4px;
+  }
+  84% {
+    translate: 2px -1px;
+  }
+}
+@keyframes home-pen-rust {
+  0%,
+  68%,
+  100% {
+    translate: 0 0;
+  }
+  76% {
+    translate: -5px 3px;
+  }
+  84% {
+    translate: -1px 1px;
+  }
+}
+@keyframes home-book-rock {
+  0%,
+  70%,
+  100% {
+    translate: 0 0;
+  }
+  78% {
+    translate: 0 -5px;
+  }
+  86% {
+    translate: 0 -1px;
+  }
+}
+@keyframes home-ball-roll {
+  0%,
+  68%,
+  100% {
+    translate: 0 0;
+  }
+  78% {
+    translate: -12px -2px;
+  }
+  86% {
+    translate: -4px 0;
+  }
+}
+@keyframes home-board-nudge {
+  0%,
+  72%,
+  100% {
+    translate: 0 0;
+  }
+  81% {
+    translate: 0 -5px;
+  }
+  89% {
+    translate: 0 -1px;
+  }
+}
+@keyframes home-wood-sway {
+  0%,
+  66%,
+  100% {
+    translate: 0 0;
+  }
+  76% {
+    translate: 5px -4px;
+  }
+  85% {
+    translate: 1px -1px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-game .home-pen,
+  .home-game .home-book,
+  .home-game .home-ball,
+  .home-game .home-dot-board,
+  .home-game .home-disc-board,
+  .home-game .home-wood {
+    animation: none !important;
+    translate: none;
+  }
+}
