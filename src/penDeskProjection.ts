@@ -3,9 +3,12 @@ import type { DeskPoint } from "../spacetimedb/src/penFightMotion";
 
 // Shared pen dimensions. The authoritative game remains a 1000-unit board.
 export { PEN_LENGTH, PEN_SCALE } from "./penFightInput";
-export function deskCamera(aspect: number) {
+export type DeskView = "desk" | "overhead";
+export function deskCamera(aspect: number, view: DeskView = "desk") {
   const camera = new PerspectiveCamera(38, aspect, 1, 6000);
-  camera.position.set(90, 1450, 1000);
+  if (view === "overhead") camera.position.set(0, 1900, 1);
+  else if (aspect > 1.4) camera.position.set(90, 1100, 1450);
+  else camera.position.set(90, 1450, 1000);
   camera.lookAt(0, -20, 0);
   camera.updateMatrixWorld();
   // Fit all four playable corners, including the nearer perspective corners.

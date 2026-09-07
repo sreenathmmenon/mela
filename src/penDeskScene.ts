@@ -5,6 +5,7 @@ import {
   PEN_LENGTH,
   PEN_SCALE,
   screenToDesk,
+  type DeskView,
 } from "./penDeskProjection";
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
 import { HUMAN_PEN_YAW } from "./penFightInput";
@@ -20,6 +21,7 @@ export type DeskFrame = {
   pen: string;
   completed: boolean;
   motion?: PenMotion;
+  view?: DeskView;
 };
 
 function material(
@@ -84,31 +86,66 @@ function woodTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 1024;
   const c = canvas.getContext("2d")!;
-  c.fillStyle = "#bc8954";
+  c.fillStyle = "#ac713c";
   c.fillRect(0, 0, 1024, 1024);
+  // Long, individually toned boards, sealed under a warm satin finish.
+  for (let plank = 0; plank < 5; plank++) {
+    const grain = c.createLinearGradient(
+      plank * 205,
+      0,
+      plank * 205 + 205,
+      1024,
+    );
+    grain.addColorStop(
+      0,
+      ["#be8c53", "#a7743e", "#c5965a", "#ac7944", "#b9854b"][plank],
+    );
+    grain.addColorStop(1, "#936133");
+    c.fillStyle = grain;
+    c.fillRect(plank * 205, 0, 205, 1024);
+    c.fillStyle = "#49301e55";
+    c.fillRect(plank * 205, 0, 2, 1024);
+  }
   for (let i = 0; i < 620; i++) {
     c.strokeStyle = i % 3 ? "#57321914" : "#ffe3a025";
     c.lineWidth = 1 + (i % 3);
     c.beginPath();
     const y = i * 1.7;
-    c.moveTo(0, y);
-    c.bezierCurveTo(290, y + Math.sin(i) * 14, 650, y - 10, 1024, y + 8);
+    c.moveTo(y, 0);
+    c.bezierCurveTo(y + Math.sin(i) * 14, 290, y - 10, 650, y + 8, 1024);
     c.stroke();
   }
   c.strokeStyle = "#5a341730";
   c.lineWidth = 3;
-  for (const y of [256, 512, 768]) {
+  // Tiny deterministic scratches give the desk a used, schoolroom character.
+  for (let i = 0; i < 70; i++) {
+    const x = ((i * 137) % 970) + 27,
+      y = ((i * 263) % 960) + 30;
+    c.strokeStyle = i % 2 ? "#fff1c222" : "#39231518";
+    c.lineWidth = 1;
     c.beginPath();
-    c.moveTo(0, y);
-    c.lineTo(1024, y);
+    c.moveTo(x, y);
+    c.lineTo(x + 4 + (i % 24), y + (i % 9));
     c.stroke();
   }
   c.strokeStyle = "#fff2cc70";
   c.lineWidth = 3;
   c.strokeRect(16, 16, 992, 992);
+  for (const x of [32, 992])
+    for (const y of [32, 992]) {
+      c.fillStyle = "#574d3b";
+      c.beginPath();
+      c.arc(x, y, 5, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "#e4c696";
+      c.beginPath();
+      c.moveTo(x - 3, y);
+      c.lineTo(x + 3, y);
+      c.stroke();
+    }
   c.fillStyle = "#49341b90";
   c.font = "600 22px monospace";
-  c.fillText("MELA  /  AFTER CLASS", 52, 74);
+  c.fillText("MELA  /  PEN FIGHT", 52, 74);
   c.font = "italic 21px Georgia";
   c.fillText("one more round?", 788, 962);
   const texture = new T.CanvasTexture(canvas);
@@ -131,8 +168,8 @@ export function createDeskScene(
   host.prepend(renderer.domElement);
   renderer.domElement.setAttribute("aria-hidden", "true");
   const scene = new T.Scene();
-  scene.add(new T.HemisphereLight("#fff4da", "#414f50", 1.8));
-  const light = new T.DirectionalLight("#fff0d1", 3);
+  scene.add(new T.HemisphereLight("#fff4da", "#263a39", 1.15));
+  const light = new T.DirectionalLight("#fff0d1", 2.4);
   light.position.set(-500, 1100, 350);
   light.castShadow = true;
   light.shadow.mapSize.set(1024, 1024);
@@ -147,14 +184,14 @@ export function createDeskScene(
   light.shadow.bias = -0.0003;
   light.shadow.normalBias = 1;
   scene.add(light);
-  const fill = new T.DirectionalLight("#b5dce8", 1.5);
+  const fill = new T.DirectionalLight("#b5dce8", 0.9);
   fill.position.set(600, 500, -500);
   scene.add(fill);
   const texture = woodTexture();
   const side = material("#70442b", 0, 0.7);
   const top = new T.MeshStandardMaterial({
     map: texture,
-    roughness: 0.63,
+    roughness: 0.48,
     bumpMap: texture,
     bumpScale: 0.6,
   });
@@ -262,6 +299,7 @@ export function createDeskScene(
   impact.rotation.x = -Math.PI / 2;
   impact.castShadow = false;
   let camera = deskCamera(1),
+    cameraView: DeskView = "desk",
     width = 1,
     height = 1;
   let current: DeskFrame | undefined;
@@ -271,7 +309,7 @@ export function createDeskScene(
     height = host.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height);
-    camera = deskCamera(width / height);
+    camera = deskCamera(width / height, cameraView);
     if (current) draw(current, lastProgress);
   };
   const observer = new ResizeObserver(resize);
@@ -284,6 +322,10 @@ export function createDeskScene(
   function draw(frame: DeskFrame, progress = 1) {
     current = frame;
     lastProgress = progress;
+    if ((frame.view ?? "desk") !== cameraView) {
+      cameraView = frame.view ?? "desk";
+      camera = deskCamera(width / height, cameraView);
+    }
     let h = frame.human,
       b = frame.bot,
       hFall = 0,
@@ -383,7 +425,9 @@ export function createDeskScene(
       label.style.left = i ? "78%" : "22%";
       label.style.top = "5%";
       labels[i].hidden =
-        progress < 1 || !(i ? bot.group.visible : human.group.visible);
+        cameraView === "overhead" ||
+        progress < 1 ||
+        !(i ? bot.group.visible : human.group.visible);
     });
     host.dataset.human = `${h.x.toFixed(1)},${h.y.toFixed(1)}`;
     host.dataset.bot = `${b.x.toFixed(1)},${b.y.toFixed(1)}`;

@@ -140,6 +140,7 @@ export function PenDeskFallback({
   onMoving,
   onImpact,
   onFall,
+  replayKey = 0,
   completed,
 }: {
   human: DeskPoint;
@@ -155,6 +156,7 @@ export function PenDeskFallback({
   onMoving: (moving: boolean) => void;
   onImpact?: (motion: PenMotion) => void;
   onFall?: (motion: PenMotion) => void;
+  replayKey?: number;
   completed: boolean;
 }) {
   const uid = useId().replace(/:/g, "");
@@ -164,13 +166,14 @@ export function PenDeskFallback({
   const lastMotion = useRef<string>();
   const activeAnimations = useRef<Animation[]>([]);
   useLayoutEffect(() => {
-    if (!motion || lastMotion.current === motion.sequence) {
+    const sequence = motion ? `${motion.sequence}:${replayKey}` : undefined;
+    if (!motion || lastMotion.current === sequence) {
       // An effect replay/reconnect must never leave the input lock behind
       // after its animation cleanup has already cancelled the shot.
       onMoving(false);
       return;
     }
-    lastMotion.current = motion.sequence;
+    lastMotion.current = sequence;
     activeAnimations.current.forEach((animation) => animation.cancel());
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       onMoving(false);
@@ -275,7 +278,7 @@ export function PenDeskFallback({
       window.clearTimeout(endTimer);
       animations.forEach((animation) => animation.cancel());
     };
-  }, [motion, onMoving, onImpact, onFall]);
+  }, [motion, onMoving, onImpact, onFall, replayKey]);
   useEffect(
     () => () =>
       activeAnimations.current.forEach((animation) => animation.cancel()),

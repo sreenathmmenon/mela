@@ -15,6 +15,7 @@ type Props = DeskFrame & {
   /** Presentation callbacks fire from the committed motion timeline only. */
   onImpact?: (motion: PenMotion) => void;
   onFall?: (motion: PenMotion) => void;
+  replayKey?: number;
   inputRef?: { current: DeskInput | null };
 };
 
@@ -173,7 +174,7 @@ export function PenDesk(props: Props) {
       updateCue(1);
       latest.current.onMoving(false);
     };
-  }, [props.motion, props.onMoving, ready, failed]);
+  }, [props.motion, props.onMoving, props.replayKey, ready, failed]);
 
   useEffect(() => {
     if (!failed) return;

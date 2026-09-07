@@ -63,12 +63,13 @@ export function rivalry(wins: number, matches: number) {
 
 export function duelShare(input: {
   human: string;
+  opponent?: string;
   humanRounds: number;
   botRounds: number;
   crowdActions: number;
   moment: string;
 }) {
-  return `${input.human} ${input.humanRounds}–${input.botRounds} MelaBot.\n${input.moment}${input.crowdActions > 0 ? `\n${input.crowdActions} crowd move${input.crowdActions === 1 ? "" : "s"}. This wasn't a two-player story.` : ""}\nA school-desk duel in Mela. What would your next flick be?`;
+  return `${input.human} ${input.humanRounds}–${input.botRounds} ${input.opponent ?? "MelaBot"}.\n${input.moment}${input.crowdActions > 0 ? `\n${input.crowdActions} crowd move${input.crowdActions === 1 ? "" : "s"}. This wasn't a two-player story.` : ""}\nA school-desk duel in Mela. What would your next flick be?`;
 }
 
 export function isIntentionalDrag(

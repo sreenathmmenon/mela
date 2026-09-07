@@ -9,21 +9,23 @@ import {
 } from "../src/penDeskProjection";
 
 test("perspective input round trips both pens and all board corners", () => {
-  for (const aspect of [0.8, 1, 1.12, 1.7]) {
-    const camera = deskCamera(aspect);
-    for (const point of [
-      { x: 260, y: 500 },
-      { x: 740, y: 500 },
-      { x: 0, y: 0 },
-      { x: 1000, y: 0 },
-      { x: 0, y: 1000 },
-      { x: 1000, y: 1000 },
-    ]) {
-      const screen = deskToScreen(camera, point);
-      const actual = screenToDesk(camera, screen.x, screen.y)!;
-      assert.ok(Math.abs(actual.x - point.x) < 0.0001);
-      assert.ok(Math.abs(actual.y - point.y) < 0.0001);
-      assert.ok(screen.x > 0 && screen.x < 1 && screen.y > 0 && screen.y < 1);
+  for (const view of ["desk", "overhead"] as const) {
+    for (const aspect of [0.8, 1, 1.12, 1.7]) {
+      const camera = deskCamera(aspect, view);
+      for (const point of [
+        { x: 260, y: 500 },
+        { x: 740, y: 500 },
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 0, y: 1000 },
+        { x: 1000, y: 1000 },
+      ]) {
+        const screen = deskToScreen(camera, point);
+        const actual = screenToDesk(camera, screen.x, screen.y)!;
+        assert.ok(Math.abs(actual.x - point.x) < 0.0001);
+        assert.ok(Math.abs(actual.y - point.y) < 0.0001);
+        assert.ok(screen.x > 0 && screen.x < 1 && screen.y > 0 && screen.y < 1);
+      }
     }
   }
 });

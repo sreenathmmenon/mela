@@ -1,5 +1,15 @@
 # MELA STATUS
 
+## Current pass — Pen Fight full-width play experience (2026-09-07)
+
+- Rebuilt the Pen Fight presentation around a broad desktop 3D stage and a separately composed phone layout. Removed the old 620px stage cap, added a control/crowd rail, refined wood and lighting, compacted score/turn hierarchy and kept optional controls out of the primary phone action. Research, decisions and evidence: `docs/PEN_FIGHT_PLAY_EXPERIENCE.md`.
+- Added 3D/overhead camera choice, tap-to-aim, optional cut-left/straight/cut-right and fine aim. These submit existing authoritative inputs; no physics, reducer, schema, AI, identity or other-game changes. Rendering and input use the same fitted camera. Contact feedback follows committed motion.
+- Results now show a prominent real score and downloadable illustrated match card with actual participants and crowd contribution. Sharing names the actual opponent. Session-local final-flick replay does not mutate state; rematch returns to the fresh desk. Crowd powers remain authoritative, with pending effects visible only to spectators.
+- Verification: formatting, frontend typecheck, **130/130 deterministic tests**, production frontend build and transport build pass. Existing >500KB bundle warnings remain. Real SDK regression completed human-human and human-agent matches with seat/role/stale/duplicate rejection, reconnect and named history.
+- Browser evidence: independent player/mobile spectator NUDGE, human cut shot and automatic AI converged on identical committed positions and motion. A full match completed 2–1; replay preserved score/sequence and the downloaded PNG was visually inspected. Actual drag shots worked in both cameras; tap-to-aim changed direction without a turn. Six viewport sizes from 320px phone to 1920px desktop and landscape phone had no horizontal overflow. Primary flick remained within the first 740/844px phone screens. No JavaScript page errors in interactive checks; local favicon 404 recorded. These are emulated dimensions, not physical-device certification.
+- Release: verification complete; source commit and Railway deployment pending. No Maincloud publication is required or planned for this frontend-only change.
+- Next task: finish the scoped Railway release and read-only production smoke check, then gather real-device player feedback. Do not claim a worldwide ranking or guaranteed virality.
+
 ## Current pass — Pen Fight committed-impact feedback (2026-09-07)
 
 - Scope: a focused Pen Fight game-feel correction only. The authoritative physics, crowd rules, reducer path, AI, match state, scoring, persistence and WebMCP contracts are unchanged. This pass deliberately avoids fake activity, pressure loops, popularity claims, or client-created outcomes.

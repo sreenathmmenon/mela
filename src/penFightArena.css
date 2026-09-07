@@ -1,0 +1,795 @@
+/* The match owns the viewport. All rules and board coordinates remain in SpacetimeDB. */
+.pen-shell.pen-studio {
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  margin: 0;
+  padding: 20px clamp(12px, 2.4vw, 48px) 40px;
+  background: radial-gradient(
+    ellipse at 30% 25%,
+    #24483f,
+    #102d2b 60%,
+    #0c2423
+  );
+  color: #f6edda;
+  border: 0;
+  border-radius: 0;
+}
+.pen-studio .pen-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #ffffff20;
+}
+.pen-studio .pen-top > div {
+  display: block;
+  flex: 1;
+}
+.pen-studio .pen-top h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #fff4d8;
+  letter-spacing: -0.04em;
+}
+.pen-studio .pen-top p {
+  color: #b3c3b5;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+.pen-studio .pen-top button {
+  font-size: 12px;
+  min-height: 42px;
+  padding: 8px 14px;
+}
+.pen-studio > .game-invite-link {
+  position: absolute;
+  top: 31px;
+  right: 270px;
+  margin: 0;
+  color: #edce8e;
+  font-size: 12px;
+}
+.pen-studio .pen-top > div {
+  padding-right: 130px;
+}
+.pen-play-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 24px;
+}
+.pen-stage-column,
+.pen-control-column {
+  min-width: 0;
+}
+.pen-control-column {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+.pen-studio .pen-score {
+  max-width: none;
+  margin: 0;
+  padding: 4px 28px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px minmax(0, 1fr);
+  gap: 12px;
+  background: transparent;
+  color: #f6edda;
+  border: 0;
+  box-shadow: none;
+}
+.pen-studio .pen-score > span {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.pen-studio .pen-score > span > small {
+  font: 700 9px system-ui;
+  letter-spacing: 0.18em;
+  color: #a7c1b6;
+}
+.pen-studio .pen-score > span:first-child strong,
+.pen-studio .pen-score > span:last-child strong {
+  font:
+    700 48px/1 Georgia,
+    serif;
+  color: #77d6c1;
+  order: 0;
+}
+.pen-studio .pen-score > span:last-child strong {
+  color: #f0a785;
+}
+.pen-studio .pen-score > b {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  max-width: none;
+}
+.pen-score > b small {
+  color: #b9c5b4;
+  font: 700 9px system-ui;
+  letter-spacing: 0.12em;
+}
+.pen-score > b em {
+  font:
+    italic 22px Georgia,
+    serif;
+  color: #e9c98c;
+}
+.round-pips {
+  display: flex;
+  gap: 6px;
+  margin: 3px;
+}
+.round-pips i {
+  width: 18px;
+  height: 4px;
+  border-radius: 3px;
+  background: #ffffff20;
+}
+.round-pips i.earned {
+  background: #edce8e;
+  box-shadow: 0 0 12px #edce8e40;
+}
+.pen-score .seat-active:after {
+  content: "";
+  width: 32px;
+  height: 2px;
+  background: #77d6c1;
+  position: absolute;
+  bottom: -8px;
+}
+.pen-studio .pen-arena-wrap {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border-radius: 20px;
+  background: #091f1e;
+  border: 1px solid #ffffff20;
+  box-shadow: 0 22px 70px #00000040;
+  overflow: hidden;
+}
+.pen-shot-options {
+  border-top: 1px solid #173a3120;
+  border-bottom: 1px solid #173a3120;
+  margin: 8px 0 14px;
+  grid-column: 1 / -1;
+}
+.pen-shot-options summary {
+  padding: 12px 0;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pen-shot-options fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.pen-shot-options legend {
+  font-size: 10px;
+  margin: 4px 0 8px;
+}
+.pen-cut-options {
+  display: flex;
+  gap: 6px;
+}
+.pen-cut-options button {
+  flex: 1;
+  min-height: 40px;
+  padding: 7px 5px;
+  font-size: 11px;
+  border-radius: 8px;
+}
+.pen-cut-options button[aria-pressed="true"] {
+  background: #164b40;
+  color: #fff2d6;
+}
+.pen-shot-options p {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.pen-shot-options input {
+  width: 100%;
+  min-height: 44px;
+}
+.pen-studio .pen-arena {
+  width: 100%;
+  aspect-ratio: auto;
+  height: clamp(360px, calc(100svh - 365px), 880px);
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    #506459,
+    #233e35 65%,
+    #142e29
+  );
+}
+.pen-studio .pen-arena-wrap.knockout {
+  box-shadow:
+    0 0 0 3px #edce8e,
+    0 20px 70px #0005;
+}
+.pen-desk-toolbar {
+  min-height: 48px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #ffffff12;
+}
+.pen-desk-toolbar > span {
+  font: 700 10px system-ui;
+  letter-spacing: 0.15em;
+  color: #edce8e;
+}
+.pen-desk-toolbar > span small {
+  color: #9cb5a7;
+  font-size: 9px;
+  margin-left: 12px;
+  letter-spacing: 0.06em;
+}
+.pen-desk-toolbar [role="group"] {
+  display: flex;
+  gap: 4px;
+}
+.pen-studio .pen-desk-toolbar button {
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #b1c5b9;
+  box-shadow: none;
+  font-size: 11px;
+}
+.pen-studio .pen-desk-toolbar button[aria-pressed="true"] {
+  border-color: #edce8e50;
+  background: #edce8e16;
+  color: #fff2d1;
+}
+.pen-studio .pen-turn {
+  min-height: 55px;
+  padding: 9px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  background: #102724;
+  color: #e9cf98;
+}
+.pen-studio .pen-turn strong {
+  font: 750 11px system-ui;
+  letter-spacing: 0.05em;
+}
+.pen-studio .pen-turn span {
+  color: #bac7b8;
+  font-size: 12px;
+  margin: 0;
+  max-width: 55%;
+}
+.pen-studio .desk-name {
+  background: #102b29d9;
+  color: #f4ecd5;
+  border-color: #ffffff25;
+  box-shadow: 0 4px 14px #0002;
+}
+.pen-studio .desk-name small {
+  color: #9fc7b9;
+}
+.pen-studio .desk-gesture-hint {
+  font-size: 11px;
+  padding: 8px 14px;
+  background: #122d29e8;
+  border-color: #f5dfaa40;
+  bottom: 12px;
+}
+.pen-studio .flick-controls {
+  margin: 0;
+  max-width: none;
+  padding: 20px;
+  border: 1px solid #edce8e45;
+  background: #fff5dd;
+  color: #183931;
+  box-shadow: 0 8px 30px #0002;
+  border-radius: 16px;
+}
+.shot-control-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.shot-control-heading span {
+  color: #597260;
+  font: 800 9px system-ui;
+  letter-spacing: 0.15em;
+}
+.shot-control-heading strong {
+  font:
+    700 25px Georgia,
+    serif;
+}
+.pen-studio .pen-target-controls {
+  padding: 0;
+  margin: 0 0 15px;
+}
+.pen-studio .pen-target-controls legend {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.pen-studio .pen-target-controls button {
+  padding: 8px 6px;
+  min-height: 40px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+.pen-studio .pen-target-controls small {
+  font-size: 10px;
+}
+.pen-studio .flick-controls > .eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  margin: 8px 0 14px;
+}
+.pen-studio .keyboard-flick {
+  display: grid;
+  grid-template-columns: 36px 36px minmax(0, 1fr) 36px 36px;
+  gap: 4px;
+}
+.pen-studio .keyboard-flick button {
+  min-width: 0;
+  min-height: 46px;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 #163529;
+  padding: 0;
+}
+.pen-studio .keyboard-flick .primary {
+  background: #124e43;
+  color: #fff4d8;
+  min-width: 0;
+  font-size: 12px;
+}
+.pen-studio .desk-keyboard-help {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.pen-studio .pen-picker {
+  margin: 0;
+  max-width: none;
+  background: #ffffff0a;
+  border: 1px solid #ffffff25;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #f5e9cd;
+}
+.pen-studio .pen-picker summary {
+  font-size: 12px;
+}
+.pen-studio .pen-note {
+  color: #b9c9bb;
+  font-size: 11px;
+}
+.pen-studio .pen-join-visible {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  gap: 12px;
+  display: flex;
+  flex-direction: row;
+  background: #edce8e0c;
+  border: 1px solid #edce8e30;
+  border-radius: 12px;
+  box-shadow: none;
+  text-align: left;
+}
+.pen-studio .pen-join-visible > svg {
+  width: 82px;
+  height: 82px;
+  flex: 0 0 82px;
+  border: 5px solid #fff;
+  border-radius: 7px;
+}
+.pen-studio .pen-join-visible > div {
+  min-width: 0;
+}
+.pen-studio .pen-join-visible strong {
+  color: #edce8e;
+  font: 750 10px system-ui;
+  letter-spacing: 0.1em;
+}
+.pen-studio .pen-join-visible span {
+  color: #b9c7b6;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.pen-studio .pen-join-visible a {
+  color: #e2c993;
+  font-size: 11px;
+}
+.pen-studio .pen-join-visible button {
+  min-height: 34px;
+  padding: 5px 9px;
+  font-size: 10px;
+  margin-top: 6px;
+}
+.pen-studio .pen-result {
+  max-width: none;
+  margin: 16px 0;
+  padding: 12px 18px;
+  border: 1px solid #edce8e30;
+  background: #edce8e0d;
+  color: #edce8e;
+  box-shadow: none;
+  border-radius: 10px;
+  font-size: 16px;
+}
+.pen-studio .pen-crowd {
+  background: #fff5dd;
+  color: #173a31;
+  border-radius: 16px;
+  border: 0;
+  margin: 18px 0;
+  box-shadow: none;
+}
+.pen-studio .pen-player-crowd {
+  background: transparent;
+  color: #bfcec0;
+  border: 1px solid #ffffff20;
+  padding: 14px 18px;
+}
+.pen-control-column .pen-crowd {
+  margin: 0;
+  padding: 16px;
+}
+.pen-control-column .power-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pen-control-column .power-card {
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid #c8b890;
+  border-radius: 10px;
+}
+.pen-studio .pen-feedback {
+  position: fixed;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 24px));
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.pen-studio .pen-feedback button {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 5px;
+  border: 1px solid #ffffff50;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+.pen-control-column .power-card h3 {
+  font-size: 12px;
+}
+.pen-control-column .power-card p {
+  font-size: 11px;
+  line-height: 1.4;
+}
+.pen-control-column .power-card button {
+  padding: 8px 4px;
+  font-size: 11px;
+}
+.pen-control-column .pen-crowd > p {
+  font-size: 12px;
+}
+.pen-control-column .pen-energy {
+  flex-wrap: wrap;
+}
+.pen-control-column .pen-energy > span {
+  font-size: 11px;
+}
+.pen-control-column .target-picker button {
+  font-size: 11px;
+  padding: 8px;
+}
+.pen-studio .pen-player-crowd .eyebrow {
+  color: #edce8e;
+}
+.pen-studio .pen-player-crowd > p:not(.eyebrow) {
+  color: #bfcec0;
+}
+.pen-studio .pen-live-story {
+  color: #d6decc;
+  max-width: none;
+  margin: 20px 0;
+}
+.pen-studio .pen-live-story li:not(:first-child) {
+  color: #afc3b5;
+}
+.pen-studio .pen-memory {
+  max-width: 850px;
+  margin: 24px auto;
+  padding: clamp(22px, 4vw, 48px);
+  background: #fff4dc;
+  color: #173a31;
+  border-radius: 20px;
+  box-shadow: 0 20px 80px #0004;
+}
+.pen-final-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 20px 0;
+}
+.pen-final-score > span {
+  font:
+    700 76px/1 Georgia,
+    serif;
+  color: #175347;
+  text-align: center;
+  min-width: 0;
+}
+.pen-final-score > span:last-child {
+  color: #a7442d;
+}
+.pen-final-score small {
+  display: block;
+  font: 650 13px system-ui;
+  margin-top: 12px;
+  max-width: 200px;
+  overflow-wrap: anywhere;
+}
+.pen-final-score > i {
+  color: #a38755;
+  font:
+    24px Georgia,
+    serif;
+}
+.pen-studio .pen-replay {
+  display: block;
+  margin: 12px auto;
+  min-height: 42px;
+  padding: 8px 18px;
+  background: #edce8e15;
+  border: 1px solid #edce8e50;
+  color: #edce8e;
+  box-shadow: none;
+  font-size: 12px;
+}
+.pen-studio .pen-rivalry {
+  color: #a9cdbb;
+  font-size: 12px;
+}
+.pen-studio button:focus-visible,
+.pen-studio a:focus-visible {
+  outline: 3px solid #efb64e;
+  outline-offset: 4px;
+}
+@media (min-width: 1600px) {
+  .pen-play-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 32px;
+  }
+}
+@media (max-width: 899px) {
+  .pen-play-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pen-control-column {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 0;
+    align-items: start;
+  }
+  .pen-control-column .flick-controls {
+    grid-row: span 2;
+  }
+  .pen-studio .pen-arena {
+    height: clamp(350px, 52svh, 660px);
+  }
+}
+@media (max-width: 540px) {
+  .pen-shell.pen-studio {
+    padding: 10px 10px 28px;
+  }
+  .pen-studio .pen-top {
+    flex-wrap: nowrap;
+    margin-bottom: 9px;
+    padding-bottom: 9px;
+    gap: 8px;
+  }
+  .pen-studio .pen-top > div {
+    flex-basis: auto;
+    padding: 0;
+  }
+  .pen-studio .pen-top h1 {
+    font-size: 23px;
+  }
+  .pen-studio .pen-top p {
+    display: none;
+  }
+  .pen-studio .pen-top button {
+    min-height: 38px;
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+  .pen-studio > .game-invite-link {
+    display: none;
+  }
+  .pen-studio .pen-score {
+    padding: 2px 8px 14px;
+    grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .pen-studio .pen-score > span {
+    font-size: 11px;
+    gap: 2px;
+  }
+  .pen-studio .pen-score > span:first-child strong,
+  .pen-studio .pen-score > span:last-child strong {
+    font-size: 32px;
+  }
+  .pen-studio .pen-score > span > small {
+    font-size: 8px;
+  }
+  .pen-desk-toolbar {
+    padding: 6px 10px;
+    min-height: 42px;
+  }
+  .pen-desk-toolbar > span small {
+    display: none;
+  }
+  .pen-studio .pen-desk-toolbar button {
+    min-height: 32px;
+    padding: 6px 10px;
+  }
+  .pen-studio .pen-turn {
+    min-height: 44px;
+    padding: 8px 10px;
+    display: block;
+  }
+  .pen-studio .pen-turn strong {
+    font-size: 10px;
+  }
+  .pen-studio .pen-turn span {
+    display: block;
+    max-width: none;
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .pen-studio .pen-arena {
+    height: clamp(270px, 38svh, 360px);
+  }
+  .pen-studio .pen-arena-wrap {
+    border-radius: 14px;
+  }
+  .pen-studio .desk-name {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+  .pen-studio .desk-name small {
+    font-size: 7px;
+  }
+  .pen-studio .desk-gesture-hint {
+    font-size: 10px;
+    padding: 6px 10px;
+    bottom: 8px;
+  }
+  .pen-control-column {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .pen-studio .flick-controls {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 12px;
+    border-radius: 12px;
+  }
+  .shot-control-heading,
+  .pen-studio .flick-controls > .eyebrow,
+  .pen-studio .pen-target-controls small,
+  .pen-studio .desk-keyboard-help {
+    display: none;
+  }
+  .pen-studio .pen-target-controls {
+    grid-column: 1 / -1;
+    margin: 0;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .pen-studio .pen-target-controls legend {
+    float: left;
+    margin: 0;
+    font-size: 10px;
+    flex: 1;
+    padding-top: 13px;
+  }
+  .pen-studio .pen-target-controls button {
+    flex: 1;
+    min-height: 42px;
+  }
+  .pen-studio .flick-strength-label {
+    grid-column: 1 / -1;
+  }
+  .pen-studio .flick-strength-label label,
+  .pen-studio .flick-strength-label output {
+    font-size: 11px;
+  }
+  .pen-studio .flick-strength {
+    grid-column: 1 / -1;
+    min-height: 28px;
+  }
+  .pen-studio .keyboard-flick {
+    grid-column: 1 / -1;
+    grid-template-columns: 44px 44px minmax(0, 1fr) 44px 44px;
+    gap: 6px;
+  }
+  .pen-studio .flick-strength-help {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 9px;
+  }
+  .pen-studio .pen-shot-options {
+    order: 10;
+    margin: 0;
+  }
+  .pen-studio .pen-score > b small {
+    white-space: nowrap;
+    font-size: 8px;
+  }
+  .pen-studio .pen-join-visible {
+    padding: 12px;
+  }
+  .pen-studio .pen-join-visible > svg {
+    width: 90px;
+    height: 90px;
+    flex-basis: 90px;
+  }
+  .pen-studio .pen-picker {
+    order: 1;
+  }
+  .pen-studio .pen-final-score {
+    gap: 20px;
+  }
+  .pen-studio .pen-final-score > span {
+    font-size: 56px;
+  }
+}
+@media (max-height: 550px) and (min-width: 600px) {
+  .pen-play-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 14px;
+  }
+  .pen-control-column {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .pen-studio .pen-arena {
+    height: 330px;
+  }
+}
+@media (max-width: 360px) {
+  .pen-studio .pen-arena {
+    height: 240px;
+  }
+}

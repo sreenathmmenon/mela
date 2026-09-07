@@ -110,4 +110,11 @@ test("a shareable duel tells the real result and earned crowd story", () => {
   assert.doesNotMatch(duelShare(input), /crowd move|best|streak/i);
   assert.match(duelShare({ ...input, crowdActions: 1 }), /1 crowd move\./);
   assert.match(duelShare({ ...input, crowdActions: 3 }), /3 crowd moves\./);
+  const humanMatch = duelShare({
+    ...input,
+    opponent: "Nila",
+    moment: "Nila won with a knockout.",
+  });
+  assert.match(humanMatch, /Asha 1–2 Nila/);
+  assert.doesNotMatch(humanMatch, /MelaBot/);
 });

@@ -28,6 +28,8 @@ import "./penFightExperience.css";
 import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
 import { boundedAim, canGrabPen } from "./penFightInput";
 import { penAimPoint } from "../spacetimedb/src/penGeometry";
+import { saveDuelCard } from "./penDuelCard";
+import type { DeskView } from "./penDeskProjection";
 import { seatKind } from "../spacetimedb/src/agentDuelRules";
 import {
   PEN_MOTION_PREFIX,
@@ -106,6 +108,9 @@ export function PenFight({
   const [melaProfiles] = useTable(tables.melaProfile);
   const [motion, setMotion] = useState<PenMotion>();
   const [moving, setMoving] = useState(false);
+  const [deskView, setDeskView] = useState<DeskView>("desk");
+  const [replayKey, setReplayKey] = useState(0);
+  const [savingCard, setSavingCard] = useState(false);
   const [feed, setFeed] = useState<
     { key: string; matchId: bigint; message: string }[]
   >([]);
@@ -157,6 +162,7 @@ export function PenFight({
   }, []);
   const [aim, setAim] = useState({ x: 740, y: 500 });
   const [force, setForce] = useState(60);
+  const [shotContact, setShotContact] = useState(50);
   const [pullPoint, setPullPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -276,6 +282,11 @@ export function PenFight({
         )?.displayName ?? "Player")
       : "Player");
   const completed = match?.status === "complete";
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    setShotContact(50);
+    setReplayKey(0);
+  }, [match?.id]);
   // Start each authoritative human turn from the opponent's CURRENT position,
   // not the opening coordinate left over from the previous exchange.
   useEffect(() => {
@@ -378,18 +389,15 @@ export function PenFight({
     setDeskFx({ impact: false, round: false, knockout: false });
   }, []);
   useEffect(() => () => window.clearTimeout(deskFxTimer.current), []);
-  const showImpact = useCallback(
-    (motion: PenMotion) => {
-      window.clearTimeout(deskFxTimer.current);
-      setDeskFx({
-        impact: true,
-        round: false,
-        knockout: motion.actorOut || motion.targetOut,
-      });
-      deskFxTimer.current = window.setTimeout(clearDeskFx, 260);
-    },
-    [clearDeskFx],
-  );
+  const showImpact = useCallback(() => {
+    window.clearTimeout(deskFxTimer.current);
+    setDeskFx({
+      impact: true,
+      round: false,
+      knockout: false,
+    });
+    deskFxTimer.current = window.setTimeout(clearDeskFx, 260);
+  }, [clearDeskFx]);
   const showFall = useCallback(
     (motion: PenMotion) => {
       window.clearTimeout(deskFxTimer.current);
@@ -516,9 +524,7 @@ export function PenFight({
         aimX: gesture?.x ?? aim.x,
         aimY: gesture?.y ?? aim.y,
         force: gesture?.force ?? cappedForce,
-        // Contact stays centred: one gesture beats two, and a spin control can
-        // be added later as a dial if players actually ask for it.
-        contact: 50,
+        contact: shotContact,
       };
       if (duel)
         await seatFlick({
@@ -539,6 +545,7 @@ export function PenFight({
   // MelaBot's intent, derived from the same public board state its own policy
   // reads. Its reasoning already reaches the event feed, but that scrolls away
   // from where the player is looking — the desk. This puts it on the desk.
+  const opponent = (rightHuman ? duel?.leftName : duel?.rightName) ?? "MelaBot";
   const edgeOf = (x: number, y: number) => Math.min(x, y, 1000 - x, 1000 - y);
   const myMargin = state ? edgeOf(state.humanX, state.humanY) : 500;
   const botMargin = state ? edgeOf(state.botX, state.botY) : 500;
@@ -559,12 +566,11 @@ export function PenFight({
     : myMargin < 150
       ? "You are on the rim. A soft flick back to safety, or risk it?"
       : botMargin < 150
-        ? "MelaBot is on the rim. One good hit ends the round."
+        ? `${opponent} is on the rim. One good hit could end the round.`
         : gap < 260
           ? "In range. Pull back and aim through its middle."
           : "Pull back, release. A longer pull means more force.";
 
-  const opponent = (rightHuman ? duel?.leftName : duel?.rightName) ?? "MelaBot";
   const actor = state.turn === "human" ? human : opponent;
   // Pens rotate toward where they last travelled, so a slide reads as a real
   // object with momentum rather than a token teleporting between points.
@@ -585,6 +591,7 @@ export function PenFight({
   const share = async () => {
     const text = duelShare({
       human,
+      opponent,
       humanRounds: state.humanRounds,
       botRounds: state.botRounds,
       crowdActions: memory?.crowdActions ?? 0,
@@ -610,6 +617,107 @@ export function PenFight({
         );
     }
   };
+  const spectatorPanel = spectating && crowd && !completed && (
+    <section className="pen-crowd" id="pen-crowd">
+      <div className="pen-energy">
+        <strong>
+          {crowd.energy}
+          <small>/{crowd.maxEnergy} shared Energy</small>
+        </strong>
+        <span>
+          {crowdCount} around the desk · Every move uses the same pool.
+        </span>
+      </div>
+      <p>
+        {state.turn === "human"
+          ? `${human} is lining up a flick. Help now or save it for the edge.`
+          : `${opponent} is acting next. Shift the desk conditions, not the outcome.`}
+      </p>
+      <div className="target-picker">
+        <button
+          className={target === "human" ? "selected" : ""}
+          onClick={() => setTarget("human")}
+        >
+          Affect {human}
+        </button>
+        <button
+          className={target === "melabot" ? "selected" : ""}
+          onClick={() => setTarget("melabot")}
+        >
+          Affect {opponent}
+        </button>
+      </div>
+      <div className="power-grid">
+        {powers.map(([key, rule]) => {
+          const cooldown = cooldowns.find(
+            (row) =>
+              row.matchId === match.id &&
+              row.power === key &&
+              identity &&
+              row.identity.isEqual(identity),
+          );
+          const availability = powerAvailability({
+            power: key,
+            energy: crowd.energy,
+            readyAtMicros: cooldown?.readyAtMicros,
+            now,
+            waiting: liveEffects.some(
+              (row) => row.power === key && row.target === target,
+            ),
+            pending,
+            connected: conn.isActive,
+          });
+          return (
+            <article className="power-card" key={key}>
+              <h3>
+                {rule.label} <small>{rule.cost} Energy</small>
+              </h3>
+              <p>{rule.description}</p>
+              <small>
+                {key === "cheer"
+                  ? "Immediate · up to +4 net Energy"
+                  : `One effect per pen · lasts ${Number(rule.durationMicros / 1_000_000n)}s`}
+              </small>
+              <button
+                disabled={availability.disabled}
+                onClick={async () => {
+                  if (busy.current) return;
+                  busy.current = true;
+                  setPending(true);
+                  try {
+                    await power({ matchId: match.id, power: key, target });
+                    setNote(
+                      key === "cheer"
+                        ? "Your CHEER returned Energy to everyone's pool."
+                        : `You played ${rule.label} on ${target === "human" ? human : opponent}'s pen. Follow its effect on the desk.`,
+                    );
+                  } catch {
+                    setNote(
+                      "The desk changed before your move landed. Check Energy and cooldown, then try again.",
+                    );
+                  } finally {
+                    busy.current = false;
+                    setPending(false);
+                  }
+                }}
+              >
+                {availability.label}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+      {effects.filter((e) => e.matchId === match.id).length > 0 && (
+        <p>
+          Waiting effects:{" "}
+          {effects
+            .filter((e) => e.matchId === match.id)
+            .map((e) => `${e.power} → ${e.target}`)
+            .join(" · ")}
+        </p>
+      )}
+    </section>
+  );
   const crowdInvite = (
     <section
       className="pen-join pen-join-visible"
@@ -652,11 +760,11 @@ export function PenFight({
     </section>
   );
   return (
-    <main className="pen-shell">
+    <main className="pen-shell pen-studio">
       <header className="pen-top">
         <div>
           <h1>Pen Fight</h1>
-          <p>Knock your rival off. First to two rounds.</p>
+          <p>The school-desk classic. First to two.</p>
         </div>
         <button className="secondary" onClick={onBack}>
           ← Games
@@ -681,11 +789,6 @@ export function PenFight({
         Invite friends ↗
       </a>
       <AgentDuelPanel matchId={match.id} />
-      {owns && (record?.matchesPlayed ?? 0) > 0 && (
-        <p className="pen-rivalry">
-          {rivalry(record?.wins ?? 0, record?.matchesPlayed ?? 0)}{" "}
-        </p>
-      )}
       {!conn.isActive && (
         <p role="status">
           Reconnecting to your desk. Your next move will wait.
@@ -698,161 +801,240 @@ export function PenFight({
             : "Join the crowd ↓"}
         </a>
       )}
-      <section className="pen-score">
-        <span>
-          {human} <strong>{state.humanRounds}</strong>
-        </span>
-        <b>ROUND {state.round} · FIRST TO 2</b>
-        <span>
-          <strong>{state.botRounds}</strong> {opponent}
-        </span>
-      </section>
-      <section
-        className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""} ${deskFx.knockout ? "knockout" : ""}`}
-      >
-        <div className="pen-turn">
-          <strong>
-            {moving
-              ? `${displayMotion?.actor === "human" ? human.toUpperCase() : opponent.toUpperCase()}’S FLICK`
-              : completed
-                ? "DUEL REMEMBERED"
-                : `${actor.toUpperCase()}’S TURN`}
-          </strong>
-          <span>
-            {moving
-              ? "Watch the contact. Let the pens settle."
-              : completed
-                ? state.lastOutcome
-                : duel
-                  ? duel.phase === "intent"
-                    ? "Shot committed. The crowd has its moment."
-                    : `${actor} is choosing a shot.`
-                  : state.turn === "human"
-                    ? owns
-                      ? myPlan
-                      : `${human} is aiming. Choose a crowd move below, or save your Energy.`
-                    : botPlan}
-          </span>
-        </div>
-        <div
-          className={`pen-arena ${deskFx.impact ? "impact" : ""} ${deskFx.knockout ? "knockout" : ""} ${edgeDanger ? "danger" : ""}`}
-          tabIndex={owns && !completed ? 0 : undefined}
-          aria-label={
-            owns
-              ? "Pen Fight desk. Pull back from your pen to flick. Escape cancels aiming. Button controls follow the desk."
-              : "Live Pen Fight desk"
-          }
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setAiming(false);
-              setPullPoint(null);
-              dragStart.current = null;
-              shot.current = null;
-            } else if (
-              owns &&
-              !completed &&
-              !moving &&
-              !pending &&
-              conn.isActive &&
-              state.turn === "human" &&
-              !aiming
-            ) {
-              if (
-                [
-                  "ArrowLeft",
-                  "ArrowRight",
-                  "ArrowUp",
-                  "ArrowDown",
-                  " ",
-                  "Enter",
-                ].includes(event.key)
-              )
-                event.preventDefault();
-              if (event.key === "ArrowLeft") nudgeAim(-1);
-              if (event.key === "ArrowRight") nudgeAim(1);
-              if (event.key === "ArrowUp")
-                setForce((f) => Math.min(maxForceNow, f + 8));
-              if (event.key === "ArrowDown")
-                setForce((f) => Math.max(MIN_FORCE, f - 8));
-              if ((event.key === " " || event.key === "Enter") && !event.repeat)
-                void commitFlick();
-            }
-          }}
-          onPointerDown={
-            owns &&
-            conn.isActive &&
-            !pending &&
-            !moving &&
-            state.turn === "human" &&
-            !completed
-              ? (event) => {
-                  if (!event.isPrimary || event.button !== 0) return;
-                  event.currentTarget.focus({ preventScroll: true });
-                  const bounds = event.currentTarget.getBoundingClientRect();
-                  const { x, y } = deskInput.current?.(
-                    event.clientX,
-                    event.clientY,
-                  ) ?? {
-                    x: ((event.clientX - bounds.left) / bounds.width) * 1000,
-                    y: ((event.clientY - bounds.top) / bounds.height) * 1000,
-                  };
-                  const grabbed = deskInput.current
-                    ? canGrabPen({ x, y }, { x: state.humanX, y: state.humanY })
-                    : Math.hypot(x - state.humanX, y - state.humanY) <= 110;
-                  if (!grabbed) {
-                    setNote(
-                      "Grab your pen—not the other one. Pull back, then release.",
-                    );
-                    return;
-                  }
-                  dragStart.current = { x: event.clientX, y: event.clientY };
-                  dragRevision.current = revision;
+      <div className="pen-play-layout">
+        <div className="pen-stage-column">
+          <section
+            className="pen-score"
+            aria-label={`Round ${state.round}. ${human} ${state.humanRounds}, ${opponent} ${state.botRounds}. First to two.`}
+          >
+            <span
+              className={
+                state.turn === "human" && !completed ? "seat-active" : ""
+              }
+            >
+              <small>{owns ? "YOU" : "CHALLENGER"}</small>
+              <strong>{state.humanRounds}</strong>
+              <span className="seat-name">{human}</span>
+              <i className="round-pips" aria-hidden="true">
+                {[0, 1].map((n) => (
+                  <i
+                    key={n}
+                    className={state.humanRounds > n ? "earned" : ""}
+                  />
+                ))}
+              </i>
+            </span>
+            <b>
+              <small>{completed ? "FINAL" : `ROUND ${state.round}`}</small>
+              <em>VS</em>
+              <small>FIRST TO 2</small>
+            </b>
+            <span
+              className={
+                state.turn !== "human" && !completed ? "seat-active" : ""
+              }
+            >
+              <small>THE RIVAL</small>
+              <strong>{state.botRounds}</strong>
+              <span className="seat-name">{opponent}</span>
+              <i className="round-pips" aria-hidden="true">
+                {[0, 1].map((n) => (
+                  <i key={n} className={state.botRounds > n ? "earned" : ""} />
+                ))}
+              </i>
+            </span>
+          </section>
+          <section
+            className={`pen-arena-wrap ${deskFx.round ? "round-won" : ""} ${deskFx.knockout ? "knockout" : ""}`}
+          >
+            <div className="pen-desk-toolbar">
+              <span>
+                THE DESK{" "}
+                <small>
+                  {completed ? "MATCH FINISHED" : `${crowdCount} WATCHING`}
+                </small>
+              </span>
+              <div role="group" aria-label="Camera angle">
+                <button
+                  aria-pressed={deskView === "desk"}
+                  disabled={moving || aiming}
+                  onClick={() => setDeskView("desk")}
+                >
+                  3D desk
+                </button>
+                <button
+                  aria-pressed={deskView === "overhead"}
+                  disabled={moving || aiming}
+                  onClick={() => setDeskView("overhead")}
+                >
+                  Overhead
+                </button>
+              </div>
+            </div>
+            <div className="pen-turn">
+              <strong>
+                {moving
+                  ? `${displayMotion?.actor === "human" ? human.toUpperCase() : opponent.toUpperCase()}’S FLICK`
+                  : completed
+                    ? "DUEL REMEMBERED"
+                    : `${actor.toUpperCase()}’S TURN`}
+              </strong>
+              <span>
+                {moving
+                  ? "Watch the contact. Let the pens settle."
+                  : completed
+                    ? state.lastOutcome
+                    : duel
+                      ? duel.phase === "intent"
+                        ? "Shot committed. The crowd has its moment."
+                        : `${actor} is choosing a shot.`
+                      : state.turn === "human"
+                        ? owns
+                          ? myPlan
+                          : `${human} is aiming. Choose a crowd move below, or save your Energy.`
+                        : botPlan}
+              </span>
+            </div>
+            <div
+              className={`pen-arena ${deskFx.impact ? "impact" : ""} ${deskFx.knockout ? "knockout" : ""} ${edgeDanger ? "danger" : ""}`}
+              tabIndex={owns && !completed ? 0 : undefined}
+              aria-label={
+                owns
+                  ? "Pen Fight desk. Pull back from your pen to flick. Escape cancels aiming. Button controls follow the desk."
+                  : "Live Pen Fight desk"
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setAiming(false);
+                  setPullPoint(null);
+                  dragStart.current = null;
                   shot.current = null;
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  setAiming(true);
-                  pull(event);
+                } else if (
+                  owns &&
+                  !completed &&
+                  !moving &&
+                  !pending &&
+                  conn.isActive &&
+                  state.turn === "human" &&
+                  !aiming
+                ) {
+                  if (
+                    [
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "ArrowUp",
+                      "ArrowDown",
+                      " ",
+                      "Enter",
+                    ].includes(event.key)
+                  )
+                    event.preventDefault();
+                  if (event.key === "ArrowLeft") nudgeAim(-1);
+                  if (event.key === "ArrowRight") nudgeAim(1);
+                  if (event.key === "ArrowUp")
+                    setForce((f) => Math.min(maxForceNow, f + 8));
+                  if (event.key === "ArrowDown")
+                    setForce((f) => Math.max(MIN_FORCE, f - 8));
+                  if (
+                    (event.key === " " || event.key === "Enter") &&
+                    !event.repeat
+                  )
+                    void commitFlick();
                 }
-              : undefined
-          }
-          onPointerMove={aiming ? pull : undefined}
-          onPointerUp={(event) => {
-            if (!aiming) return;
-            setAiming(false);
-            setPullPoint(null);
-            if (dragRevision.current !== revision) {
-              dragStart.current = null;
-              setNote("The desk moved. Line up your next flick.");
-              return;
-            }
-            if (
-              dragStart.current &&
-              isIntentionalDrag(dragStart.current, {
-                x: event.clientX,
-                y: event.clientY,
-              })
-            ) {
-              pull(event);
-              setPullPoint(null);
-              if (shot.current) void commitFlick(shot.current);
-              else setNote("Aim back across the desk from this edge.");
-            } else
-              setNote(
-                "Pull back and let go to flick. A tap won't spend your turn.",
-              );
-            dragStart.current = null;
-            shot.current = null;
-          }}
-          onPointerCancel={() => {
-            setAiming(false);
-            setPullPoint(null);
-            dragStart.current = null;
-          }}
-        >
-          <i className="notebook-line l1" />
-          <i className="notebook-line l2" />
-          <i className="notebook-line l3" />
-          <div className="danger-zone">EDGE</div>
-          {/* The crowd's work belongs on the desk, not only in a side panel:
+              }}
+              onPointerDown={
+                owns &&
+                conn.isActive &&
+                !pending &&
+                !moving &&
+                state.turn === "human" &&
+                !completed
+                  ? (event) => {
+                      if (!event.isPrimary || event.button !== 0) return;
+                      event.currentTarget.focus({ preventScroll: true });
+                      const bounds =
+                        event.currentTarget.getBoundingClientRect();
+                      const { x, y } = deskInput.current?.(
+                        event.clientX,
+                        event.clientY,
+                      ) ?? {
+                        x:
+                          ((event.clientX - bounds.left) / bounds.width) * 1000,
+                        y:
+                          ((event.clientY - bounds.top) / bounds.height) * 1000,
+                      };
+                      const grabbed = deskInput.current
+                        ? canGrabPen(
+                            { x, y },
+                            { x: state.humanX, y: state.humanY },
+                          )
+                        : Math.hypot(x - state.humanX, y - state.humanY) <= 110;
+                      if (!grabbed) {
+                        // A tap chooses direction; only a deliberate drag from
+                        // your own pen can submit a flick.
+                        if (
+                          x >= 0 &&
+                          y >= 0 &&
+                          x <= 1000 &&
+                          y <= 1000 &&
+                          Math.hypot(x - state.humanX, y - state.humanY) >= 1
+                        ) {
+                          setAim({ x: Math.round(x), y: Math.round(y) });
+                          setNote("");
+                        }
+                        return;
+                      }
+                      dragStart.current = {
+                        x: event.clientX,
+                        y: event.clientY,
+                      };
+                      dragRevision.current = revision;
+                      shot.current = null;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      setAiming(true);
+                      pull(event);
+                    }
+                  : undefined
+              }
+              onPointerMove={aiming ? pull : undefined}
+              onPointerUp={(event) => {
+                if (!aiming) return;
+                setAiming(false);
+                setPullPoint(null);
+                if (dragRevision.current !== revision) {
+                  dragStart.current = null;
+                  setNote("The desk moved. Line up your next flick.");
+                  return;
+                }
+                if (
+                  dragStart.current &&
+                  isIntentionalDrag(dragStart.current, {
+                    x: event.clientX,
+                    y: event.clientY,
+                  })
+                ) {
+                  pull(event);
+                  setPullPoint(null);
+                  if (shot.current) void commitFlick(shot.current);
+                  else setNote("Aim back across the desk from this edge.");
+                } else
+                  setNote(
+                    "Pull back and let go to flick. A tap won't spend your turn.",
+                  );
+                dragStart.current = null;
+                shot.current = null;
+              }}
+              onPointerCancel={() => {
+                setAiming(false);
+                setPullPoint(null);
+                dragStart.current = null;
+              }}
+            >
+              <i className="notebook-line l1" />
+              <i className="notebook-line l2" />
+              <i className="notebook-line l3" />
+              <div className="danger-zone">EDGE</div>
+              {/* The crowd's work belongs on the desk, not only in a side panel:
               this is the moment a spectator's name is worth seeing, and the
               player is looking at the pens.
 
@@ -860,219 +1042,323 @@ export function PenFight({
               the player an incoming DESK TILT would let them aim off to cancel
               it, which makes the crowd harmless — so the player learns what the
               crowd did from the event feed, after it has already landed. */}
-          {liveEffects.length > 0 && spectating && (
-            <div className="desk-crowd-effects">
-              {liveEffects.map((effect) => {
-                const copy = EFFECT_ON_DESK[effect.power] ?? {
-                  label: effect.power.toUpperCase(),
-                  effect: "in play",
-                };
-                return (
-                  <span
-                    key={effect.id.toString()}
-                    className={`desk-effect ${effect.target === "human" ? "on-human" : "on-bot"}`}
-                  >
-                    <b>{effect.actorName}</b> {copy.label}
-                    <i>
-                      {copy.effect} ·{" "}
-                      {effect.target === "human" ? human : opponent}
-                    </i>
-                  </span>
-                );
-              })}
+              {liveEffects.length > 0 && spectating && (
+                <div className="desk-crowd-effects">
+                  {liveEffects.map((effect) => {
+                    const copy = EFFECT_ON_DESK[effect.power] ?? {
+                      label: effect.power.toUpperCase(),
+                      effect: "in play",
+                    };
+                    return (
+                      <span
+                        key={effect.id.toString()}
+                        className={`desk-effect ${effect.target === "human" ? "on-human" : "on-bot"}`}
+                      >
+                        <b>{effect.actorName}</b> {copy.label}
+                        <i>
+                          {copy.effect} ·{" "}
+                          {effect.target === "human" ? human : opponent}
+                        </i>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <PenDesk
+                inputRef={deskInput}
+                human={{ x: state.humanX, y: state.humanY }}
+                bot={{ x: state.botX, y: state.botY }}
+                motion={displayMotion}
+                aim={aim}
+                pull={pullPoint}
+                power={powerPct}
+                interactive={
+                  owns && !completed && !moving && state.turn === "human"
+                }
+                aiming={aiming}
+                pen={myPen}
+                humanName={human}
+                botName={opponent}
+                onMoving={setMoving}
+                onImpact={showImpact}
+                onFall={showFall}
+                completed={completed}
+                view={deskView}
+                replayKey={replayKey}
+              />
+              {owns && !completed && !moving && state.turn === "human" && (
+                <div className="desk-gesture-hint">
+                  {aiming
+                    ? `Release to flick · ${powerPct}% force`
+                    : "Tap to aim · pull your pen to flick"}
+                </div>
+              )}
             </div>
-          )}
-          <PenDesk
-            inputRef={deskInput}
-            human={{ x: state.humanX, y: state.humanY }}
-            bot={{ x: state.botX, y: state.botY }}
-            motion={displayMotion}
-            aim={aim}
-            pull={pullPoint}
-            power={powerPct}
-            interactive={
-              owns && !completed && !moving && state.turn === "human"
-            }
-            aiming={aiming}
-            pen={myPen}
-            humanName={human}
-            botName={opponent}
-            onMoving={setMoving}
-            onImpact={showImpact}
-            onFall={showFall}
-            completed={completed}
-          />
-          {owns && !completed && !moving && state.turn === "human" && (
-            <div className="desk-gesture-hint">
-              {aiming
-                ? `Release to flick · ${powerPct}% force`
-                : "Pull your pen back → release to flick"}
-            </div>
+          </section>
+          {completed && displayMotion && (
+            <button
+              className="pen-replay"
+              disabled={moving}
+              onClick={() => setReplayKey((value) => value + 1)}
+            >
+              {moving ? "Replaying…" : "↻ Replay the last flick"}
+            </button>
           )}
         </div>
-      </section>
-      {owns && !completed && (
-        <section className="flick-controls">
-          <fieldset
-            className="pen-target-controls"
-            disabled={
-              pending || moving || !conn.isActive || state.turn !== "human"
-            }
-          >
-            <legend>Aim at their pen</legend>
-            {(
-              [
-                [-150, "Cap"],
-                [0, "Middle"],
-                [150, "Tip"],
-              ] as const
-            ).map(([offset, label]) => {
-              const point = penAimPoint(
-                { x: state.botX, y: state.botY },
-                "melabot",
-                offset,
-              );
-              const x = Math.max(0, Math.min(1000, Math.round(point.x))),
-                y = Math.max(0, Math.min(1000, Math.round(point.y)));
-              return (
-                <button
-                  key={label}
-                  aria-pressed={aim.x === x && aim.y === y}
-                  onClick={() => setAim({ x, y })}
-                >
-                  {label}
-                </button>
-              );
-            })}
-            <small>Side hits can glance.</small>
-          </fieldset>
-          <p className="eyebrow">
-            {moving
-              ? "LET THE PENS SETTLE"
-              : state.turn !== "human"
-                ? duel?.phase === "lobby"
-                  ? "WAITING FOR YOUR OPPONENT"
-                  : `${opponent.toUpperCase()}’S TURN · WATCH THE DESK`
-                : aiming
-                  ? "RELEASE TO FLICK"
-                  : "AIM · SET YOUR POWER · FLICK"}
-          </p>
-          <div className="flick-strength-label">
-            <label htmlFor={`flick-strength-${match.id}`}>Flick strength</label>
-            <output htmlFor={`flick-strength-${match.id}`}>
-              {powerPct}% ·{" "}
-              {powerPct < 35 ? "Soft" : powerPct < 75 ? "Firm" : "Hard"}
-            </output>
-          </div>
-          <input
-            id={`flick-strength-${match.id}`}
-            className="flick-strength"
-            type="range"
-            min={MIN_FORCE}
-            max={maxForceNow}
-            step={1}
-            value={cappedForce}
-            onChange={(event) => setForce(Number(event.target.value))}
-            disabled={
-              pending || moving || !conn.isActive || state.turn !== "human"
-            }
-            aria-valuetext={`${powerPct}% of ${isOpening ? "opening" : "full"} flick strength`}
-            aria-describedby={`flick-strength-help-${match.id}`}
-          />
-          <p
-            className="flick-strength-help"
-            id={`flick-strength-help-${match.id}`}
-          >
-            {isOpening
-              ? "Opening exchange: strength is limited for both pens."
-              : "More strength pushes further—and can carry your own pen off."}
-          </p>
-          {/* Keyboard path: holding a pointer down is a motor-accessibility
-              barrier, so aim and power are also reachable with arrows + space. */}
-          <div className="keyboard-flick">
-            <button
-              onClick={() => nudgeAim(-1)}
-              disabled={
-                pending || moving || !conn.isActive || state.turn !== "human"
-              }
-              aria-label="Aim left"
-              title="Aim left"
-            >
-              ◀
-            </button>
-            <button
-              onClick={() => setForce((f) => Math.max(MIN_FORCE, f - 8))}
-              disabled={
-                pending || moving || !conn.isActive || state.turn !== "human"
-              }
-              aria-label="Less power"
-              title="Less power"
-            >
-              −
-            </button>
-            <button
-              className="primary"
-              disabled={
-                pending || moving || !conn.isActive || state.turn !== "human"
-              }
-              onClick={() => void commitFlick()}
-            >
-              {pending
-                ? "SENDING…"
-                : moving || state.turn !== "human"
-                  ? "WAIT"
-                  : "FLICK"}
-            </button>
-            <button
-              onClick={() => setForce((f) => Math.min(maxForceNow, f + 8))}
-              disabled={
-                pending || moving || !conn.isActive || state.turn !== "human"
-              }
-              aria-label="More power"
-              title="More power"
-            >
-              +
-            </button>
-            <button
-              onClick={() => nudgeAim(1)}
-              disabled={
-                pending || moving || !conn.isActive || state.turn !== "human"
-              }
-              aria-label="Aim right"
-              title="Aim right"
-            >
-              ▶
-            </button>
-          </div>
-          <p className="desk-keyboard-help">
-            On the desk: ← → aim · ↑ ↓ strength · Space flicks · Esc cancels
-          </p>
-        </section>
-      )}
-      {owns && crowdInvite}
-      {owns && !completed && (
-        <details className="pen-picker">
-          <summary>Your {penName} · Change pen</summary>
-          <div className="pen-swatches">
-            {PENS.map(([id, name, blurb]) => (
-              <button
-                key={id}
-                className={`pen-swatch ${id} ${myPen === id ? "chosen" : ""}`}
-                onClick={() => choosePen(id)}
-                aria-pressed={myPen === id}
-                title={`${name} — ${blurb}`}
+        <aside
+          className="pen-control-column"
+          aria-label={
+            owns ? "Your shot and crowd invitation" : "Crowd invitation"
+          }
+        >
+          {owns && !completed && (
+            <section className="flick-controls">
+              <div className="shot-control-heading">
+                <span>YOUR MOVE</span>
+                <strong>Make it count.</strong>
+              </div>
+              <fieldset
+                className="pen-target-controls"
+                disabled={
+                  pending || moving || !conn.isActive || state.turn !== "human"
+                }
               >
-                <i aria-hidden="true" />
-                <span>{name}</span>
-              </button>
-            ))}
-          </div>
-          <p className="pen-note">
-            Every pen plays exactly the same. Pick the one that feels like
-            yours.
-          </p>
-        </details>
-      )}
+                <legend>Aim at their pen</legend>
+                {(
+                  [
+                    [-150, "Cap"],
+                    [0, "Middle"],
+                    [150, "Tip"],
+                  ] as const
+                ).map(([offset, label]) => {
+                  const point = penAimPoint(
+                    { x: state.botX, y: state.botY },
+                    "melabot",
+                    offset,
+                  );
+                  const x = Math.max(0, Math.min(1000, Math.round(point.x))),
+                    y = Math.max(0, Math.min(1000, Math.round(point.y)));
+                  return (
+                    <button
+                      key={label}
+                      aria-pressed={aim.x === x && aim.y === y}
+                      onClick={() => setAim({ x, y })}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+                <small>Side hits can glance.</small>
+              </fieldset>
+              <details className="pen-shot-options">
+                <summary>
+                  Shot craft ·{" "}
+                  {shotContact < 50
+                    ? "Cut left"
+                    : shotContact > 50
+                      ? "Cut right"
+                      : "Straight"}
+                </summary>
+                <fieldset
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                >
+                  <legend>Contact bias</legend>
+                  <div className="pen-cut-options">
+                    {[
+                      [20, "Cut left"],
+                      [50, "Straight"],
+                      [80, "Cut right"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        aria-pressed={shotContact === value}
+                        onClick={() => setShotContact(Number(value))}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p>
+                    Cut shots send the struck pen to either side of contact.
+                    Your own pen can carry past it.
+                  </p>
+                  <label htmlFor={`fine-aim-${match.id}`}>Fine aim</label>
+                  <input
+                    id={`fine-aim-${match.id}`}
+                    type="range"
+                    min={-180}
+                    max={180}
+                    step={1}
+                    value={Math.round(
+                      (Math.atan2(aim.y - state.humanY, aim.x - state.humanX) *
+                        180) /
+                        Math.PI,
+                    )}
+                    onChange={(event) => {
+                      const angle =
+                        (Number(event.target.value) * Math.PI) / 180;
+                      const next = boundedAim(
+                        { x: state.humanX, y: state.humanY },
+                        { x: Math.cos(angle), y: Math.sin(angle) },
+                      );
+                      if (next) setAim(next);
+                    }}
+                    aria-valuetext={`${Math.round((Math.atan2(aim.y - state.humanY, aim.x - state.humanX) * 180) / Math.PI)} degrees`}
+                  />
+                </fieldset>
+              </details>
+              <p className="eyebrow">
+                {moving
+                  ? "LET THE PENS SETTLE"
+                  : state.turn !== "human"
+                    ? duel?.phase === "lobby"
+                      ? "WAITING FOR YOUR OPPONENT"
+                      : `${opponent.toUpperCase()}’S TURN · WATCH THE DESK`
+                    : aiming
+                      ? "RELEASE TO FLICK"
+                      : "AIM · SET YOUR POWER · FLICK"}
+              </p>
+              <div className="flick-strength-label">
+                <label htmlFor={`flick-strength-${match.id}`}>
+                  Flick strength
+                </label>
+                <output htmlFor={`flick-strength-${match.id}`}>
+                  {powerPct}% ·{" "}
+                  {powerPct < 35 ? "Soft" : powerPct < 75 ? "Firm" : "Hard"}
+                </output>
+              </div>
+              <input
+                id={`flick-strength-${match.id}`}
+                className="flick-strength"
+                type="range"
+                min={MIN_FORCE}
+                max={maxForceNow}
+                step={1}
+                value={cappedForce}
+                onChange={(event) => setForce(Number(event.target.value))}
+                disabled={
+                  pending || moving || !conn.isActive || state.turn !== "human"
+                }
+                aria-valuetext={`${powerPct}% of ${isOpening ? "opening" : "full"} flick strength`}
+                aria-describedby={`flick-strength-help-${match.id}`}
+              />
+              <p
+                className="flick-strength-help"
+                id={`flick-strength-help-${match.id}`}
+              >
+                {isOpening
+                  ? "Opening exchange: strength is limited for both pens."
+                  : "More strength pushes further—and can carry your own pen off."}
+              </p>
+              {/* Keyboard path: holding a pointer down is a motor-accessibility
+              barrier, so aim and power are also reachable with arrows + space. */}
+              <div className="keyboard-flick">
+                <button
+                  onClick={() => nudgeAim(-1)}
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                  aria-label="Aim left"
+                  title="Aim left"
+                >
+                  ◀
+                </button>
+                <button
+                  onClick={() => setForce((f) => Math.max(MIN_FORCE, f - 8))}
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                  aria-label="Less power"
+                  title="Less power"
+                >
+                  −
+                </button>
+                <button
+                  className="primary"
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                  onClick={() => void commitFlick()}
+                >
+                  {pending
+                    ? "SENDING…"
+                    : moving || state.turn !== "human"
+                      ? "WAIT"
+                      : "FLICK"}
+                </button>
+                <button
+                  onClick={() => setForce((f) => Math.min(maxForceNow, f + 8))}
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                  aria-label="More power"
+                  title="More power"
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => nudgeAim(1)}
+                  disabled={
+                    pending ||
+                    moving ||
+                    !conn.isActive ||
+                    state.turn !== "human"
+                  }
+                  aria-label="Aim right"
+                  title="Aim right"
+                >
+                  ▶
+                </button>
+              </div>
+              <p className="desk-keyboard-help">
+                On the desk: ← → aim · ↑ ↓ strength · Space flicks · Esc cancels
+              </p>
+            </section>
+          )}
+          {owns && !completed && (
+            <details className="pen-picker">
+              <summary>Your {penName} · Change pen</summary>
+              <div className="pen-swatches">
+                {PENS.map(([id, name, blurb]) => (
+                  <button
+                    key={id}
+                    className={`pen-swatch ${id} ${myPen === id ? "chosen" : ""}`}
+                    onClick={() => choosePen(id)}
+                    aria-pressed={myPen === id}
+                    title={`${name} — ${blurb}`}
+                  >
+                    <i aria-hidden="true" />
+                    <span>{name}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="pen-note">
+                Every pen plays exactly the same. Pick the one that feels like
+                yours.
+              </p>
+            </details>
+          )}
+          {spectatorPanel}
+          {crowdInvite}
+        </aside>
+      </div>
       <p
         className="pen-result"
         role="status"
@@ -1085,7 +1371,10 @@ export function PenFight({
       </p>
       {note && (
         <p className="pen-feedback" role="status">
-          {note}
+          <span>{note}</span>
+          <button aria-label="Dismiss message" onClick={() => setNote("")}>
+            ×
+          </button>
         </p>
       )}
       {!owns && me && !spectating && !completed && (
@@ -1114,107 +1403,6 @@ export function PenFight({
         >
           Join {human}'s crowd
         </button>
-      )}
-      {spectating && crowd && !completed && (
-        <section className="pen-crowd" id="pen-crowd">
-          <div className="pen-energy">
-            <strong>
-              {crowd.energy}
-              <small>/{crowd.maxEnergy} shared Energy</small>
-            </strong>
-            <span>
-              {crowdCount} around the desk · Every move uses the same pool.
-            </span>
-          </div>
-          <p>
-            {state.turn === "human"
-              ? `${human} is lining up a flick. Help now or save it for the edge.`
-              : `${opponent} is acting next. Shift the desk conditions, not the outcome.`}
-          </p>
-          <div className="target-picker">
-            <button
-              className={target === "human" ? "selected" : ""}
-              onClick={() => setTarget("human")}
-            >
-              Affect {human}
-            </button>
-            <button
-              className={target === "melabot" ? "selected" : ""}
-              onClick={() => setTarget("melabot")}
-            >
-              Affect {opponent}
-            </button>
-          </div>
-          <div className="power-grid">
-            {powers.map(([key, rule]) => {
-              const cooldown = cooldowns.find(
-                (row) =>
-                  row.matchId === match.id &&
-                  row.power === key &&
-                  identity &&
-                  row.identity.isEqual(identity),
-              );
-              const availability = powerAvailability({
-                power: key,
-                energy: crowd.energy,
-                readyAtMicros: cooldown?.readyAtMicros,
-                now,
-                waiting: liveEffects.some(
-                  (row) => row.power === key && row.target === target,
-                ),
-                pending,
-                connected: conn.isActive,
-              });
-              return (
-                <article className="power-card" key={key}>
-                  <h3>
-                    {rule.label} <small>{rule.cost} Energy</small>
-                  </h3>
-                  <p>{rule.description}</p>
-                  <small>
-                    {key === "cheer"
-                      ? "Immediate · up to +4 net Energy"
-                      : `One effect per pen · lasts ${Number(rule.durationMicros / 1_000_000n)}s`}
-                  </small>
-                  <button
-                    disabled={availability.disabled}
-                    onClick={async () => {
-                      if (busy.current) return;
-                      busy.current = true;
-                      setPending(true);
-                      try {
-                        await power({ matchId: match.id, power: key, target });
-                        setNote(
-                          key === "cheer"
-                            ? "Your CHEER returned Energy to everyone's pool."
-                            : `You played ${rule.label} on ${target === "human" ? human : opponent}'s pen. Follow its effect on the desk.`,
-                        );
-                      } catch {
-                        setNote(
-                          "The desk changed before your move landed. Check Energy and cooldown, then try again.",
-                        );
-                      } finally {
-                        busy.current = false;
-                        setPending(false);
-                      }
-                    }}
-                  >
-                    {availability.label}
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-          {effects.filter((e) => e.matchId === match.id).length > 0 && (
-            <p>
-              Waiting effects:{" "}
-              {effects
-                .filter((e) => e.matchId === match.id)
-                .map((e) => `${e.power} → ${e.target}`)
-                .join(" · ")}
-            </p>
-          )}
-        </section>
       )}
       {owns && crowd && !completed && (
         <section className="pen-crowd pen-player-crowd">
@@ -1247,6 +1435,20 @@ export function PenFight({
       {completed && (
         <section className="pen-memory" ref={memoryCard}>
           <p className="eyebrow">THIS DUEL STAYS IN MELA</p>
+          <div
+            className="pen-final-score"
+            aria-label={`Final score ${state.humanRounds} to ${state.botRounds}`}
+          >
+            <span>
+              {state.humanRounds}
+              <small>{human}</small>
+            </span>
+            <i>—</i>
+            <span>
+              {state.botRounds}
+              <small>{opponent}</small>
+            </span>
+          </div>
           <h2>
             {owns
               ? state.humanRounds > state.botRounds
@@ -1313,6 +1515,37 @@ export function PenFight({
           <button className="secondary wide" onClick={() => void share()}>
             Share this duel
           </button>
+          {memory && (
+            <button
+              className="secondary wide"
+              disabled={savingCard}
+              onClick={async () => {
+                setSavingCard(true);
+                try {
+                  await saveDuelCard({
+                    human,
+                    opponent,
+                    humanRounds: state.humanRounds,
+                    botRounds: state.botRounds,
+                    moment: memory.notableMoment,
+                    crowdActions: memory.crowdActions,
+                    matchId: match.id.toString(),
+                  });
+                  setNote(
+                    "Your match card is ready. Share the image with your duel link.",
+                  );
+                } catch {
+                  setNote(
+                    "Could not save the image here. Share this duel still copies the result and link.",
+                  );
+                } finally {
+                  setSavingCard(false);
+                }
+              }}
+            >
+              {savingCard ? "Creating your card…" : "Save match card ↓"}
+            </button>
+          )}
           {!owns && (
             <button className="primary wide" onClick={onBack}>
               Your turn? Find your own desk
@@ -1323,7 +1556,6 @@ export function PenFight({
           )}
         </section>
       )}
-      {!owns && crowdInvite}
     </main>
   );
 }

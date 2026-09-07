@@ -11,6 +11,7 @@ import { initAnalytics } from "./analytics.ts";
 import { WebMCPTools } from "./AgentDuel";
 import { AccountControls } from "./AccountControls";
 import "./gameLayout.css";
+import "./penFightArena.css";
 import {
   AUTH_RETURN_TO_KEY,
   PROFILE_LINK_NONCE_KEY,
