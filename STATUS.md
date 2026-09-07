@@ -6,8 +6,8 @@
 - The persistent profile/recovery capability is retained behind the concise header **Profile** control for a returning person and existing **Sign in** control for a new person. No identity, account, session, email, database, reducer, game, crowd, AI, or history semantics were changed.
 - The home shell now uses a wider 1180px desktop grid with a 1148px aligned stage and game shelf, while the phone keeps a 14px edge gutter and two-card grid. Header, stage, game shelf, memories and optional modes use deliberate spacing rather than independent large margins. The empty/low-value copy no longer displaces the primary action.
 - Verification: Prettier, full **130/130** deterministic suite, frontend typecheck and production frontend build pass. Local browser audit: 1440px grid aligned at 1148px with no overflow; 390px and 320px layouts have no horizontal overflow; no page errors. Mobile visual review confirms the first screen now starts directly at compact Mela header → stage → playable games, with no account banner or empty crowd panel.
-- Release pending: focused commit and existing Railway frontend deployment only. No Maincloud publication is required.
-- Next task: release this homepage composition pass, then independently audit individual game screens rather than mixing game-specific layout changes into home.
+- Release: focused commit `8ac922c` pushed under Sreenath only. Railway deployment `ef8c9bc4-7d7c-4107-83bb-626c9f20194a` was observed **SUCCESS**. A read-only production 390×844 smoke check confirms the stage, compact Profile entry, no save prompt, no empty crowd card, collapsed advanced modes, no horizontal overflow and no page errors. No Maincloud publication occurred.
+- Next task: independently audit individual game screens rather than mixing game-specific layout changes into home.
 
 ## Current pass — lightweight game previews (2026-09-07)
 
