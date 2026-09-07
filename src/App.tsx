@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useMelaAccount } from "./AccountControls";
+import { useRoomPresence } from "./useRoomPresence";
 import { reducers, tables } from "./module_bindings";
 import { useReducer, useSpacetimeDB, useTable } from "spacetimedb/react";
 import "./mela.css";
@@ -147,7 +148,10 @@ function App() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingStyle, setPendingStyle] = useState<string | null>(null);
   const [creatingMatch, setCreatingMatch] = useState(false);
-  const [showHome, setShowHome] = useState(false);
+  const [showHome, setShowHome] = useState(() => {
+    const query = new URLSearchParams(location.search);
+    return !query.has("join") && !query.has("memory");
+  });
   // Reduced-motion visitors start muted, so they need a visible way back in.
   const [muted, setMuted] = useState(isMuted);
   // A scanned QR pins the match it names: the visitor lands in THAT game,
@@ -210,6 +214,7 @@ function App() {
   const [identityLinks, identityLinksReady] = useTable(tables.myIdentityLink);
   const [melaProfiles] = useTable(tables.melaProfile);
   const [matches, matchesReady] = useTable(tables.match);
+  const [rooms] = useTable(tables.roomActivity);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
@@ -276,12 +281,59 @@ function App() {
     myMatches.filter((match) => match.status === "active"),
   );
   const activeMatch = myLiveMatch;
+  const resumableMatch = newest(
+    matches.filter(
+      (m) =>
+        m.status === "active" && Boolean(myIdentity?.isEqual(m.playerIdentity)),
+    ),
+  );
   const displayedMatch = showHome
     ? undefined
     : (pinnedMatch ?? myLiveMatch ?? myLastMatch);
-  const liveMatchesToWatch = matches.filter(
-    (match) => match.status === "active" && !isMine(match),
+  useRoomPresence(
+    !requestedMemoryId && displayedMatch?.status === "active"
+      ? displayedMatch.id
+      : undefined,
+    Boolean(me),
   );
+  const liveMatchesToWatch = matches.filter(
+    (match) =>
+      match.status === "active" &&
+      (!myIdentity || !match.playerIdentity.isEqual(myIdentity)) &&
+      rooms.some((room) => room.matchId === match.id && room.hostPresent),
+  );
+  const discoverableRooms = liveMatchesToWatch
+    .slice()
+    .sort((a, b) => Number(b.id - a.id))
+    .slice(0, 12)
+    .map((match) => ({
+      id: match.id,
+      game: GAME_LABELS[match.gameKind] ?? match.gameKind,
+      host:
+        participants.find(
+          (p) => p.matchId === match.id && p.actorKind === "human",
+        )?.displayName ?? "Mela player",
+      watching:
+        rooms.find((room) => room.matchId === match.id)?.spectators ?? 0,
+    }));
+  async function watchMatch(matchId: bigint) {
+    if (joinBusy.current) return;
+    joinBusy.current = true;
+    setJoining(true);
+    setError(null);
+    try {
+      await joinSpectator({ matchId });
+      setRequestedMemoryId(null);
+      setPinnedMatchId(matchId);
+      setShowHome(false);
+      setFeedback(null);
+    } catch {
+      setError("That match is no longer available. Choose another game.");
+    } finally {
+      setJoining(false);
+      joinBusy.current = false;
+    }
+  }
   const matchState = displayedMatch
     ? states.find((state) => state.matchId === displayedMatch.id)
     : undefined;
@@ -316,6 +368,10 @@ function App() {
     : undefined;
   const recentMemories = memories
     .filter((row) => row.gameKind === "book_cricket")
+    .sort((a, b) => Number(b.sequence - a.sequence))
+    .slice(0, 3);
+  const myRecentMemories = memories
+    .filter((row) => myMatches.some((match) => match.id === row.matchId))
     .sort((a, b) => Number(b.sequence - a.sequence))
     .slice(0, 3);
   const leaderboard = records
@@ -579,6 +635,7 @@ function App() {
     setError(null);
     try {
       await enterGame({ gameKind });
+      setRequestedMemoryId(null);
       setShowHome(false);
       setPinnedMatchId(null);
       setFeedback(null);
@@ -886,19 +943,8 @@ function App() {
         <HomeDiscovery
           onChoose={(game) => void enter(game)}
           busy={joining || !connected || !profilesReady || !identityLinksReady}
-          live={liveMatchesToWatch
-            .slice()
-            .sort((a, b) => Number(b.id - a.id))
-            .slice(0, 6)
-            .map((match) => ({
-              id: match.id,
-              game: GAME_LABELS[match.gameKind] ?? match.gameKind,
-              host:
-                participants.find(
-                  (p) => p.matchId === match.id && p.actorKind === "human",
-                )?.displayName ?? "A Mela player",
-              watching: spectators.filter((s) => s.matchId === match.id).length,
-            }))}
+          live={discoverableRooms}
+          onWatch={(id) => void watchMatch(id)}
         />
       )}
       {!me && (!connected || !profilesReady) && (
@@ -993,11 +1039,28 @@ function App() {
       )}
       {me && !displayedMatch && (
         <section className="game-picker home-return-picker">
+          {resumableMatch && (
+            <button
+              className="home-resume"
+              onClick={() => {
+                setPinnedMatchId(resumableMatch.id);
+                setRequestedMemoryId(null);
+                setShowHome(false);
+              }}
+            >
+              <span>
+                <small>Your unfinished game</small>
+                <strong>{GAME_LABELS[resumableMatch.gameKind]}</strong>
+              </span>
+              <b>Resume →</b>
+            </button>
+          )}
           <HomeDiscovery
-            returning
-            live={[]}
-            busy={creatingMatch || !connected}
+            live={discoverableRooms}
+            onWatch={(id) => void watchMatch(id)}
+            busy={creatingMatch || joining || !connected}
             onChoose={(kind) => {
+              setRequestedMemoryId(null);
               if (kind === "book_cricket") void startMatch();
               else if (kind === "pen_fight") void startPenFight();
               else
@@ -1012,6 +1075,43 @@ function App() {
                 );
             }}
           />
+          {myRecentMemories.length > 0 && (
+            <section
+              className="home-memories"
+              aria-labelledby="recent-games-title"
+            >
+              <h2 id="recent-games-title">Your recent games</h2>
+              <ul>
+                {myRecentMemories.map((memory) => (
+                  <li key={memory.matchId.toString()}>
+                    <button
+                      onClick={() => {
+                        setRequestedMemoryId(null);
+                        setPinnedMatchId(memory.matchId);
+                        setShowHome(false);
+                      }}
+                    >
+                      <span>
+                        <strong>{GAME_LABELS[memory.gameKind]}</strong>
+                        <span>
+                          {memory.humanName} vs {memory.aiName}
+                        </span>
+                        <small>
+                          {memory.winner === "draw"
+                            ? "Draw"
+                            : `${memory.winner === "human" ? memory.humanName : memory.aiName} won`}
+                          {memory.crowdActions > 0
+                            ? ` · ${memory.crowdActions} crowd moves`
+                            : ""}
+                        </small>
+                      </span>
+                      <b>Result →</b>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {rivalry && (
             <details className="home-extra">
               <summary>Your rivalry</summary>
@@ -1063,70 +1163,28 @@ function App() {
               </button>
             </div>
           </details>
-          {liveMatchesToWatch.length > 0 && (
-            <div className="watch-live">
-              <p className="eyebrow">OR JOIN A LIVE CROWD</p>
-              <ul>
-                {liveMatchesToWatch
-                  .slice()
-                  .sort((a, b) => Number(b.id - a.id))
-                  .map((match) => {
-                    const host =
-                      participants.find(
-                        (row) =>
-                          row.matchId === match.id && row.actorKind === "human",
-                      )?.displayName ?? "Someone";
-                    const watching = spectators.filter(
-                      (row) => row.matchId === match.id,
-                    ).length;
-                    return (
-                      <li key={match.id.toString()}>
-                        <span>
-                          <strong>{host}</strong> ·{" "}
-                          {GAME_LABELS[match.gameKind] ?? match.gameKind}
-                          <em>
-                            {watching === 0
-                              ? "no one watching yet"
-                              : plural(watching, "person", "people") +
-                                " watching"}
-                          </em>
-                        </span>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await joinSpectator({ matchId: match.id });
-                              setPinnedMatchId(match.id);
-                              setShowHome(false);
-                              setError(null);
-                              setFeedback(
-                                `You’re in ${host}’s crowd. Spend Crowd Energy to change the next move.`,
-                              );
-                            } catch (reason) {
-                              setError(
-                                reason instanceof Error
-                                  ? reason.message
-                                  : "Could not join that crowd.",
-                              );
-                            }
-                          }}
-                        >
-                          Watch
-                        </button>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          )}
         </section>
       )}
 
       {displayedMatch && matchState && (
         <>
+          {isSpectator &&
+            displayedMatch.status === "active" &&
+            rooms.find((r) => r.matchId === displayedMatch.id)?.hostPresent ===
+              false && (
+              <p className="game-room-notice" role="status">
+                The host has left this room. You can stay or choose another
+                game.
+              </p>
+            )}
           <section className="scoreboard" aria-label="Live Book Cricket score">
             <div className="match-kicker">
               <span>BOOK CRICKET · FIRST TO THE TARGET</span>
-              <span>{matchSpectators.length} in the crowd</span>
+              <span>
+                {rooms.find((room) => room.matchId === displayedMatch.id)
+                  ?.spectators ?? 0}{" "}
+                watching
+              </span>
             </div>
             <div className={`score-row ${suspense ? "holding" : ""}`}>
               <div>

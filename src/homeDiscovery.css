@@ -300,11 +300,14 @@
   font-size: 12px;
   color: #61523b;
 }
-.home-live a {
+.home-live button {
   color: #165c52;
   font-weight: 800;
   font-size: 13px;
-  padding: 12px 0;
+  padding: 10px 16px;
+  background: #fffaf0;
+  border: 1px solid #165c52;
+  border-radius: 24px;
 }
 .home-empty {
   color: #61523b;
@@ -383,7 +386,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.home-live a {
+.home-live button {
   flex-shrink: 0;
   min-height: 44px;
   display: inline-flex;
@@ -489,7 +492,7 @@
   .home-live li strong {
     font-size: 14px;
   }
-  .home-live a {
+  .home-live button {
     font-size: 12px;
   }
 }
@@ -519,4 +522,82 @@
 .home-landing .hero .eyebrow,
 .home-landing .hero .subtitle {
   display: none;
+}
+
+.home-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 20px;
+  margin: 0 0 24px;
+  border: 1px solid #7a9d89;
+  border-radius: 16px;
+  background: #e8f0e4;
+  color: #183e33;
+  text-align: left;
+}
+.home-resume > span {
+  display: grid;
+  gap: 4px;
+}
+.home-resume small {
+  font-weight: 500;
+}
+.home-resume strong {
+  font-size: 20px;
+}
+.home-resume b {
+  white-space: nowrap;
+}
+.home-resume:focus-visible,
+.home-live button:focus-visible {
+  outline: 3px solid #ac6515;
+  outline-offset: 4px;
+}
+.home-memories {
+  margin: 32px 0;
+}
+.home-memories h2 {
+  font-size: 24px;
+}
+.home-memories ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.home-memories button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #d6c9ac;
+  border-radius: 12px;
+  background: #fffaf0;
+  color: #302a20;
+  text-align: left;
+}
+.home-memories button > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.home-memories button span span,
+.home-memories small {
+  color: #61523b;
+  font-size: 13px;
+  font-weight: 500;
+}
+.home-memories b {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.home-memories button:focus-visible {
+  outline: 3px solid #ac6515;
+  outline-offset: 3px;
 }

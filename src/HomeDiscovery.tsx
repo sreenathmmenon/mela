@@ -56,11 +56,11 @@ export function HomeDiscovery({
   onChoose,
   live,
   busy = false,
-  returning = false,
+  onWatch,
 }: {
   onChoose: (name: string) => void;
   busy?: boolean;
-  returning?: boolean;
+  onWatch: (id: bigint) => void;
   live: Array<{ id: bigint; host: string; game: string; watching: number }>;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -129,7 +129,7 @@ export function HomeDiscovery({
           ))}
         </div>
       </section>
-      {!returning && (
+      {
         <section className="home-live" aria-labelledby="home-live-title">
           <h2 id="home-live-title">Join a crowd</h2>
           {live.length ? (
@@ -137,27 +137,28 @@ export function HomeDiscovery({
               {live.map((match) => (
                 <li key={match.id.toString()}>
                   <span>
-                    <strong>{match.host}</strong>
+                    <strong>{match.game}</strong>
                     <span>
-                      {match.game} · {match.watching} watching
+                      {match.host} · {match.watching} watching
                     </span>
                   </span>
-                  <a
-                    href={`?join=${match.id}`}
+                  <button
+                    disabled={busy}
+                    onClick={() => onWatch(match.id)}
                     aria-label={`Join ${match.host}'s ${match.game} crowd`}
                   >
-                    Join crowd →
-                  </a>
+                    Watch →
+                  </button>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="home-empty">
-              Start a game. Invite a friend with its QR.
+              No open rooms. Start a game and invite a friend.
             </p>
           )}
         </section>
-      )}
+      }
     </div>
   );
 }

@@ -1,0 +1,11 @@
+output/
+.playwright-cli/
+.git/
+node_modules/
+dist/
+dist-server/
+.env
+.env.*
+*.log
+*.tsbuildinfo
+spacetime.local.json

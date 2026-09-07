@@ -1,4 +1,5 @@
 import { ScheduleAt, SenderError, schema, table, t } from "spacetimedb/server";
+import { summarizeRoom } from "./roomRules";
 import {
   DUEL_RULES,
   validateAgentAction as checkAgentAction,
@@ -208,6 +209,15 @@ const spacetimedb = schema({
       connectionId: t.connectionId().primaryKey(),
       identity: t.identity(),
       connectedAt: t.timestamp(),
+    },
+  ),
+  roomConnection: table(
+    { public: false },
+    {
+      connectionId: t.connectionId().primaryKey(),
+      identity: t.identity(),
+      matchId: t.u64().index("btree"),
+      spectator: t.bool(),
     },
   ),
   /** Safe aggregate counters for operators; no identity or session data. */
@@ -552,6 +562,84 @@ const spacetimedb = schema({
   crowdSchedule,
 });
 export default spacetimedb;
+
+/** Public counts only; identities and connection identifiers stay private. */
+export const roomActivity = spacetimedb.anonymousView(
+  { public: true },
+  t.array(
+    t.row("RoomActivityProjection", {
+      matchId: t.u64().primaryKey(),
+      hostPresent: t.bool(),
+      spectators: t.u32(),
+    }),
+  ),
+  (ctx: any) => {
+    const visits = Array.from(ctx.db.roomConnection.iter()) as any[];
+    const sessions = new Set(
+      Array.from(ctx.db.connectionSession.iter() as Iterable<any>).map((s) =>
+        s.connectionId.toHexString(),
+      ),
+    );
+    const rooms = new Map<bigint, any[]>();
+    for (const visit of visits) {
+      if (!sessions.has(visit.connectionId.toHexString())) continue;
+      const list = rooms.get(visit.matchId) ?? [];
+      list.push({
+        identity: canonicalIdentity(ctx, visit.identity).toHexString(),
+        spectator: visit.spectator,
+      });
+      rooms.set(visit.matchId, list);
+    }
+    return Array.from(rooms, ([matchId, occupants]) => {
+      const match = ctx.db.match.id.find(matchId);
+      return match?.status === "active"
+        ? {
+            matchId,
+            ...summarizeRoom(match.playerIdentity.toHexString(), occupants),
+          }
+        : null;
+    }).filter((row) => row !== null);
+  },
+);
+
+export const setRoomPresence = spacetimedb.reducer(
+  { matchId: t.option(t.u64()) },
+  (ctx: any, { matchId }: any) => {
+    if (
+      !ctx.connectionId ||
+      !ctx.db.connectionSession.connectionId.find(ctx.connectionId)
+    )
+      throw new SenderError("A connected session is required.");
+    if (matchId === undefined) {
+      ctx.db.roomConnection.connectionId.delete(ctx.connectionId);
+      return;
+    }
+    const identity = canonicalIdentity(ctx);
+    const match = ctx.db.match.id.find(matchId);
+    const spectator = Boolean(spectatorFor(ctx, matchId, identity));
+    const duel = ctx.db.agentDuel.matchId.find(matchId);
+    if (
+      !match ||
+      match.status !== "active" ||
+      !(
+        match.playerIdentity.isEqual(identity) ||
+        spectator ||
+        duel?.leftIdentity?.isEqual(identity) ||
+        duel?.rightIdentity?.isEqual(identity)
+      )
+    )
+      throw new SenderError("Join an active match before entering its room.");
+    const row = {
+      connectionId: ctx.connectionId,
+      identity,
+      matchId,
+      spectator,
+    };
+    if (ctx.db.roomConnection.connectionId.find(ctx.connectionId))
+      ctx.db.roomConnection.connectionId.update(row);
+    else ctx.db.roomConnection.insert(row);
+  },
+);
 
 /**
  * Reveals only the caller's own canonical Mela identity. The frontend needs
@@ -1850,8 +1938,21 @@ export const onConnect = spacetimedb.clientConnected((ctx: any) => {
     });
 });
 export const onDisconnect = spacetimedb.clientDisconnected((ctx: any) => {
-  if (ctx.connectionId)
+  if (ctx.connectionId) {
+    ctx.db.roomConnection.connectionId.delete(ctx.connectionId);
     ctx.db.connectionSession.connectionId.delete(ctx.connectionId);
+    const identity = canonicalIdentity(ctx);
+    const elsewhere = Array.from(
+      ctx.db.connectionSession.iter() as Iterable<any>,
+    ).some((s) => canonicalIdentity(ctx, s.identity).isEqual(identity));
+    const presence = ctx.db.worldPresence.identity.find(identity);
+    if (!elsewhere && presence)
+      ctx.db.worldPresence.identity.update({
+        ...presence,
+        state: "offline",
+        lastSeenAt: ctx.timestamp,
+      });
+  }
 });
 function onboardProfile(ctx: any, displayName: string) {
   ensureWorld(ctx);

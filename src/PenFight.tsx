@@ -90,6 +90,7 @@ export function PenFight({
   const conn = useSpacetimeDB();
   const identity = conn.identity;
   const [matches] = useTable(tables.match);
+  const [rooms] = useTable(tables.roomActivity);
   const [duels] = useTable(tables.agentDuel);
   const [states] = useTable(tables.penDeskState);
   const [participants] = useTable(tables.matchParticipant);
@@ -483,9 +484,8 @@ export function PenFight({
     .filter((row) => row.matchId === match.id)
     .slice(-6)
     .reverse();
-  const crowdCount = spectators.filter(
-    (row) => row.matchId === match.id,
-  ).length;
+  const crowdCount =
+    rooms.find((room) => room.matchId === match.id)?.spectators ?? 0;
   const share = async () => {
     const text = duelShare({
       human,
@@ -573,6 +573,13 @@ export function PenFight({
           Sound {muted ? "off" : "on"}
         </button>
       </header>
+      {spectating &&
+        match.status === "active" &&
+        rooms.find((r) => r.matchId === match.id)?.hostPresent === false && (
+          <p className="game-room-notice" role="status">
+            The host has left this room. You can stay or choose another game.
+          </p>
+        )}
       <a className="game-invite-link" href="#pen-invite">
         Invite friends ↗
       </a>

@@ -75,11 +75,11 @@ export default function BigScreen() {
     [],
   );
   const [matches] = useTable(tables.match);
+  const [rooms] = useTable(tables.roomActivity);
   const [states] = useTable(tables.bookCricketState);
   const [penStates] = useTable(tables.penDeskState);
   const [participants] = useTable(tables.matchParticipant);
   const [crowds] = useTable(tables.matchCrowd);
-  const [spectators] = useTable(tables.matchSpectator);
   const [effects] = useTable(tables.visibleCrowdEffects);
   const [history] = useTable(tables.matchHistory);
   const [memories] = useTable(tables.matchMemory);
@@ -119,9 +119,8 @@ export default function BigScreen() {
   const crowd = displayedMatch
     ? crowds.find((row) => row.matchId === displayedMatch.id)
     : undefined;
-  const matchSpectators = displayedMatch
-    ? spectators.filter((row) => row.matchId === displayedMatch.id)
-    : [];
+  const watching =
+    rooms.find((r) => r.matchId === displayedMatch?.id)?.spectators ?? 0;
   const activeEffects = displayedMatch
     ? effects.filter((row) => row.matchId === displayedMatch.id)
     : [];
@@ -217,7 +216,7 @@ export default function BigScreen() {
           <div className="screen-versus">
             <span>BEST OF 3</span>
             <strong>ROUND {penState.round}</strong>
-            <small>{matchSpectators.length} around the desk</small>
+            <small>{watching} watching</small>
           </div>
           <div>
             <span>{aiName}</span>
@@ -340,7 +339,7 @@ export default function BigScreen() {
           <strong>
             {state.target ? `TARGET ${state.target}` : "SET THE TARGET"}
           </strong>
-          <small>{matchSpectators.length} in the crowd</small>
+          <small>{watching} watching</small>
         </div>
         <div>
           <span>{aiName}</span>

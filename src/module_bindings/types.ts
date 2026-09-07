@@ -446,6 +446,24 @@ export const ProtectedIdentity = __t.object("ProtectedIdentity", {
 });
 export type ProtectedIdentity = __Infer<typeof ProtectedIdentity>;
 
+export const RoomActivity = __t.object("RoomActivity", {});
+export type RoomActivity = __Infer<typeof RoomActivity>;
+
+export const RoomActivityProjection = __t.object("RoomActivityProjection", {
+  matchId: __t.u64(),
+  hostPresent: __t.bool(),
+  spectators: __t.u32(),
+});
+export type RoomActivityProjection = __Infer<typeof RoomActivityProjection>;
+
+export const RoomConnection = __t.object("RoomConnection", {
+  connectionId: __t.connectionId(),
+  identity: __t.identity(),
+  matchId: __t.u64(),
+  spectator: __t.bool(),
+});
+export type RoomConnection = __Infer<typeof RoomConnection>;
+
 export const SpectatorCooldown = __t.object("SpectatorCooldown", {
   id: __t.u64(),
   matchId: __t.u64(),

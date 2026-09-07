@@ -27,6 +27,7 @@ import OnboardWithEmailReducer from "../onboard_with_email_reducer";
 import PlayBallReducer from "../play_ball_reducer";
 import PlayStrategyMoveReducer from "../play_strategy_move_reducer";
 import RematchPlaygroundReducer from "../rematch_playground_reducer";
+import SetRoomPresenceReducer from "../set_room_presence_reducer";
 import StrikeGilliReducer from "../strike_gilli_reducer";
 import UseCrowdPowerReducer from "../use_crowd_power_reducer";
 import UseExperimentalCrowdPowerReducer from "../use_experimental_crowd_power_reducer";
@@ -57,6 +58,7 @@ export type OnboardWithEmailParams = __Infer<typeof OnboardWithEmailReducer>;
 export type PlayBallParams = __Infer<typeof PlayBallReducer>;
 export type PlayStrategyMoveParams = __Infer<typeof PlayStrategyMoveReducer>;
 export type RematchPlaygroundParams = __Infer<typeof RematchPlaygroundReducer>;
+export type SetRoomPresenceParams = __Infer<typeof SetRoomPresenceReducer>;
 export type StrikeGilliParams = __Infer<typeof StrikeGilliReducer>;
 export type UseCrowdPowerParams = __Infer<typeof UseCrowdPowerReducer>;
 export type UseExperimentalCrowdPowerParams = __Infer<

@@ -55,6 +55,7 @@ import OnboardWithEmailReducer from "./onboard_with_email_reducer";
 import PlayBallReducer from "./play_ball_reducer";
 import PlayStrategyMoveReducer from "./play_strategy_move_reducer";
 import RematchPlaygroundReducer from "./rematch_playground_reducer";
+import SetRoomPresenceReducer from "./set_room_presence_reducer";
 import StrikeGilliReducer from "./strike_gilli_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
 import UseExperimentalCrowdPowerReducer from "./use_experimental_crowd_power_reducer";
@@ -92,6 +93,7 @@ import PenFightMetricsRow from "./pen_fight_metrics_table";
 import PenFightRecordRow from "./pen_fight_record_table";
 import PlayerProfileRow from "./player_profile_table";
 import PlaygroundRematchRow from "./playground_rematch_table";
+import RoomActivityRow from "./room_activity_table";
 import VisibleCrowdEffectsRow from "./visible_crowd_effects_table";
 import WorldRow from "./world_table";
 import WorldActivityRow from "./world_activity_table";
@@ -664,6 +666,14 @@ const tablesSchema = __schema({
     },
     PenDeskStateRow,
   ),
+  roomActivity: __table(
+    {
+      name: "room_activity",
+      indexes: [],
+      constraints: [],
+    },
+    RoomActivityRow,
+  ),
   visibleCrowdEffects: __table(
     {
       name: "visible_crowd_effects",
@@ -697,6 +707,7 @@ const reducersSchema = __reducers(
   __reducerSchema("play_ball", PlayBallReducer),
   __reducerSchema("play_strategy_move", PlayStrategyMoveReducer),
   __reducerSchema("rematch_playground", RematchPlaygroundReducer),
+  __reducerSchema("set_room_presence", SetRoomPresenceReducer),
   __reducerSchema("strike_gilli", StrikeGilliReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),
   __reducerSchema(

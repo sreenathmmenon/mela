@@ -56,6 +56,7 @@ export function PlaygroundMatch({
   const { match, identity, humanName, isPlayer, isSpectator, connected } =
     usePlaygroundMatch(matchId, screen);
   const [crowds] = useTable(tables.matchCrowd);
+  const [rooms] = useTable(tables.roomActivity);
   const [cooldowns] = useTable(tables.ownSpectatorCooldown);
   const [effects] = useTable(tables.visibleCrowdEffects);
   const [memories] = useTable(tables.matchMemory);
@@ -189,6 +190,13 @@ export function PlaygroundMatch({
         </p>
       )}
       {children}
+      {isSpectator &&
+        match?.status === "active" &&
+        rooms.find((r) => r.matchId === matchId)?.hostPresent === false && (
+          <p className="game-room-notice" role="status">
+            The host has left this room. You can stay or choose another game.
+          </p>
+        )}
       {error && (
         <p role="alert" className="pg-alert">
           {error}
