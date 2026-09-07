@@ -5,8 +5,8 @@
 - Rejected per-card GIF/video files after implementation review: six binary loops would slow mobile first paint, compete with the real Pen Fight 3D desk, and make the card system visually inconsistent. The homepage instead uses small CSS-native game previews on the existing illustrative objects: Pen Fight pens nudge, Book Cricket's book and ball settle, and Dots, Four and stick games receive restrained board/object motion.
 - Motion is deliberately infrequent and subtle, uses no network asset or new JavaScript, pauses while a card is hovered, and fully disables under `prefers-reduced-motion`. It remains decoration only; every game still has the same clear direct action and no game outcome is implied by an animation.
 - Verification: Prettier, frontend typecheck and production frontend build pass. Local 390×844 browser check found all seven illustrated preview objects animated, no page errors and no horizontal overflow. Existing >500KB JavaScript chunk warnings are unchanged.
-- Release pending: frontend-only Railway deployment after commit. No Maincloud publication is required because there is no module change.
-- Next task: release this focused presentation pass, then collect actual first-time visitor feedback before expanding visual motion further.
+- Release: Railway deployment `01593f2d-6aa7-46d4-b9ba-a4a343c6f7eb` was observed **SUCCESS** on the existing Mela frontend. A live read-only smoke check confirms the tagline, seven active previews and no horizontal overflow or page errors. No Maincloud publication occurred because there is no module change.
+- Next task: collect actual first-time visitor feedback before expanding visual motion further.
 
 ## Current pass — shared-game-room homepage (2026-09-07)
 
