@@ -1,5 +1,15 @@
 # MELA STATUS
 
+## Current pass — selectable Pen Fight cameras (2026-09-07)
+
+- Added five remembered views: 3D desk, overhead, behind your pen, sideline and pen-follow. Pen-follow tracks committed shot motion and returns to the fitted aiming view. Camera changes during shots blend; switching is locked during an active aiming drag. Preferences are local, optional presentation state. Three.js remains lazy-loaded.
+- Input and rendering use the same camera projection. No server, schema, physics, scoring, AI, crowd privacy, authentication or other-game changes; no Maincloud publication required.
+- Verification: 135/135 deterministic tests, frontend typecheck, frontend production build, transport build and whitespace checks passed. Camera tests cover all five views, board-corner/input round trips, seat positions, follow movement and return, and invalid stored preferences. Existing >500KB bundle warnings remain.
+- Real local Chrome evidence: all five views at 1440px, 390px and 320px without horizontal overflow; each view maps a tap to the same 600,250 desk coordinate and locks the selector during dragging. Mobile-emulated touch drag committed a shot plus automatic AI response; the behind-pen preference survived reload/resume. Pen-follow produced 124 distinct positions across 126 animated frames. Mid-shot switching to overhead preserved the shot; an independent spectator retained sideline and converged on the same round/score. The match subsequently showed its completed 1–2 result with animation stopped. No JavaScript page errors were captured; local favicon 404s were observed.
+- Limitations: mobile checks use Chrome touch emulation, not physical-device certification. Pen-follow is a close chase camera, not an inside-the-mesh first-person view. Graphics recovery remains a simplified top-down presentation until 3D restoration.
+- Release: final verification and Railway delivery in progress; not yet claimed live.
+- Next task: finish frontend release and read-only production camera smoke validation.
+
 ## Current pass — Pen Fight precision, focus and recovery gate (2026-09-07)
 
 - Sreenath rejected the previous completion claim. This pass fixes observed interaction/rendering failures rather than claiming a worldwide quality ranking. Detailed acceptance evidence and limitations: `docs/PEN_FIGHT_RELEASE_GATE.md`.

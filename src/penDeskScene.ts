@@ -1,6 +1,7 @@
 import * as T from "three";
 import {
   deskCamera,
+  penFollowCamera,
   deskToScreen,
   PEN_LENGTH,
   PEN_SCALE,
@@ -328,6 +329,11 @@ export function createDeskScene(
     height = 1;
   let current: DeskFrame | undefined;
   let lastProgress = 1;
+  let restingKey = "",
+    restingCamera = camera;
+  let launchKey = "",
+    launchCamera = camera;
+  let cameraCut: { from: T.PerspectiveCamera; at: number } | undefined;
   const resize = () => {
     width = host.clientWidth;
     height = host.clientHeight;
@@ -346,10 +352,8 @@ export function createDeskScene(
   function draw(frame: DeskFrame, progress = 1) {
     current = frame;
     lastProgress = progress;
-    if ((frame.view ?? "desk") !== cameraView) {
-      cameraView = frame.view ?? "desk";
-      camera = deskCamera(width / height, cameraView);
-    }
+    const previousView = cameraView;
+    cameraView = frame.view ?? "desk";
     let h = frame.human,
       b = frame.bot,
       hFall = 0,
@@ -375,6 +379,60 @@ export function createDeskScene(
       hFall = (m.actor === "human" ? m.actorOut : m.targetOut) ? falling : 0;
       bFall = (m.actor === "melabot" ? m.actorOut : m.targetOut) ? falling : 0;
     }
+    const key = `${width}:${height}:${cameraView}:${frame.human.x}:${frame.human.y}:${frame.bot.x}:${frame.bot.y}`;
+    if (key !== restingKey) {
+      restingKey = key;
+      restingCamera = deskCamera(width / height, cameraView, {
+        human: frame.human,
+        bot: frame.bot,
+      });
+    }
+    let desired = restingCamera.clone();
+    if (
+      m &&
+      progress < 1 &&
+      (cameraView === "behind" || cameraView === "pen")
+    ) {
+      const startKey = `${width}:${height}:${cameraView}:${m.sequence}`;
+      if (startKey !== launchKey) {
+        launchKey = startKey;
+        launchCamera = deskCamera(width / height, cameraView, {
+          human: m.actor === "human" ? m.from : m.targetFrom,
+          bot: m.actor === "human" ? m.targetFrom : m.from,
+        });
+      }
+      if (cameraView === "behind") {
+        const t = Math.max(0, Math.min(1, (progress - 0.7) / 0.3)),
+          blend = t * t * (3 - 2 * t);
+        desired.position.lerp(launchCamera.position, 1 - blend);
+        desired.quaternion.slerp(launchCamera.quaternion, 1 - blend);
+        desired.updateMatrixWorld();
+      }
+    }
+    if (cameraView === "pen" && m && progress < 1) {
+      const actor = m.actor === "human" ? h : b;
+      desired = penFollowCamera(
+        width / height,
+        actor,
+        { x: m.contact.x - m.from.x, y: m.contact.y - m.from.y },
+        desired,
+        progress,
+        launchCamera,
+      );
+    }
+    if (progress < 1 && previousView !== cameraView)
+      cameraCut = { from: camera.clone(), at: performance.now() };
+    if (progress < 1 && cameraCut) {
+      const t = Math.min(1, (performance.now() - cameraCut.at) / 180);
+      const weight = 1 - t * t * (3 - 2 * t);
+      desired.position.lerp(cameraCut.from.position, weight);
+      desired.quaternion.slerp(cameraCut.from.quaternion, weight);
+      desired.fov += (cameraCut.from.fov - desired.fov) * weight;
+      desired.updateProjectionMatrix();
+      desired.updateMatrixWorld();
+      if (t === 1) cameraCut = undefined;
+    } else cameraCut = undefined;
+    camera = desired;
     const humanSide = frame.mirrored ? -1 : 1;
     place(human.group, h, humanSide, hFall);
     place(bot.group, b, -humanSide, bFall);
@@ -464,7 +522,7 @@ export function createDeskScene(
       label.style.left = i ? "78%" : "22%";
       label.style.top = "5%";
       labels[i].hidden =
-        cameraView === "overhead" ||
+        cameraView !== "desk" ||
         progress < 1 ||
         !(i ? bot.group.visible : human.group.visible);
     });
@@ -473,6 +531,11 @@ export function createDeskScene(
     host.dataset.animating = String(progress < 1);
     host.dataset.aim = `${frame.aim.x},${frame.aim.y}`;
     host.dataset.orientation = frame.mirrored ? "right-seat" : "left-seat";
+    host.dataset.camera = cameraView;
+    host.dataset.cameraPosition = camera.position
+      .toArray()
+      .map((n) => n.toFixed(2))
+      .join(",");
     renderer.render(scene, camera);
   }
   resize();

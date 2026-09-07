@@ -3,11 +3,25 @@ import type { DeskPoint } from "../spacetimedb/src/penFightMotion";
 
 // Shared pen dimensions. The authoritative game remains a 1000-unit board.
 export { PEN_LENGTH, PEN_SCALE } from "./penFightInput";
-export type DeskView = "desk" | "overhead";
-export function deskCamera(aspect: number, view: DeskView = "desk") {
+import type { DeskView } from "./penCameraSettings";
+export { DESK_VIEWS, readDeskView, type DeskView } from "./penCameraSettings";
+export type CameraBoard = { human: DeskPoint; bot: DeskPoint };
+export function deskCamera(
+  aspect: number,
+  view: DeskView = "desk",
+  board?: CameraBoard,
+) {
   const camera = new PerspectiveCamera(38, aspect, 1, 6000);
   if (view === "overhead") camera.position.set(0, 1900, 1);
-  else if (aspect > 1.4) camera.position.set(90, 1100, 1450);
+  else if (view === "sideline") camera.position.set(1550, 650, 400);
+  else if (view === "behind" || view === "pen") {
+    const h = board?.human ?? { x: 260, y: 500 },
+      b = board?.bot ?? { x: 740, y: 500 };
+    const dx = b.x - h.x,
+      dy = b.y - h.y,
+      len = Math.hypot(dx, dy) || 1;
+    camera.position.set((-dx / len) * 1500, 800, (-dy / len) * 1500);
+  } else if (aspect > 1.4) camera.position.set(90, 1100, 1450);
   else camera.position.set(90, 1450, 1000);
   camera.lookAt(0, -20, 0);
   camera.updateMatrixWorld();
@@ -27,6 +41,38 @@ export function deskCamera(aspect: number, view: DeskView = "desk") {
     camera.lookAt(0, -20, 0);
     camera.updateMatrixWorld();
   }
+  return camera;
+}
+
+/** Close chase shot using committed presentation coordinates only. Never used
+ * for input while motion is playing. Return to the fitted aiming camera before
+ * the next turn; no saved state or authoritative motion is changed. */
+export function penFollowCamera(
+  aspect: number,
+  actor: DeskPoint,
+  direction: DeskPoint,
+  resting: PerspectiveCamera,
+  progress: number,
+  starting: PerspectiveCamera = resting,
+) {
+  const camera = new PerspectiveCamera(48, aspect, 1, 6000);
+  const len = Math.hypot(direction.x, direction.y) || 1;
+  const dx = direction.x / len,
+    dy = direction.y / len;
+  camera.position.set(actor.x - 500 - dx * 560, 340, actor.y - 500 - dy * 560);
+  camera.lookAt(actor.x - 500 + dx * 180, 18, actor.y - 500 + dy * 180);
+  const t = Math.max(0, Math.min(1, (progress - 0.7) / 0.3));
+  const enter = Math.max(0, Math.min(1, progress / 0.13));
+  const entry = 1 - enter * enter * (3 - 2 * enter);
+  camera.position.lerp(starting.position, entry);
+  camera.quaternion.slerp(starting.quaternion, entry);
+  camera.fov += (starting.fov - camera.fov) * entry;
+  const blend = t * t * (3 - 2 * t);
+  camera.position.lerp(resting.position, blend);
+  camera.quaternion.slerp(resting.quaternion, blend);
+  camera.fov += (resting.fov - camera.fov) * blend;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
   return camera;
 }
 export function deskToScreen(

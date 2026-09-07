@@ -1,4 +1,31 @@
 /* The match owns the viewport. All rules and board coordinates remain in SpacetimeDB. */
+.pen-camera-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #b1c5b9;
+  font-size: 11px;
+}
+.pen-camera-picker select {
+  max-width: 190px;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #edce8e50;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #183d34;
+  color: #fff2d1;
+  font: 600 12px system-ui;
+}
+@media (max-width: 540px) {
+  .pen-camera-picker > span {
+    display: none;
+  }
+  .pen-camera-picker select {
+    max-width: 180px;
+  }
+}
 .pen-studio .pen-expand {
   margin-left: auto;
   color: #fff4d8;

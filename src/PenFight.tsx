@@ -29,7 +29,7 @@ import { PenDesk, SHOT_DURATION, type DeskInput } from "./PenDesk";
 import { boundedAim, canGrabPen } from "./penFightInput";
 import { penAimPoint } from "../spacetimedb/src/penGeometry";
 import { saveDuelCard } from "./penDuelCard";
-import type { DeskView } from "./penDeskProjection";
+import { readDeskView, type DeskView } from "./penCameraSettings";
 import { seatKind } from "../spacetimedb/src/agentDuelRules";
 import {
   PEN_MOTION_PREFIX,
@@ -108,7 +108,20 @@ export function PenFight({
   const [melaProfiles] = useTable(tables.melaProfile);
   const [motion, setMotion] = useState<PenMotion>();
   const [moving, setMoving] = useState(false);
-  const [deskView, setDeskView] = useState<DeskView>("desk");
+  const [deskView, setDeskView] = useState<DeskView>(() => {
+    try {
+      return readDeskView(localStorage.getItem("mela.pen.camera"));
+    } catch {
+      return "desk";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("mela.pen.camera", deskView);
+    } catch {
+      /* Cosmetic preference is optional. */
+    }
+  }, [deskView]);
   const [focusedDesk, setFocusedDesk] = useState(false);
   useEffect(() => {
     if (!focusedDesk) return;
@@ -864,22 +877,21 @@ export function PenFight({
                   {completed ? "MATCH FINISHED" : `${crowdCount} WATCHING`}
                 </small>
               </span>
-              <div role="group" aria-label="Camera angle">
-                <button
-                  aria-pressed={deskView === "desk"}
-                  disabled={moving || aiming}
-                  onClick={() => setDeskView("desk")}
+              <label className="pen-camera-picker">
+                <span>Camera</span>
+                <select
+                  aria-label="Camera angle"
+                  value={deskView}
+                  disabled={aiming}
+                  onChange={(e) => setDeskView(readDeskView(e.target.value))}
                 >
-                  3D desk
-                </button>
-                <button
-                  aria-pressed={deskView === "overhead"}
-                  disabled={moving || aiming}
-                  onClick={() => setDeskView("overhead")}
-                >
-                  Overhead
-                </button>
-              </div>
+                  <option value="desk">3D desk</option>
+                  <option value="overhead">Overhead</option>
+                  <option value="behind">Behind your pen</option>
+                  <option value="sideline">Sideline</option>
+                  <option value="pen">Pen cam · follow shots</option>
+                </select>
+              </label>
               <button
                 className="pen-expand"
                 aria-pressed={focusedDesk}
