@@ -28,8 +28,6 @@ export function AccountControls({ children }: { children: ReactNode }) {
   const [profiles, profilesReady] = useTable(tables.playerProfile);
   const [links, linksReady] = useTable(tables.myIdentityLink);
   const [statuses, statusReady] = useTable(tables.myAccountStatus);
-  const [matches] = useTable(tables.match);
-  const [spectators] = useTable(tables.matchSpectator);
   const canonical = links[0]?.canonicalIdentity ?? conn.identity;
   const me = profiles.find((p) => canonical?.isEqual(p.identity));
   const protectedAccount = statuses[0]?.protected === true;
@@ -44,22 +42,8 @@ export function AccountControls({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [confirmForget, setConfirmForget] = useState(false);
-  const [dismissed, setDismissed] = useState(
-    () => sessionStorage.getItem("mela-save-dismissed") === "1",
-  );
   const handled = useRef(false);
   const dialog = useRef<HTMLDialogElement>(null);
-  const mine = matches.filter(
-    (m) =>
-      canonical &&
-      (m.playerIdentity.isEqual(canonical) ||
-        spectators.some(
-          (s) => s.matchId === m.id && s.identity.isEqual(canonical),
-        )),
-  );
-  const completed =
-    mine.some((m) => m.status === "complete") &&
-    !mine.some((m) => m.status === "active");
   const openAccount = () => {
     setName(me?.displayName ?? "");
     setConfirmForget(false);
@@ -171,32 +155,6 @@ export function AccountControls({ children }: { children: ReactNode }) {
   };
   return (
     <AccountContext.Provider value={{ openAccount }}>
-      {me && (
-        <div className="account-strip">
-          <button onClick={openAccount} aria-label="Your Mela profile">
-            <span aria-hidden="true">◉</span> {me.displayName}{" "}
-            <small>{recoverable ? "Saved profile" : "This browser"}</small>
-          </button>
-        </div>
-      )}
-      {me && completed && !recoverable && !dismissed && (
-        <aside className="save-invitation">
-          <div>
-            <strong>Keep this going.</strong>
-            <span>Save your progress on any device.</span>
-          </div>
-          <button onClick={openAccount}>Save progress</button>
-          <button
-            className="quiet"
-            onClick={() => {
-              setDismissed(true);
-              sessionStorage.setItem("mela-save-dismissed", "1");
-            }}
-          >
-            Not now
-          </button>
-        </aside>
-      )}
       {auth.isAuthenticated &&
       (!statusReady ||
         (protectedAccount && !me && (busy || !handled.current))) ? (

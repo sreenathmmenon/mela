@@ -1,5 +1,14 @@
 # MELA STATUS
 
+## Current pass — homepage composition reset (2026-09-07)
+
+- Sreenath rejected the previous homepage visual balance. This is a composition correction, not a decorative follow-up: returning-player account chrome no longer occupies the first screen, the automatic cross-device save invitation is removed from the page canvas, the empty “Join a crowd” card no longer renders, and the raw opponent-mode button stack is collapsed into one accessible “Play together” disclosure below the game shelf.
+- The persistent profile/recovery capability is retained behind the concise header **Profile** control for a returning person and existing **Sign in** control for a new person. No identity, account, session, email, database, reducer, game, crowd, AI, or history semantics were changed.
+- The home shell now uses a wider 1180px desktop grid with a 1148px aligned stage and game shelf, while the phone keeps a 14px edge gutter and two-card grid. Header, stage, game shelf, memories and optional modes use deliberate spacing rather than independent large margins. The empty/low-value copy no longer displaces the primary action.
+- Verification: Prettier, full **130/130** deterministic suite, frontend typecheck and production frontend build pass. Local browser audit: 1440px grid aligned at 1148px with no overflow; 390px and 320px layouts have no horizontal overflow; no page errors. Mobile visual review confirms the first screen now starts directly at compact Mela header → stage → playable games, with no account banner or empty crowd panel.
+- Release pending: focused commit and existing Railway frontend deployment only. No Maincloud publication is required.
+- Next task: release this homepage composition pass, then independently audit individual game screens rather than mixing game-specific layout changes into home.
+
 ## Current pass — lightweight game previews (2026-09-07)
 
 - Rejected per-card GIF/video files after implementation review: six binary loops would slow mobile first paint, compete with the real Pen Fight 3D desk, and make the card system visually inconsistent. The homepage instead uses small CSS-native game previews on the existing illustrative objects: Pen Fight pens nudge, Book Cricket's book and ball settle, and Dots, Four and stick games receive restrained board/object motion.

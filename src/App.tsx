@@ -625,38 +625,43 @@ function App() {
     }
   };
   const modes = (
-    <section className="home-memories" aria-label="Choose your opponent">
-      <h2>Play together</h2>
-      {["pen_fight", "four_row"].map((kind) => (
-        <section
-          key={kind}
-          aria-label={GAME_LABELS[kind] + " opponents"}
-          className="opponent-choice"
-        >
-          <h3>{GAME_LABELS[kind]}</h3>
-          <div className="duel-launch">
-            <button
-              disabled={joining || !connected}
-              onClick={() => void openPenMode("friends", kind)}
-            >
-              Play with a friend
-            </button>
-            <button
-              disabled={joining || !connected}
-              onClick={() => void openPenMode("human_agent", kind)}
-            >
-              Challenge an agent
-            </button>
-            <button
-              disabled={joining || !connected}
-              onClick={() => void openPenMode("duel", kind)}
-            >
-              Host two agents
-            </button>
-          </div>
-        </section>
-      ))}
-    </section>
+    <details className="home-more-ways" aria-label="More ways to play">
+      <summary>
+        <span>Play together</span>
+        <small>Friends, agents, or both</small>
+      </summary>
+      <div className="home-more-ways-body">
+        {["pen_fight", "four_row"].map((kind) => (
+          <section
+            key={kind}
+            aria-label={GAME_LABELS[kind] + " opponents"}
+            className="opponent-choice"
+          >
+            <h3>{GAME_LABELS[kind]}</h3>
+            <div className="duel-launch">
+              <button
+                disabled={joining || !connected}
+                onClick={() => void openPenMode("friends", kind)}
+              >
+                Play with a friend
+              </button>
+              <button
+                disabled={joining || !connected}
+                onClick={() => void openPenMode("human_agent", kind)}
+              >
+                Challenge an agent
+              </button>
+              <button
+                disabled={joining || !connected}
+                onClick={() => void openPenMode("duel", kind)}
+              >
+                Host two agents
+              </button>
+            </div>
+          </section>
+        ))}
+      </div>
+    </details>
   );
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
@@ -1081,7 +1086,14 @@ function App() {
           <div>
             <h1>{displayedMatch ? "Book Cricket" : "Mela"}</h1>
           </div>
-          {!me && (
+          {me ? (
+            <button
+              className="link-back home-profile-link"
+              onClick={openAccount}
+            >
+              Profile
+            </button>
+          ) : (
             <button className="link-back" onClick={openAccount}>
               Sign in
             </button>

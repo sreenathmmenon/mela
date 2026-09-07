@@ -504,6 +504,216 @@
     transform: none;
   }
 }
+
+/* The home is a game shelf, not a dashboard. One wide alignment system, with
+   advanced choices deliberately quieter than the games themselves. */
+.mela-shell.home-landing {
+  width: min(100%, 1180px);
+  padding-top: 20px;
+}
+.home-landing .hero {
+  margin: 0;
+  padding: 6px 2px 16px;
+}
+.home-landing .hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  letter-spacing: -0.045em;
+}
+.home-landing .hero-row {
+  align-items: center;
+}
+.home-landing .link-back,
+.home-profile-link {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.home-discovery {
+  padding-top: 18px;
+}
+.home-stage {
+  min-height: 314px;
+  margin: 0 0 28px;
+}
+.home-stage-copy {
+  padding: 34px 38px;
+}
+.home-stage h2 {
+  max-width: 18ch;
+  font-size: clamp(34px, 4.1vw, 52px);
+}
+.home-stage-copy > p:not(.home-stage-kicker) {
+  margin: 14px 0 18px;
+}
+.home-game-grid {
+  gap: 20px;
+}
+.home-game {
+  border-radius: 16px;
+}
+.home-game-copy {
+  padding: 18px;
+}
+.home-game-featured {
+  min-height: 282px;
+}
+.home-game-featured .home-art {
+  min-height: 280px;
+}
+.home-game-featured .home-game-copy {
+  padding: 30px;
+}
+.home-live {
+  margin: 30px 0 0;
+}
+.home-memories {
+  margin: 34px 0 0;
+}
+.home-memories h2 {
+  margin: 0 0 14px;
+  font-size: 23px;
+}
+.home-memories ul {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+.home-memories button {
+  min-height: 96px;
+  padding: 14px 16px;
+}
+.home-more-ways {
+  margin: 28px 0 0;
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.home-more-ways summary {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 750;
+}
+.home-more-ways summary::-webkit-details-marker {
+  display: none;
+}
+.home-more-ways summary::after {
+  content: "+";
+  color: var(--teal-text);
+  font-family: var(--font-body);
+  font-size: 25px;
+  font-weight: 400;
+}
+.home-more-ways[open] summary::after {
+  content: "−";
+}
+.home-more-ways summary small {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+}
+.home-more-ways-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 0 0 22px;
+}
+.home-more-ways .opponent-choice {
+  padding: 18px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.home-more-ways .opponent-choice h3 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+.home-more-ways .duel-launch {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+}
+.home-more-ways .duel-launch button {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  box-shadow: none;
+  font-size: 13px;
+  text-align: left;
+}
+.home-more-ways summary:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: -3px;
+}
+
+@media (max-width: 640px) {
+  .mela-shell.home-landing {
+    padding-top: 12px;
+  }
+  .home-landing .hero {
+    padding-bottom: 12px;
+  }
+  .home-landing .hero h1 {
+    font-size: 31px;
+  }
+  .home-discovery {
+    padding-top: 14px;
+  }
+  .home-stage {
+    min-height: 0;
+    margin-bottom: 22px;
+  }
+  .home-stage-copy {
+    padding: 23px 20px 19px;
+  }
+  .home-stage h2 {
+    font-size: clamp(29px, 8.7vw, 37px);
+  }
+  .home-game-grid {
+    gap: 12px;
+  }
+  .home-game-copy {
+    padding: 13px 12px;
+  }
+  .home-game-featured .home-game-copy {
+    padding: 13px 12px;
+  }
+  .home-memories {
+    margin-top: 28px;
+  }
+  .home-memories ul {
+    grid-template-columns: 1fr;
+  }
+  .home-more-ways {
+    margin-top: 24px;
+  }
+  .home-more-ways summary {
+    min-height: 54px;
+    font-size: 18px;
+  }
+  .home-more-ways summary small {
+    display: none;
+  }
+  .home-more-ways-body {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-bottom: 16px;
+  }
+  .home-more-ways .opponent-choice {
+    padding: 14px;
+  }
+}
 .home-landing .hero {
   padding-bottom: 16px;
   border-bottom: 1px solid #d6c9ac;

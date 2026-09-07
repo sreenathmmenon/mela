@@ -157,36 +157,30 @@ export function HomeDiscovery({
           ))}
         </div>
       </section>
-      {
+      {live.length > 0 && (
         <section className="home-live" aria-labelledby="home-live-title">
           <h2 id="home-live-title">Join a crowd</h2>
-          {live.length ? (
-            <ul>
-              {live.map((match) => (
-                <li key={match.id.toString()}>
+          <ul>
+            {live.map((match) => (
+              <li key={match.id.toString()}>
+                <span>
+                  <strong>{match.game}</strong>
                   <span>
-                    <strong>{match.game}</strong>
-                    <span>
-                      {match.host} · {match.watching} watching
-                    </span>
+                    {match.host} · {match.watching} watching
                   </span>
-                  <button
-                    disabled={busy}
-                    onClick={() => onWatch(match.id)}
-                    aria-label={`Join ${match.host}'s ${match.game} crowd`}
-                  >
-                    Watch →
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="home-empty">
-              No open rooms. Start a game and invite a friend.
-            </p>
-          )}
+                </span>
+                <button
+                  disabled={busy}
+                  onClick={() => onWatch(match.id)}
+                  aria-label={`Join ${match.host}'s ${match.game} crowd`}
+                >
+                  Watch →
+                </button>
+              </li>
+            ))}
+          </ul>
         </section>
-      }
+      )}
     </div>
   );
 }
