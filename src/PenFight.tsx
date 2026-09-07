@@ -109,6 +109,15 @@ export function PenFight({
   const [motion, setMotion] = useState<PenMotion>();
   const [moving, setMoving] = useState(false);
   const [deskView, setDeskView] = useState<DeskView>("desk");
+  const [focusedDesk, setFocusedDesk] = useState(false);
+  useEffect(() => {
+    if (!focusedDesk) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [focusedDesk]);
   const [replayKey, setReplayKey] = useState(0);
   const [savingCard, setSavingCard] = useState(false);
   const [feed, setFeed] = useState<
@@ -311,6 +320,7 @@ export function PenFight({
   ]);
   useEffect(() => {
     if (!completed) return;
+    setFocusedDesk(false);
     const timer = window.setTimeout(
       () =>
         memoryCard.current?.scrollIntoView({
@@ -760,7 +770,7 @@ export function PenFight({
     </section>
   );
   return (
-    <main className="pen-shell pen-studio">
+    <main className={`pen-shell pen-studio ${focusedDesk ? "pen-focus" : ""}`}>
       <header className="pen-top">
         <div>
           <h1>Pen Fight</h1>
@@ -870,6 +880,14 @@ export function PenFight({
                   Overhead
                 </button>
               </div>
+              <button
+                className="pen-expand"
+                aria-pressed={focusedDesk}
+                onClick={() => setFocusedDesk((value) => !value)}
+                disabled={aiming || duel?.phase === "lobby"}
+              >
+                {focusedDesk ? "Exit focus" : "Focus desk"}
+              </button>
             </div>
             <div className="pen-turn">
               <strong>
@@ -877,7 +895,9 @@ export function PenFight({
                   ? `${displayMotion?.actor === "human" ? human.toUpperCase() : opponent.toUpperCase()}’S FLICK`
                   : completed
                     ? "DUEL REMEMBERED"
-                    : `${actor.toUpperCase()}’S TURN`}
+                    : duel?.phase === "lobby"
+                      ? "WAITING FOR YOUR OPPONENT"
+                      : `${actor.toUpperCase()}’S TURN`}
               </strong>
               <span>
                 {moving
@@ -885,9 +905,11 @@ export function PenFight({
                   : completed
                     ? state.lastOutcome
                     : duel
-                      ? duel.phase === "intent"
-                        ? "Shot committed. The crowd has its moment."
-                        : `${actor} is choosing a shot.`
+                      ? duel.phase === "lobby"
+                        ? "Share the player invitation to start."
+                        : duel.phase === "intent"
+                          ? "Shot committed. The crowd has its moment."
+                          : `${actor} is choosing a shot.`
                       : state.turn === "human"
                         ? owns
                           ? myPlan
@@ -905,6 +927,7 @@ export function PenFight({
               }
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
+                  if (!aiming) setFocusedDesk(false);
                   setAiming(false);
                   setPullPoint(null);
                   dragStart.current = null;
@@ -967,6 +990,7 @@ export function PenFight({
                         ? canGrabPen(
                             { x, y },
                             { x: state.humanX, y: state.humanY },
+                            rightHuman,
                           )
                         : Math.hypot(x - state.humanX, y - state.humanY) <= 110;
                       if (!grabbed) {
@@ -1028,6 +1052,13 @@ export function PenFight({
                 setAiming(false);
                 setPullPoint(null);
                 dragStart.current = null;
+                shot.current = null;
+              }}
+              onLostPointerCapture={() => {
+                setAiming(false);
+                setPullPoint(null);
+                dragStart.current = null;
+                shot.current = null;
               }}
             >
               <i className="notebook-line l1" />
@@ -1084,6 +1115,7 @@ export function PenFight({
                 onFall={showFall}
                 completed={completed}
                 view={deskView}
+                mirrored={rightHuman}
                 replayKey={replayKey}
               />
               {owns && !completed && !moving && state.turn === "human" && (
@@ -1114,8 +1146,12 @@ export function PenFight({
           {owns && !completed && (
             <section className="flick-controls">
               <div className="shot-control-heading">
-                <span>YOUR MOVE</span>
-                <strong>Make it count.</strong>
+                <span>{state.turn === "human" ? "YOUR MOVE" : "NEXT UP"}</span>
+                <strong>
+                  {state.turn === "human"
+                    ? "Line up your flick."
+                    : "Watch the desk."}
+                </strong>
               </div>
               <fieldset
                 className="pen-target-controls"
@@ -1133,7 +1169,7 @@ export function PenFight({
                 ).map(([offset, label]) => {
                   const point = penAimPoint(
                     { x: state.botX, y: state.botY },
-                    "melabot",
+                    rightHuman ? "human" : "melabot",
                     offset,
                   );
                   const x = Math.max(0, Math.min(1000, Math.round(point.x))),
@@ -1407,7 +1443,8 @@ export function PenFight({
       {owns && crowd && !completed && (
         <section className="pen-crowd pen-player-crowd">
           <p className="eyebrow">
-            THE CROWD IS WITH YOU · {crowd.energy}/{crowd.maxEnergy} ENERGY
+            {crowdCount > 0 ? `${crowdCount} AROUND THE DESK` : "CROWD ENERGY"}{" "}
+            · {crowd.energy}/{crowd.maxEnergy} ENERGY
           </p>
           <p>
             {crowdCount

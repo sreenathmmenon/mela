@@ -1,4 +1,51 @@
 /* The match owns the viewport. All rules and board coordinates remain in SpacetimeDB. */
+.pen-studio .pen-expand {
+  margin-left: auto;
+  color: #fff4d8;
+  background: #ffffff12;
+  border: 1px solid #ffffff30;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pen-studio .desk-render-notice button {
+  margin-left: 8px;
+  min-height: 44px;
+}
+.pen-studio .desk-render-notice {
+  color: #173a31;
+}
+.pen-shell.pen-studio.pen-focus {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+.pen-studio.pen-focus > .pen-top,
+.pen-studio.pen-focus > .game-invite-link,
+.pen-studio.pen-focus .pen-join,
+.pen-studio.pen-focus .pen-picker,
+.pen-studio.pen-focus > .pen-result,
+.pen-studio.pen-focus > .pen-player-crowd {
+  display: none;
+}
+.pen-studio.pen-focus .pen-arena {
+  height: calc(100dvh - 230px);
+}
+.pen-studio.pen-focus .pen-score {
+  padding: 0 12px 10px;
+}
+.pen-studio.pen-focus .pen-score > span:first-child strong,
+.pen-studio.pen-focus .pen-score > span:last-child strong {
+  font-size: 28px;
+}
+.pen-focus .pen-control-column {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
 .pen-shell.pen-studio {
   width: 100%;
   max-width: none;
@@ -776,6 +823,46 @@
   }
 }
 @media (max-height: 550px) and (min-width: 600px) {
+  .pen-studio.pen-focus .pen-score {
+    padding-bottom: 8px;
+  }
+  .pen-focus .pen-score > span > small,
+  .pen-focus .pen-score > b em,
+  .pen-focus .round-pips,
+  .pen-focus .desk-name,
+  .pen-focus .pen-turn span,
+  .pen-focus .pen-desk-toolbar > span {
+    display: none;
+  }
+  .pen-studio.pen-focus .pen-turn {
+    min-height: 30px;
+    padding: 6px 12px;
+  }
+  .pen-studio.pen-focus .pen-arena {
+    height: calc(100dvh - 165px);
+  }
+  .pen-studio.pen-focus .flick-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+  .pen-focus .shot-control-heading,
+  .pen-focus .flick-controls > .eyebrow,
+  .pen-focus .flick-strength-help,
+  .pen-focus .desk-keyboard-help,
+  .pen-focus .pen-target-controls small {
+    display: none;
+  }
+  .pen-focus .pen-shot-options {
+    order: 10;
+    margin: 0;
+  }
+  .pen-focus .pen-target-controls {
+    margin: 0;
+  }
+}
+@media (max-height: 550px) and (min-width: 600px) {
   .pen-play-layout {
     grid-template-columns: minmax(0, 1fr) 260px;
     gap: 14px;
@@ -791,5 +878,39 @@
 @media (max-width: 360px) {
   .pen-studio .pen-arena {
     height: 240px;
+  }
+}
+@media (max-width: 540px) {
+  .pen-studio .pen-desk-toolbar > span {
+    display: none;
+  }
+  .pen-studio .pen-desk-toolbar {
+    gap: 6px;
+  }
+  .pen-studio .pen-desk-toolbar button {
+    min-height: 40px;
+  }
+  .pen-studio.pen-focus {
+    padding: 8px;
+  }
+  .pen-focus .pen-score {
+    padding-top: 0;
+    padding-bottom: 10px;
+  }
+  .pen-focus .pen-score > span > small,
+  .pen-focus .round-pips,
+  .pen-focus .pen-score > b em {
+    display: none;
+  }
+  .pen-focus .pen-score > span:first-child strong,
+  .pen-focus .pen-score > span:last-child strong {
+    font-size: 26px;
+  }
+  .pen-studio.pen-focus .pen-arena {
+    height: max(250px, calc(100dvh - 450px));
+  }
+  .pen-focus .pen-control-column {
+    max-height: none;
+    overflow: visible;
   }
 }

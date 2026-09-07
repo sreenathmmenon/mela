@@ -35,11 +35,16 @@ export function boundedAim(
 
 /** Forgiving input capsule covering the visible cap, barrel and tip. This
  * decides whether a gesture starts on your pen; it never decides a collision. */
-export function canGrabPen(point: DeskPoint, centre: DeskPoint) {
+export function canGrabPen(
+  point: DeskPoint,
+  centre: DeskPoint,
+  mirrored = false,
+) {
   const dx = point.x - centre.x,
     dy = point.y - centre.y;
-  const cross = dx * Math.cos(HUMAN_PEN_YAW) - dy * Math.sin(HUMAN_PEN_YAW);
-  const along = dx * Math.sin(HUMAN_PEN_YAW) + dy * Math.cos(HUMAN_PEN_YAW);
+  const yaw = mirrored ? -HUMAN_PEN_YAW : HUMAN_PEN_YAW;
+  const cross = dx * Math.cos(yaw) - dy * Math.sin(yaw);
+  const along = dx * Math.sin(yaw) + dy * Math.cos(yaw);
   return (
     Math.hypot(
       cross,

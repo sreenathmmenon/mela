@@ -1,5 +1,16 @@
 # MELA STATUS
 
+## Current pass — Pen Fight precision, focus and recovery gate (2026-09-07)
+
+- Sreenath rejected the previous completion claim. This pass fixes observed interaction/rendering failures rather than claiming a worldwide quality ranking. Detailed acceptance evidence and limitations: `docs/PEN_FIGHT_RELEASE_GATE.md`.
+- Fixed second-human-seat pen orientation, cap/tip targeting and input footprint; located contact flashes at committed touching surfaces instead of the moving pen's centre; aligned the SVG recovery silhouette and actual pointer transform. Direction-only dashed guidance and a full-length selected-pen contour improve aiming without predicting hidden crowd outcomes.
+- Added optional Focus desk with reachable Exit, score, camera and player/crowd controls. Initial clipping was found and corrected at phone/desktop/landscape sizes. Waiting-seat and empty-crowd copy now reflect actual state. Escape/cancel/lost capture clear unfinished drags.
+- Fixed graphics recovery: host survives context loss, Restore 3D reconstructs the canvas without rejoining or mutating the match, its button cannot also change aim, and returning to a tab does not replay a previously presented motion. In a fresh forced-loss test, a recovery-view tap at 600,250 remained 600,250 after restoration; both pens stayed at 260,500 and 740,500 with no shot committed.
+- Verification: Prettier, **133/133 tests**, frontend typecheck, production frontend build, transport build and diff whitespace checks pass. Human-seat SDK regression passes full human-human/human-agent matches, stale/duplicate/role rejection, reconnect and named history. Existing >500KB bundle warnings remain.
+- Real browser evidence: independent desktop player, mobile-touch second player and spectator converge; real touch drag advanced the right seat; cap target matches authoritative mirrored geometry; pending DESK TILT stayed spectator-only; the human match completed 2–0 consistently. One longer test lost its player page for an unestablished reason; reopening the same context resumed ownership and finished the match. This is documented, not represented as an uninterrupted run. Fresh solo/automatic AI plus tab-return check passed with no replay; mobile Book Cricket entry/first ball passed. Interactive checks captured no JavaScript page errors.
+- Scope: no server/module/schema/physics/AI policy/authentication or other-game mechanics changes. No Maincloud publication needed. Tests use local emulated mobile Chrome, not physical iPhone/Android certification or independent player preference evidence.
+- Release: source commit and Railway deployment pending. Next task: finish the scoped frontend release and read-only production smoke; retain real-device/player evaluation as an explicit unverified area, not a claim of global superiority.
+
 ## Current pass — Pen Fight full-width play experience (2026-09-07)
 
 - Rebuilt the Pen Fight presentation around a broad desktop 3D stage and a separately composed phone layout. Removed the old 620px stage cap, added a control/crowd rail, refined wood and lighting, compacted score/turn hierarchy and kept optional controls out of the primary phone action. Research, decisions and evidence: `docs/PEN_FIGHT_PLAY_EXPERIENCE.md`.

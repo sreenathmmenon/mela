@@ -1,13 +1,15 @@
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
-import { aimGuide } from "./penFightExperience";
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
 import { playSound } from "./sound";
+import { HUMAN_PEN_YAW } from "./penFightInput";
+import { contactFlashPoint, directionGuide } from "./penContactPresentation";
+import type { DeskInput } from "./PenDesk";
 import "./penDesk.css";
 
 export const SHOT_DURATION = 880;
 const clampVisual = (v: number) => Math.max(-95, Math.min(1095, v));
-const penAngle = (point: DeskPoint, human: boolean) =>
-  (human ? -12 : 168) + ((Math.round(point.x) + Math.round(point.y)) % 24) - 12;
+const penAngle = (_point: DeskPoint, human: boolean) =>
+  -90 - ((human ? 1 : -1) * HUMAN_PEN_YAW * 180) / Math.PI;
 const position = (p: DeskPoint, angle = 0, scale = 1) =>
   `translate(${clampVisual(p.x)}px, ${clampVisual(p.y)}px) rotate(${angle}deg) scale(${scale})`;
 
@@ -142,6 +144,9 @@ export function PenDeskFallback({
   onFall,
   replayKey = 0,
   completed,
+  mirrored = false,
+  botName = "MelaBot",
+  inputRef,
 }: {
   human: DeskPoint;
   bot: DeskPoint;
@@ -158,12 +163,36 @@ export function PenDeskFallback({
   onFall?: (motion: PenMotion) => void;
   replayKey?: number;
   completed: boolean;
+  mirrored?: boolean;
+  botName?: string;
+  inputRef?: { current: DeskInput | null };
 }) {
   const uid = useId().replace(/:/g, "");
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    if (!inputRef) return;
+    const project: DeskInput = (clientX, clientY) => {
+      const svg = svgRef.current,
+        matrix = svg?.getScreenCTM();
+      if (!svg || !matrix) return null;
+      const point = svg.createSVGPoint();
+      point.x = clientX;
+      point.y = clientY;
+      const world = point.matrixTransform(matrix.inverse());
+      return { x: world.x, y: world.y };
+    };
+    inputRef.current = project;
+    return () => {
+      if (inputRef.current === project) inputRef.current = null;
+    };
+  }, [inputRef]);
   const humanRef = useRef<SVGGElement>(null);
   const botRef = useRef<SVGGElement>(null);
   const impactRef = useRef<SVGGElement>(null);
-  const lastMotion = useRef<string>();
+  // Entering recovery shows the current committed board, not an old shot.
+  const lastMotion = useRef<string | undefined>(
+    motion ? `${motion.sequence}:${replayKey}` : undefined,
+  );
   const activeAnimations = useRef<Animation[]>([]);
   useLayoutEffect(() => {
     const sequence = motion ? `${motion.sequence}:${replayKey}` : undefined;
@@ -183,11 +212,17 @@ export function PenDeskFallback({
     const target = motion.actor === "human" ? botRef.current : humanRef.current;
     if (!actor || !target) return;
     onMoving(true);
-    const actorAngle = penAngle(motion.from, motion.actor === "human");
+    const actorAngle = penAngle(
+      motion.from,
+      (motion.actor === "human") !== mirrored,
+    );
     const targetSide = motion.actor === "human" ? "melabot" : "human";
-    const targetAngle = penAngle(motion.targetFrom, targetSide === "human");
-    const actorEndAngle = penAngle(motion.end, motion.actor === "human");
-    const targetEndAngle = penAngle(motion.targetEnd, targetSide === "human");
+    const targetAngle = penAngle(
+      motion.targetFrom,
+      (targetSide === "human") !== mirrored,
+    );
+    const actorEndAngle = actorAngle;
+    const targetEndAngle = targetAngle;
     const actorFrames = [
       {
         transform: position(motion.from, actorAngle),
@@ -198,7 +233,7 @@ export function PenDeskFallback({
       {
         transform: position(
           motion.hit ? motion.contact : motion.end,
-          actorAngle + (motion.hit ? 4 : 12),
+          actorAngle,
         ),
         offset: 0.38,
         opacity: 1,
@@ -278,13 +313,19 @@ export function PenDeskFallback({
       window.clearTimeout(endTimer);
       animations.forEach((animation) => animation.cancel());
     };
-  }, [motion, onMoving, onImpact, onFall, replayKey]);
+  }, [motion, onMoving, onImpact, onFall, replayKey, mirrored]);
   useEffect(
     () => () =>
       activeAnimations.current.forEach((animation) => animation.cancel()),
     [],
   );
-  const end = aimGuide(human, aim, power);
+  const guide = directionGuide(human, aim);
+  const length = Math.min(160, guide?.distance ?? 0);
+  const end = {
+    x: human.x + (guide?.x ?? 0) * length,
+    y: human.y + (guide?.y ?? 0) * length,
+  };
+  const flash = motion ? contactFlashPoint(motion, mirrored) : null;
   const color =
     pen === "pen-metal"
       ? "#94b3b9"
@@ -296,10 +337,11 @@ export function PenDeskFallback({
   const ink = power > 75 ? "#c74624" : power > 40 ? "#df9524" : "#16b7a8";
   return (
     <svg
+      ref={svgRef}
       className="physical-desk"
       data-motion-sequence={motion?.sequence}
       viewBox="0 0 1000 1000"
-      aria-label={`Pen Fight desk. ${humanName}'s pen and MelaBot's pen.`}
+      aria-label={`Pen Fight desk. ${humanName}'s pen and ${botName}'s pen.`}
       role="img"
     >
       <defs>
@@ -397,6 +439,23 @@ export function PenDeskFallback({
       </text>
       {interactive && (
         <g className={aiming ? "desk-aim is-pulling" : "desk-aim"}>
+          <line
+            x1={human.x}
+            y1={human.y}
+            x2={aim.x}
+            y2={aim.y}
+            stroke="#fff0c5"
+            strokeWidth="3"
+            strokeDasharray="15 12"
+          />
+          <circle
+            cx={aim.x}
+            cy={aim.y}
+            r="15"
+            fill="none"
+            stroke="#fff0c5"
+            strokeWidth="4"
+          />
           <circle
             cx={human.x}
             cy={human.y}
@@ -454,7 +513,7 @@ export function PenDeskFallback({
         ref={humanRef}
         data-pen="human"
         style={{
-          transform: position(human, penAngle(human, true)),
+          transform: position(human, penAngle(human, !mirrored)),
           opacity:
             completed &&
             motion &&
@@ -463,19 +522,21 @@ export function PenDeskFallback({
               : 1,
         }}
       >
-        <PenShape
-          color={color}
-          name={humanName.slice(0, 8).toUpperCase()}
-          id={`${uid}-human`}
-          metal={pen === "pen-metal"}
-          fountain={pen === "pen-fountain"}
-        />
+        <g transform="scale(2.54545 1.71428) translate(8.5 0)">
+          <PenShape
+            color={color}
+            name={humanName.slice(0, 8).toUpperCase()}
+            id={`${uid}-human`}
+            metal={pen === "pen-metal"}
+            fountain={pen === "pen-fountain"}
+          />
+        </g>
       </g>
       <g
         ref={botRef}
         data-pen="melabot"
         style={{
-          transform: position(bot, penAngle(bot, false)),
+          transform: position(bot, penAngle(bot, mirrored)),
           opacity:
             completed &&
             motion &&
@@ -484,10 +545,17 @@ export function PenDeskFallback({
               : 1,
         }}
       >
-        <PenShape color="#bf5140" name="BOT" id={`${uid}-bot`} metal />
+        <g transform="scale(2.54545 1.71428) translate(8.5 0)">
+          <PenShape
+            color="#bf5140"
+            name={botName.slice(0, 8)}
+            id={`${uid}-bot`}
+            metal
+          />
+        </g>
       </g>
-      {motion?.hit && (
-        <g transform={`translate(${motion.contact.x},${motion.contact.y})`}>
+      {motion?.hit && flash && (
+        <g transform={`translate(${flash.x},${flash.y})`}>
           <g ref={impactRef} opacity="0">
             <circle
               r="34"

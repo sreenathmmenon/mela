@@ -9,6 +9,7 @@ import {
 } from "./penDeskProjection";
 import type { DeskPoint, PenMotion } from "../spacetimedb/src/penFightMotion";
 import { HUMAN_PEN_YAW } from "./penFightInput";
+import { contactFlashPoint, directionGuide } from "./penContactPresentation";
 
 export type DeskFrame = {
   pull?: DeskPoint | null;
@@ -22,6 +23,7 @@ export type DeskFrame = {
   completed: boolean;
   motion?: PenMotion;
   view?: DeskView;
+  mirrored?: boolean;
 };
 
 function material(
@@ -230,12 +232,34 @@ export function createDeskScene(
     bot = penModel(true);
   scene.add(human.group, bot.group);
   const ring = mesh(
-    new T.RingGeometry(53, 59, 64),
-    new T.MeshBasicMaterial({ color: "#087e83", side: T.DoubleSide }),
+    new T.RingGeometry(1, 1.06, 64),
+    new T.MeshBasicMaterial({
+      color: "#9be7d5",
+      side: T.DoubleSide,
+      transparent: true,
+      opacity: 0.8,
+    }),
     scene,
   );
   ring.rotation.x = -Math.PI / 2;
   ring.castShadow = false;
+  const guideGeometry = new T.BufferGeometry().setFromPoints([
+    new T.Vector3(),
+    new T.Vector3(1, 0, 0),
+  ]);
+  const guideLine = new T.Line(
+    guideGeometry,
+    new T.LineDashedMaterial({
+      color: 0xfff0c5,
+      dashSize: 15,
+      gapSize: 12,
+      transparent: true,
+      opacity: 0.75,
+      depthTest: false,
+    }),
+  );
+  guideLine.renderOrder = 19;
+  scene.add(guideLine);
   const arrow = new T.ArrowHelper(
     new T.Vector3(1, 0, 0),
     new T.Vector3(),
@@ -351,8 +375,9 @@ export function createDeskScene(
       hFall = (m.actor === "human" ? m.actorOut : m.targetOut) ? falling : 0;
       bFall = (m.actor === "melabot" ? m.actorOut : m.targetOut) ? falling : 0;
     }
-    place(human.group, h, 1, hFall);
-    place(bot.group, b, -1, bFall);
+    const humanSide = frame.mirrored ? -1 : 1;
+    place(human.group, h, humanSide, hFall);
+    place(bot.group, b, -humanSide, bFall);
     if (m?.hit && progress > 0.38 && progress < 1) {
       // Brief surface recoil, not persistent orientation or collision physics.
       const recoil = Math.sin(((progress - 0.38) / 0.62) * Math.PI) * 0.13;
@@ -381,8 +406,10 @@ export function createDeskScene(
         frame.interactive && progress >= 1;
     ring.position.set(h.x - 500, 2, h.y - 500);
     aimMarker.visible = frame.interactive && progress >= 1;
-    aimMarker.position.set(frame.aim.x - 500, 26, frame.aim.y - 500);
-    ring.scale.setScalar(frame.aiming ? 1.12 : 1);
+    aimMarker.position.set(frame.aim.x - 500, 2, frame.aim.y - 500);
+    // A whole-pen selection contour makes every grabbable part discoverable.
+    ring.scale.set(38, (PEN_LENGTH * PEN_SCALE) / 2 + 12, 1);
+    ring.rotation.z = humanSide * HUMAN_PEN_YAW;
     finger.visible = tether.visible =
       frame.aiming && !!frame.pull && progress >= 1;
     if (frame.pull) {
@@ -404,9 +431,13 @@ export function createDeskScene(
     if (direction.length() < 1) direction.set(1, 0, 0);
     arrow.position.set(h.x - 500, 5, h.y - 500);
     arrow.setDirection(direction.normalize());
-    arrow.setLength(110 + frame.power * 1.9, 32, 23);
+    // Solid arrow shows direction. Dashed guide reaches the chosen aim point.
+    // Neither claims a seed/crowd-dependent travel distance or outcome.
+    const guide = directionGuide(h, frame.aim);
+    const arrowLength = Math.min(160, guide?.distance ?? 160);
+    arrow.setLength(arrowLength, Math.min(32, arrowLength * 0.3), 23);
     arrow.setColor(frame.power > 75 ? 0xd64726 : 0x087e83);
-    const shaftLength = 110 + frame.power * 1.9 - 24;
+    const shaftLength = Math.max(1, arrowLength - 24);
     shaft.scale.y = shaftLength;
     shaft.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), direction);
     shaft.position
@@ -415,9 +446,17 @@ export function createDeskScene(
     (shaft.material as T.MeshBasicMaterial).color.set(
       frame.power > 75 ? 0xd64726 : 0x087e83,
     );
+    guideLine.visible = frame.interactive && progress >= 1 && !!guide;
+    const positions = guideGeometry.attributes.position as T.BufferAttribute;
+    positions.setXYZ(0, h.x - 500, 3, h.y - 500);
+    positions.setXYZ(1, frame.aim.x - 500, 3, frame.aim.y - 500);
+    positions.needsUpdate = true;
+    guideGeometry.computeBoundingSphere();
+    guideLine.computeLineDistances();
     impact.visible = !!m?.hit && progress > 0.38 && progress < 0.7;
     if (m) {
-      impact.position.set(m.contact.x - 500, 4, m.contact.y - 500);
+      const flash = contactFlashPoint(m, frame.mirrored) ?? m.contact;
+      impact.position.set(flash.x - 500, 4, flash.y - 500);
       impact.scale.setScalar(1 + Math.max(0, progress - 0.38) * 9);
     }
     // Names belong in the clear upper margin, never over a pen or its aim line.
@@ -433,6 +472,7 @@ export function createDeskScene(
     host.dataset.bot = `${b.x.toFixed(1)},${b.y.toFixed(1)}`;
     host.dataset.animating = String(progress < 1);
     host.dataset.aim = `${frame.aim.x},${frame.aim.y}`;
+    host.dataset.orientation = frame.mirrored ? "right-seat" : "left-seat";
     renderer.render(scene, camera);
   }
   resize();

@@ -31,6 +31,8 @@ export function PenDesk(props: Props) {
   const raf = useRef(0);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const lastPlayed = useRef<string>();
 
   useEffect(() => {
     let disposed = false;
@@ -47,6 +49,7 @@ export function PenDesk(props: Props) {
       event.preventDefault();
       releaseScene();
       setFailed(true);
+      setReady(false);
       latest.current.onMoving(false);
     };
     const startScene = () => {
@@ -93,7 +96,7 @@ export function PenDesk(props: Props) {
       document.removeEventListener("visibilitychange", visibilityChanged);
       releaseScene();
     };
-  }, []);
+  }, [retryKey]);
   useEffect(() => {
     if (!active.current) scene.current?.draw(props);
   }, [props]);
@@ -109,6 +112,13 @@ export function PenDesk(props: Props) {
       return;
     }
     const motion = props.motion;
+    const playbackKey = `${motion.matchId}:${motion.sequence}:${props.replayKey ?? 0}`;
+    if (lastPlayed.current === playbackKey) {
+      scene.current?.draw(latest.current);
+      props.onMoving(false);
+      return;
+    }
+    lastPlayed.current = playbackKey;
     active.current = { motion, start: performance.now() };
     scene.current?.draw({ ...latest.current, motion }, 0);
     props.onMoving(true);
@@ -180,28 +190,38 @@ export function PenDesk(props: Props) {
     if (!failed) return;
     scene.current?.dispose();
     scene.current = undefined;
-    if (props.inputRef) props.inputRef.current = null;
   }, [failed, props.inputRef]);
-  if (failed)
-    return (
-      <>
-        <PenDeskFallback {...props} />
-        <span className="desk-render-notice">
-          3D unavailable on this device · simplified view
-        </span>
-      </>
-    );
   return (
     <>
+      {failed && (
+        <>
+          <PenDeskFallback {...props} />
+          <span className="desk-render-notice">
+            3D paused. Your match is safe.
+            <button
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onClick={() => {
+                setFailed(false);
+                setReady(false);
+                setRetryKey((k) => k + 1);
+              }}
+            >
+              Restore 3D
+            </button>
+          </span>
+        </>
+      )}
       <div
         className="three-desk"
         ref={host}
+        style={failed ? { display: "none" } : undefined}
         data-renderer="three-webgl"
         data-motion-sequence={props.motion?.sequence}
         role="img"
         aria-label={`3D Pen Fight desk. ${props.humanName}'s pen and ${props.botName ?? "MelaBot"}'s pen.`}
       >
-        {!ready && (
+        {!ready && !failed && (
           <span className="desk-render-notice">
             Setting your pens on the desk…
           </span>
