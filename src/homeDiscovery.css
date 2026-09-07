@@ -601,3 +601,312 @@
   outline: 3px solid #ac6515;
   outline-offset: 3px;
 }
+
+/* Homepage stage: a compact visual invitation before the games themselves. */
+.home-stage {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(250px, 0.82fr);
+  min-height: 270px;
+  margin: 4px 0 34px;
+  overflow: hidden;
+  border: 2px solid #2f291d;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 14% 8%, #fff9df 0 2px, transparent 3px),
+    linear-gradient(
+      123deg,
+      #efe1bb 0%,
+      #e8d4a6 49%,
+      #1f655c 49.2%,
+      #174f49 100%
+    );
+  box-shadow: 7px 7px 0 #2f291d;
+}
+.home-stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  opacity: 0.32;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 28px,
+    #805f2a24 29px 30px
+  );
+}
+.home-stage-copy {
+  align-self: center;
+  padding: 30px 30px 30px 34px;
+  color: #2d2619;
+}
+.home-stage-kicker {
+  margin: 0 0 10px;
+  color: #7e4d0b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+.home-stage h2 {
+  max-width: 17ch;
+  margin: 0;
+  font:
+    900 clamp(30px, 4.2vw, 46px)/1.02 Georgia,
+    serif;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+.home-stage h2 em {
+  color: #0f6157;
+  font-style: normal;
+}
+.home-stage-copy > p:not(.home-stage-kicker) {
+  max-width: 42ch;
+  margin: 15px 0 19px;
+  color: #514329;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.home-stage-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1.5px solid #302719;
+  border-radius: 999px;
+  background: #fff8e8;
+  box-shadow: 3px 3px 0 #302719;
+  color: #2f281b;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+.home-stage-action:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #302719;
+}
+.home-stage-action:focus-visible {
+  outline: 3px solid #0c6c60;
+  outline-offset: 4px;
+}
+.home-stage-table {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+}
+.home-stage-table::after {
+  content: "";
+  position: absolute;
+  width: 122%;
+  height: 54%;
+  right: -20%;
+  bottom: -13%;
+  border: 2px solid #113e39;
+  border-radius: 20px 20px 0 0;
+  background: repeating-linear-gradient(4deg, #c78a3f 0 8px, #dda555 9px 12px);
+  box-shadow: -10px -12px 0 #0d443e33;
+  transform: rotate(-7deg);
+}
+.stage-pencil {
+  position: absolute;
+  z-index: 2;
+  width: 13px;
+  height: 145px;
+  border-radius: 8px 8px 3px 3px;
+  border-top: 28px solid #f7dbc0;
+  box-shadow: 5px 6px 8px #082b2766;
+}
+.stage-pencil-a {
+  top: 31px;
+  left: 27%;
+  background: linear-gradient(90deg, #246b68, #d3e4d6, #16514f);
+  transform: rotate(37deg);
+}
+.stage-pencil-b {
+  top: 20px;
+  right: 23%;
+  border-top-color: #f4d2b8;
+  background: linear-gradient(90deg, #963a24, #df7954, #762917);
+  transform: rotate(-35deg);
+}
+.stage-disc {
+  position: absolute;
+  z-index: 3;
+  width: 44px;
+  aspect-ratio: 1;
+  border: 4px solid #fff2cc;
+  border-radius: 50%;
+  box-shadow:
+    4px 5px 0 #123e3a66,
+    inset 0 4px 0 #fff8df99;
+}
+.stage-disc-gold {
+  left: 22%;
+  bottom: 50px;
+  background: #e7a72f;
+}
+.stage-disc-teal {
+  right: 20%;
+  bottom: 31px;
+  background: #65bba7;
+}
+.stage-note {
+  position: absolute;
+  z-index: 4;
+  top: 31px;
+  right: 16px;
+  padding: 7px 9px;
+  border-radius: 3px;
+  background: #fff4ce;
+  color: #573b1d;
+  font:
+    900 9px/1.1 Georgia,
+    serif;
+  letter-spacing: 0.09em;
+  transform: rotate(7deg);
+}
+.stage-crowd {
+  position: absolute;
+  z-index: 4;
+  left: 17px;
+  bottom: 17px;
+  display: flex;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid #d2e8d5;
+  border-radius: 999px;
+  background: #134e48;
+}
+.stage-crowd i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f7d98d;
+}
+.stage-crowd i:nth-child(2) {
+  background: #f5f0dc;
+}
+.stage-crowd i:nth-child(3) {
+  background: #83d3be;
+}
+.home-game-featured {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(220px, 1.1fr);
+  min-height: 258px;
+  border-width: 2px;
+  box-shadow: 6px 7px 0 #4a3d29;
+}
+.home-game-featured .home-art {
+  height: auto;
+  min-height: 256px;
+}
+.home-game-featured .home-game-copy {
+  padding: 28px;
+}
+.home-game-featured .home-game-copy strong {
+  font-size: clamp(31px, 4vw, 43px);
+}
+.home-game-featured .home-game-copy > span {
+  max-width: 27ch;
+  font-size: 17px;
+}
+.home-game-featured .home-game-copy small {
+  color: #9b5d0a;
+}
+
+@media (max-width: 850px) {
+  .home-stage {
+    grid-template-columns: 1fr 0.74fr;
+  }
+}
+@media (max-width: 520px) {
+  .home-stage {
+    display: block;
+    min-height: 0;
+    margin: 2px 0 26px;
+    border-radius: 18px;
+    background: linear-gradient(
+      145deg,
+      #efe1bb 0%,
+      #ebd8aa 64%,
+      #1f655c 64.2%,
+      #174f49 100%
+    );
+    box-shadow: 5px 5px 0 #2f291d;
+  }
+  .home-stage-copy {
+    padding: 23px 20px 19px;
+  }
+  .home-stage h2 {
+    max-width: 18ch;
+    font-size: clamp(28px, 8.5vw, 36px);
+  }
+  .home-stage-copy > p:not(.home-stage-kicker) {
+    max-width: 29ch;
+    margin: 12px 0 16px;
+    font-size: 14px;
+  }
+  .home-stage-table {
+    height: 108px;
+  }
+  .home-stage-table::after {
+    height: 75%;
+    bottom: -27%;
+  }
+  .stage-pencil {
+    height: 96px;
+    width: 10px;
+    border-top-width: 20px;
+  }
+  .stage-pencil-a {
+    top: -4px;
+    left: 45%;
+  }
+  .stage-pencil-b {
+    top: -9px;
+    right: 21%;
+  }
+  .stage-disc {
+    width: 32px;
+    border-width: 3px;
+  }
+  .stage-disc-gold {
+    left: 28%;
+    bottom: 21px;
+  }
+  .stage-disc-teal {
+    right: 31%;
+    bottom: 12px;
+  }
+  .stage-note {
+    top: 10px;
+    right: 13px;
+    font-size: 8px;
+  }
+  .stage-crowd {
+    left: 13px;
+    bottom: 12px;
+  }
+  .home-game-featured {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .home-game-featured .home-art {
+    min-height: 0;
+    height: 112px;
+  }
+  .home-game-featured .home-game-copy {
+    padding: 14px 12px;
+  }
+  .home-game-featured .home-game-copy strong {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+  .home-game-featured .home-game-copy > span {
+    font-size: 13px;
+  }
+}

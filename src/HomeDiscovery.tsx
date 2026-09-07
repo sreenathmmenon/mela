@@ -66,12 +66,39 @@ export function HomeDiscovery({
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <div className="home-discovery">
+      <section className="home-stage" aria-labelledby="home-stage-title">
+        <div className="home-stage-copy">
+          <p className="home-stage-kicker">A SHARED GAME ROOM</p>
+          <h2 id="home-stage-title">
+            A game is better when <em>everyone has a move.</em>
+          </h2>
+          <p>
+            Pick a classic. Bring a rival. Let the crowd change what happens
+            next.
+          </p>
+          <a className="home-stage-action" href="#explore-games">
+            Pick a game <span aria-hidden="true">↓</span>
+          </a>
+        </div>
+        <div className="home-stage-table" aria-hidden="true">
+          <span className="stage-pencil stage-pencil-a" />
+          <span className="stage-pencil stage-pencil-b" />
+          <span className="stage-disc stage-disc-gold" />
+          <span className="stage-disc stage-disc-teal" />
+          <span className="stage-note">YOUR MOVE</span>
+          <span className="stage-crowd">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+      </section>
       <section id="explore-games" className="home-games" aria-label="Games">
         <div className="home-game-grid">
-          {HOME_GAMES.map((game) => (
+          {HOME_GAMES.map((game, index) => (
             <button
               key={game.kind}
-              className="home-game"
+              className={`home-game ${index === 0 ? "home-game-featured" : ""}`}
               onClick={() => {
                 setSelected(game.kind);
                 onChoose(game.kind);
@@ -121,6 +148,7 @@ export function HomeDiscovery({
                 )}
               </span>
               <span className="home-game-copy">
+                {index === 0 && <small>START HERE</small>}
                 <strong>{game.name}</strong>
                 <span>{game.copy}</span>
                 <b>{busy && selected === game.kind ? "Opening…" : "Play →"}</b>

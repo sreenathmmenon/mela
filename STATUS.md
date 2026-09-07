@@ -1,5 +1,13 @@
 # MELA STATUS
 
+## Current pass — shared-game-room homepage (2026-09-07)
+
+- Refined the homepage without changing game, identity, realtime, matchmaking, crowd, AI, profile, or database behavior. The entry now has one compact, product-specific line — **“A game is better when everyone has a move.”** — followed immediately by the game selection. It frames Mela as a shared game room rather than a generic marketing page.
+- The new desk-stage visual uses the existing paper, ink, wood, teal and game-piece language; it is CSS presentation rather than a new image payload. Pen Fight is intentionally the featured starting card, while every one of the six games remains an equal, direct playable choice. Existing live-room and return-memory sections remain below the game choices.
+- Local browser review: desktop 1440×950 and mobile 390×844 layouts were visually checked. The stage remains compact rather than becoming a full-screen hero; 390px and 320px checks found no horizontal overflow, and the browser reported no page errors. The game picker remains the first actionable destination.
+- Verification: Prettier, frontend typecheck and production frontend build pass. The build retains the existing >500KB JavaScript chunk warning; this presentation pass did not enlarge scope with a bundle refactor. No backend publication is needed. Release only to the existing Railway Mela frontend; do not touch Maincloud because there is no module change.
+- Next task: collect real-device feedback on first impression and game selection, then refine only evidence-backed friction without weakening direct game entry.
+
 ## Current pass — shared human/agent seats (2026-09-07)
 
 - Sreenath approved human-v-human Pen Fight invitations, human-v-agent, discoverable/watchable agent matches, then game-by-game extension. Implemented and verified on `codex/multiplayer-seats`, released to the existing Railway/Maincloud production targets and delivered to main. Four in a Row is the second selected game; Book Cricket, Dots & Boxes, Gilli Danda and Last Stick retain their existing opponent rules.
