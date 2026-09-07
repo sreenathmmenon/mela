@@ -7,8 +7,8 @@
 - Verification: added deterministic coverage for cap/barrel/tip mapping, mirrored seats, clamping, neutral zero-direction behavior and distinct repeatable authoritative outcomes. Full suite **137/137**, frontend typecheck, production frontend build, transport build and whitespace check passed.
 - Real local Chrome evidence: an actual overhead-view drag began on the player pen, locked the camera selector, exposed its precise grip (`117.7,496.5`) and produced authoritative aim (`719,507`). Its committed contact appeared in the live event feed, then MelaBot acted from the updated world. Forced WebGL loss showed the SVG recovery desk; Restore 3D returned the live canvas without changing the match. The simplified view and 3D view both use the selected grip as their guide origin. No new page error was captured after the final code reload; prior local HMR errors from an intermediate removed symbol are not release evidence.
 - Scope: frontend intent/presentation plus tests only. The existing `contact` action field and server validation/resolution path are retained for human, AI and agent modes. No Maincloud publication required.
-- Release: verification and Railway delivery in progress; not yet claimed live.
-- Next task: publish the frontend update, then run a read-only production smoke check of the new direct-control UI.
+- Release: source `4567ae0` pushed to main under Sreenath only. Railway deployment `115dccbf-7519-4583-ac3b-d213befdf4ef` explicitly observed **SUCCESS**. A read-only production asset check found the deployed direct-control instruction (`Touch any part of your pen · pull back · release · off-centre glances`). No production signup, email, profile or test match was created; no Maincloud publication occurred.
+- Next task: collect physical-phone and independent-player play evidence for the new touch-point mechanic. Do not represent emulated input or source inspection as physical-device certification.
 
 ## Current pass — selectable Pen Fight cameras (2026-09-07)
 
