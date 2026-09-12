@@ -1,5 +1,7 @@
 import { ScheduleAt, SenderError, schema, table, t } from "spacetimedb/server";
 import { summarizeRoom } from "./roomRules";
+import { arenaTables, arenaModule } from "./arenaModule";
+import { isArenaKind, type ArenaKind } from "./arenaRules";
 import {
   seatKind,
   DUEL_RULES,
@@ -100,6 +102,7 @@ const crowdSchedule = table(
 );
 
 const spacetimedb = schema({
+  ...arenaTables,
   protectedIdentity: table(
     { public: false },
     {
@@ -577,6 +580,23 @@ const spacetimedb = schema({
   crowdSchedule,
 });
 export default spacetimedb;
+const arena = arenaModule(spacetimedb, {
+  ensureGuest,
+  identity: (ctx: any) => canonicalIdentity(ctx),
+  create: createExperimentalMatch,
+  finish: finishExperimentalMatch,
+  emit: (...args: Parameters<typeof emit>) => emit(...args),
+  nextId: (rows: any) => nextId(rows),
+  profile: (ctx: any, id: any) => ensureMelaProfile(ctx, id),
+});
+export const createArena = arena.create;
+export const playArena = arena.action;
+export const arenaPower = arena.power;
+export const myArenaCrowd = arena.pending;
+export const publishArenaCourse = arena.publish;
+export const processArenaWake = arena.scheduled;
+export const connectArenaAgent = arena.connectAgent;
+export const myArenaAgent = arena.inbox;
 
 /** Public counts only; identities and connection identifiers stay private. */
 export const roomActivity = spacetimedb.anonymousView(
@@ -2340,6 +2360,7 @@ export const enterGame = spacetimedb.reducer(
       return;
     if (gameKind === "book_cricket" || gameKind === "stick_cricket")
       startBookCricket(ctx, gameKind);
+    else if (isArenaKind(gameKind)) arena.start(ctx, gameKind);
     else if (gameKind === "pen_fight") createPenMatch(ctx);
     else if (gameKind === "dots_boxes") startDotsBoxes(ctx);
     else if (gameKind === "gilli_danda") startGilliDanda(ctx);
@@ -2694,7 +2715,8 @@ export const createPenFight = spacetimedb.reducer((ctx: any) => {
 
 function createExperimentalMatch(
   ctx: any,
-  gameKind: "dots_boxes" | "gilli_danda" | "four_row" | "last_stick",
+  gameKind:
+    "dots_boxes" | "gilli_danda" | "four_row" | "last_stick" | ArenaKind,
 ) {
   const profile = player(ctx),
     identity = canonicalIdentity(ctx);
@@ -2766,15 +2788,24 @@ function finishExperimentalMatch(
   const human = ctx.db.playerProfile.identity.find(match.playerIdentity),
     metrics = metricsIdentityFor(ctx, match.playerIdentity);
   const contest = ctx.db.agentDuel.matchId.find(match.id);
-  const people = contest
-    ? ["human", "bot"]
-        .filter((s) => seatKind(contest.mode, s) === "human")
-        .map((s) => ({
-          identity:
-            s === "human" ? contest.leftIdentity : contest.rightIdentity,
-          won: winner === (s === "human" ? "human" : "melabot"),
-        }))
-    : [{ identity: match.playerIdentity, won: winner === "human" }];
+  const arenaResult = ctx.db.arenaState.matchId.find(match.id);
+  const people =
+    arenaResult?.mode === "agents"
+      ? []
+      : contest
+        ? ["human", "bot"]
+            .filter((s) => seatKind(contest.mode, s) === "human")
+            .map((s) => ({
+              identity:
+                s === "human" ? contest.leftIdentity : contest.rightIdentity,
+              won: winner === (s === "human" ? "human" : "melabot"),
+            }))
+        : [
+            {
+              identity: match.playerIdentity,
+              won: winner === "human" || winner === "team",
+            },
+          ];
   for (const person of people) {
     if (!person.identity) continue;
     const progression = ensureMelaProfile(ctx, person.identity);
@@ -2810,8 +2841,13 @@ function finishExperimentalMatch(
     matchId: match.id,
     sequence: match.id,
     gameKind: match.gameKind,
-    humanName: contest?.leftName ?? human.displayName,
-    aiName: contest?.rightName ?? "MelaBot",
+    humanName:
+      arenaResult?.mode === "agents"
+        ? `Amber · ${arenaResult.leftPolicy}`
+        : (contest?.leftName ?? human.displayName),
+    aiName: arenaResult?.agentIdentity
+      ? "External agent · Teal"
+      : (contest?.rightName ?? "MelaBot"),
     winner,
     humanScore,
     humanWickets: 0,

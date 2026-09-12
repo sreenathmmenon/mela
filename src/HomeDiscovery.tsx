@@ -3,6 +3,30 @@ import { useState } from "react";
 
 export const HOME_GAMES = [
   {
+    kind: "crown_run",
+    name: "Crown Run",
+    tag: "",
+    copy: "Steal the crown. Bring it home.",
+    crowd: "The crowd moves the crossing.",
+    art: "crown",
+  },
+  {
+    kind: "bridge_breakers",
+    name: "Bridge Breakers",
+    tag: "",
+    copy: "Race across. Build your own course.",
+    crowd: "Every crossing can change.",
+    art: "bridge",
+  },
+  {
+    kind: "mela_heist",
+    name: "Mela Heist",
+    tag: "",
+    copy: "Two partners. One treasure to rescue.",
+    crowd: "Help the team get home.",
+    art: "heist",
+  },
+  {
     kind: "pen_fight",
     name: "Pen Fight",
     tag: "THE SCHOOL-DESK SHOWDOWN",
@@ -74,33 +98,6 @@ export function HomeDiscovery({
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <div className="home-discovery">
-      <section className="home-stage" aria-labelledby="home-stage-title">
-        <div className="home-stage-copy">
-          <p className="home-stage-kicker">A SHARED GAME ROOM</p>
-          <h2 id="home-stage-title">
-            A game is better when <em>everyone has a move.</em>
-          </h2>
-          <p>
-            Pick a classic. Bring a rival. Let the crowd change what happens
-            next.
-          </p>
-          <a className="home-stage-action" href="#explore-games">
-            Pick a game <span aria-hidden="true">↓</span>
-          </a>
-        </div>
-        <div className="home-stage-table" aria-hidden="true">
-          <span className="stage-pencil stage-pencil-a" />
-          <span className="stage-pencil stage-pencil-b" />
-          <span className="stage-disc stage-disc-gold" />
-          <span className="stage-disc stage-disc-teal" />
-          <span className="stage-note">YOUR MOVE</span>
-          <span className="stage-crowd">
-            <i />
-            <i />
-            <i />
-          </span>
-        </div>
-      </section>
       <section id="explore-games" className="home-games" aria-label="Games">
         <div className="home-game-grid">
           {HOME_GAMES.map((game, index) => (
@@ -141,6 +138,74 @@ export function HomeDiscovery({
                       <i key={i}>{i === 4 ? "M" : "•"}</i>
                     ))}
                   </span>
+                ) : ["crown", "bridge", "heist"].includes(game.art) ? (
+                  <svg
+                    viewBox="0 0 240 170"
+                    width="220"
+                    height="156"
+                    style={{ maxWidth: "100%" }}
+                  >
+                    {Array.from({ length: 25 }, (_, i) => {
+                      const x = i % 5,
+                        y = Math.floor(i / 5),
+                        px = 120 + (x - y) * 21,
+                        py = 30 + (x + y) * 12;
+                      return (
+                        <path
+                          key={i}
+                          d={`M${px},${py}l21,12 -21,12 -21,-12z`}
+                          fill={
+                            x === 2
+                              ? "#cda776"
+                              : (x + y) % 2
+                                ? "#779e8a"
+                                : "#b2c4a4"
+                          }
+                          stroke="#4e7363"
+                          strokeWidth="1.5"
+                        />
+                      );
+                    })}
+                    <g fill="#eea264">
+                      <ellipse cx="62" cy="91" rx="11" ry="5" />
+                      <rect x="55" y="68" width="14" height="22" rx="6" />
+                      <circle cx="62" cy="65" r="9" />
+                    </g>
+                    <g fill="#2e9d90">
+                      <ellipse cx="180" cy="91" rx="11" ry="5" />
+                      <rect x="173" y="68" width="14" height="22" rx="6" />
+                      <circle cx="180" cy="65" r="9" />
+                    </g>
+                    {game.art === "crown" ? (
+                      <path
+                        d="M106 80l-2-15 10 7 6-16 6 16 10-7-2 15z"
+                        fill="#e4ad3f"
+                        stroke="#846323"
+                        strokeWidth="2"
+                      />
+                    ) : game.art === "heist" ? (
+                      <g>
+                        <rect
+                          x="107"
+                          y="64"
+                          width="26"
+                          height="19"
+                          rx="4"
+                          fill="#dca947"
+                        />
+                        <path
+                          d="M109 70h22M120 65v17"
+                          stroke="#715835"
+                          strokeWidth="3"
+                        />
+                      </g>
+                    ) : (
+                      <g fill="#bd895b">
+                        <path d="M99 55l18 10v21l-18-10z" />
+                        <path d="M99 55l18-10 18 10-18 10z" fill="#e4bf86" />
+                      </g>
+                    )}
+                  </svg>
                 ) : game.art === "four" ? (
                   <span className="home-disc-board">
                     {Array.from({ length: 21 }, (_, i) => (

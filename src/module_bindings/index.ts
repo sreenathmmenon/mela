@@ -36,10 +36,13 @@ import {
 // Import all reducer arg schemas
 import AgentDropFourReducer from "./agent_drop_four_reducer";
 import AgentFlickReducer from "./agent_flick_reducer";
+import ArenaPowerReducer from "./arena_power_reducer";
 import BeginProfileLinkReducer from "./begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
 import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
+import ConnectArenaAgentReducer from "./connect_arena_agent_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
+import CreateArenaReducer from "./create_arena_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
 import CreateFourRowReducer from "./create_four_row_reducer";
@@ -57,8 +60,10 @@ import JoinMatchAsSpectatorReducer from "./join_match_as_spectator_reducer";
 import LiftGilliReducer from "./lift_gilli_reducer";
 import OnboardReducer from "./onboard_reducer";
 import OnboardWithEmailReducer from "./onboard_with_email_reducer";
+import PlayArenaReducer from "./play_arena_reducer";
 import PlayBallReducer from "./play_ball_reducer";
 import PlayStrategyMoveReducer from "./play_strategy_move_reducer";
+import PublishArenaCourseReducer from "./publish_arena_course_reducer";
 import RematchPlaygroundReducer from "./rematch_playground_reducer";
 import SetRoomPresenceReducer from "./set_room_presence_reducer";
 import StrikeGilliReducer from "./strike_gilli_reducer";
@@ -73,6 +78,9 @@ import * as PlaygroundClockProcedure from "./playground_clock_procedure";
 import AgentDuelRow from "./agent_duel_table";
 import AgentFallbackRecordRow from "./agent_fallback_record_table";
 import AiCharacterRow from "./ai_character_table";
+import ArenaCourseRow from "./arena_course_table";
+import ArenaFrameRow from "./arena_frame_table";
+import ArenaStateRow from "./arena_state_table";
 import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
 import DotsBoxesStateRow from "./dots_boxes_state_table";
@@ -91,6 +99,8 @@ import MatchSpectatorRow from "./match_spectator_table";
 import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
 import MyAccountStatusRow from "./my_account_status_table";
+import MyArenaAgentRow from "./my_arena_agent_table";
+import MyArenaCrowdRow from "./my_arena_crowd_table";
 import MyEmailContactRow from "./my_email_contact_table";
 import MyIdentityLinkRow from "./my_identity_link_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
@@ -168,6 +178,67 @@ const tablesSchema = __schema({
       ],
     },
     AiCharacterRow,
+  ),
+  arenaCourse: __table(
+    {
+      name: "arena_course",
+      indexes: [
+        {
+          accessor: "id",
+          name: "arena_course_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+      ],
+      constraints: [
+        { name: "arena_course_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    ArenaCourseRow,
+  ),
+  arenaFrame: __table(
+    {
+      name: "arena_frame",
+      indexes: [
+        {
+          accessor: "id",
+          name: "arena_frame_id_idx_btree",
+          algorithm: "btree",
+          columns: ["id"],
+        },
+        {
+          accessor: "matchId",
+          name: "arena_frame_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        { name: "arena_frame_id_key", constraint: "unique", columns: ["id"] },
+      ],
+    },
+    ArenaFrameRow,
+  ),
+  arenaState: __table(
+    {
+      name: "arena_state",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "arena_state_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "arena_state_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    ArenaStateRow,
   ),
   bookCricketRecord: __table(
     {
@@ -662,6 +733,22 @@ const tablesSchema = __schema({
     },
     MyAccountStatusRow,
   ),
+  myArenaAgent: __table(
+    {
+      name: "my_arena_agent",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaAgentRow,
+  ),
+  myArenaCrowd: __table(
+    {
+      name: "my_arena_crowd",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaCrowdRow,
+  ),
   myEmailContact: __table(
     {
       name: "my_email_contact",
@@ -724,10 +811,13 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("agent_drop_four", AgentDropFourReducer),
   __reducerSchema("agent_flick", AgentFlickReducer),
+  __reducerSchema("arena_power", ArenaPowerReducer),
   __reducerSchema("begin_profile_link", BeginProfileLinkReducer),
   __reducerSchema("claim_agent_seat", ClaimAgentSeatReducer),
   __reducerSchema("complete_profile_link", CompleteProfileLinkReducer),
+  __reducerSchema("connect_arena_agent", ConnectArenaAgentReducer),
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
+  __reducerSchema("create_arena", CreateArenaReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),
   __reducerSchema("create_four_row", CreateFourRowReducer),
@@ -745,8 +835,10 @@ const reducersSchema = __reducers(
   __reducerSchema("lift_gilli", LiftGilliReducer),
   __reducerSchema("onboard", OnboardReducer),
   __reducerSchema("onboard_with_email", OnboardWithEmailReducer),
+  __reducerSchema("play_arena", PlayArenaReducer),
   __reducerSchema("play_ball", PlayBallReducer),
   __reducerSchema("play_strategy_move", PlayStrategyMoveReducer),
+  __reducerSchema("publish_arena_course", PublishArenaCourseReducer),
   __reducerSchema("rematch_playground", RematchPlaygroundReducer),
   __reducerSchema("set_room_presence", SetRoomPresenceReducer),
   __reducerSchema("strike_gilli", StrikeGilliReducer),

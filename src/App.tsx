@@ -11,6 +11,7 @@ import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
 import { HomeDiscovery } from "./HomeDiscovery";
+import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { EmailRecap } from "./EmailRecap";
 import { isMuted, playSound, toggleMuted } from "./sound";
 import { StickCricketStage } from "./StickCricketStage";
@@ -52,6 +53,7 @@ const POWER_CARDS = [
 // so the only things we name are the two deviations from normal.
 /** gameKind as stored in the database, mapped to how Mela names it on screen. */
 const GAME_LABELS: Record<string, string> = {
+  ...ARENA_TITLES,
   book_cricket: "Book Cricket",
   stick_cricket: "Stick Cricket",
   pen_fight: "Pen Fight",
@@ -677,6 +679,7 @@ function App() {
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
   const enterGame = useReducer(reducers.enterGame);
+  const createArenaGame = useReducer(reducers.createArena);
   // A scanned QR must land the visitor in THAT match — even if they have
   // played or watched here before. Fresh identities join during onboarding;
   // everyone else joins here, exactly once per page load.
@@ -745,7 +748,15 @@ function App() {
     setJoining(true);
     setError(null);
     try {
-      await enterGame({ gameKind });
+      if (ARENA_TITLES[gameKind])
+        await createArenaGame({
+          gameKind,
+          mode: "solo",
+          leftPolicy: "runner",
+          rightPolicy: "trickster",
+          courseId: 0n,
+        });
+      else await enterGame({ gameKind });
       setRequestedMemoryId(null);
       setShowHome(false);
       setPinnedMatchId(null);
@@ -1035,6 +1046,28 @@ function App() {
           m.gameKind,
         ),
     );
+  const arenaMatch =
+    !showHome &&
+    (matches.find(
+      (m) => m.id === requestedMemoryId && Boolean(ARENA_TITLES[m.gameKind]),
+    ) ||
+      displayedMatch);
+  if (arenaMatch && ARENA_TITLES[arenaMatch.gameKind])
+    return (
+      <ArenaGames
+        key={String(arenaMatch.id)}
+        matchId={arenaMatch.id}
+        onOpen={(id) => {
+          setRequestedMemoryId(null);
+          setPinnedMatchId(id);
+          setShowHome(false);
+        }}
+        onBack={() => {
+          setRequestedMemoryId(null);
+          setShowHome(true);
+        }}
+      />
+    );
   const strategyMatch = sharedPlayground || (me ? displayedMatch : undefined);
   if (
     strategyMatch &&
@@ -1267,7 +1300,8 @@ function App() {
             busy={creatingMatch || joining || !connected}
             onChoose={(kind) => {
               setRequestedMemoryId(null);
-              if (kind === "book_cricket") void startMatch();
+              if (ARENA_TITLES[kind]) void enter(kind);
+              else if (kind === "book_cricket") void startMatch();
               else if (kind === "stick_cricket") void startStickCricket();
               else if (kind === "pen_fight") void startPenFight();
               else

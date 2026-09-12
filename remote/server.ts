@@ -12,6 +12,7 @@ import { DbConnection } from "../src/module_bindings";
 import { AGENT_TOOLS, AgentBridge } from "../src/agentTools";
 import { createRecapHandler } from "./recap";
 import { createWelcomeHandler } from "./welcome";
+import { createArenaService } from "./arena";
 
 const sessions = new Map<
   string,
@@ -28,6 +29,7 @@ const origin =
   process.env.VITE_PUBLIC_APP_URL ||
   "https://mela-web-production.up.railway.app";
 const root = resolve("dist");
+const arenaService = createArenaService(origin);
 const recap = createRecapHandler({
   origin,
   apiKey: process.env.RESEND_EMAIL_API_KEY || process.env.RESEND_API_KEY,
@@ -49,6 +51,7 @@ const mime: Record<string, string> = {
 createServer(async (req, res) => {
   try {
     const path = new URL(req.url || "/", origin).pathname;
+    if (await arenaService.handler(req, res, path)) return;
     if (await recap(req, res, path)) return;
     if (await welcome(req, res, path)) return;
     if (path !== "/mcp") {

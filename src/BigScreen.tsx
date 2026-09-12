@@ -11,6 +11,7 @@ import { PenDesk } from "./PenDesk";
 import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
+import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { AgentDuelPanel } from "./AgentDuel";
 const ignoreMoving = () => {};
 
@@ -141,6 +142,15 @@ export default function BigScreen() {
     [events, displayedMatch],
   );
 
+  if (displayedMatch && ARENA_TITLES[displayedMatch.gameKind])
+    return (
+      <ArenaGames
+        key={String(displayedMatch.id)}
+        matchId={displayedMatch.id}
+        screen
+        onBack={() => location.assign("/")}
+      />
+    );
   if (
     displayedMatch &&
     ["four_row", "last_stick"].includes(displayedMatch.gameKind)

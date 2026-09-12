@@ -27,6 +27,9 @@ export function guestName(identity: string): string {
 
 export const ENTRY_GAMES = [
   "lobby",
+  "crown_run",
+  "bridge_breakers",
+  "mela_heist",
   "book_cricket",
   "stick_cricket",
   "pen_fight",

@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     proxy: {
+      "/api/arena": "http://127.0.0.1:8082",
       "/api/recap": "http://127.0.0.1:8082",
       "/api/welcome": "http://127.0.0.1:8082",
     },

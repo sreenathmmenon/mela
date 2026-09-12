@@ -58,6 +58,70 @@ export const AiCharacter = __t.object("AiCharacter", {
 });
 export type AiCharacter = __Infer<typeof AiCharacter>;
 
+export const ArenaCourse = __t.object("ArenaCourse", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  name: __t.string(),
+  walls: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type ArenaCourse = __Infer<typeof ArenaCourse>;
+
+export const ArenaCrowd = __t.object("ArenaCrowd", {
+  matchId: __t.u64(),
+  power: __t.string(),
+  actor: __t.string(),
+});
+export type ArenaCrowd = __Infer<typeof ArenaCrowd>;
+
+export const ArenaCrowdView = __t.object("ArenaCrowdView", {
+  matchId: __t.u64(),
+  power: __t.string(),
+  actor: __t.string(),
+});
+export type ArenaCrowdView = __Infer<typeof ArenaCrowdView>;
+
+export const ArenaFrame = __t.object("ArenaFrame", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  revision: __t.u32(),
+  state: __t.string(),
+  actions: __t.string(),
+  source: __t.string(),
+});
+export type ArenaFrame = __Infer<typeof ArenaFrame>;
+
+export const ArenaIntent = __t.object("ArenaIntent", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  side: __t.u8(),
+  revision: __t.u32(),
+  action: __t.string(),
+  source: __t.string(),
+});
+export type ArenaIntent = __Infer<typeof ArenaIntent>;
+
+export const ArenaState = __t.object("ArenaState", {
+  matchId: __t.u64(),
+  revision: __t.u32(),
+  state: __t.string(),
+  phase: __t.string(),
+  mode: __t.string(),
+  leftPolicy: __t.string(),
+  rightPolicy: __t.string(),
+  agentIdentity: __t.option(__t.identity()),
+  provenance: __t.string(),
+});
+export type ArenaState = __Infer<typeof ArenaState>;
+
+export const ArenaWake = __t.object("ArenaWake", {
+  id: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  matchId: __t.u64(),
+  revision: __t.u32(),
+});
+export type ArenaWake = __Infer<typeof ArenaWake>;
+
 export const BookCricketRecord = __t.object("BookCricketRecord", {
   identity: __t.identity(),
   displayName: __t.string(),
@@ -333,6 +397,12 @@ export type MetricsIdentity = __Infer<typeof MetricsIdentity>;
 
 export const MyAccountStatus = __t.object("MyAccountStatus", {});
 export type MyAccountStatus = __Infer<typeof MyAccountStatus>;
+
+export const MyArenaAgent = __t.object("MyArenaAgent", {});
+export type MyArenaAgent = __Infer<typeof MyArenaAgent>;
+
+export const MyArenaCrowd = __t.object("MyArenaCrowd", {});
+export type MyArenaCrowd = __Infer<typeof MyArenaCrowd>;
 
 export const MyEmailContact = __t.object("MyEmailContact", {});
 export type MyEmailContact = __Infer<typeof MyEmailContact>;
