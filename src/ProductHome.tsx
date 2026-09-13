@@ -130,7 +130,7 @@ export function ProductHome({
             <span className="product-memory-foot">
               <span>
                 {m.crowdActions
-                  ? `${m.crowdActions} crowd moves`
+                  ? `${m.crowdActions} crowd ${m.crowdActions === 1 ? "move" : "moves"}`
                   : "No crowd powers used"}
               </span>
               <b>
@@ -294,7 +294,7 @@ export function ProductHome({
               onClick={() => setAgentPath("external")}
             >
               <strong>Connect an agent</strong>
-              <span>Bring your own agent</span>
+              <span>Requires an MCP-compatible agent</span>
             </button>
             <button
               aria-pressed={agentPath === "character"}

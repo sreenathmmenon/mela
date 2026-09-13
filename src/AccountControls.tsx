@@ -179,7 +179,7 @@ export function AccountControls({ children }: { children: ReactNode }) {
         >
           ×
         </button>
-        <h2 id="mela-account-title">{me ? "Your Mela." : "Welcome back."}</h2>
+        <h2 id="mela-account-title">{me ? "Your profile" : "Sign in"}</h2>
         <p>
           {recoverable
             ? "Saved. Sign in with email on any device."
@@ -246,7 +246,7 @@ export function AccountControls({ children }: { children: ReactNode }) {
         )}
         {!protectedAccount && (
           <p className="account-note">
-            One email link. No password or newsletter.
+            Verify your email to save across devices. No newsletter.
           </p>
         )}
         {message && (
@@ -278,7 +278,7 @@ export function AccountControls({ children }: { children: ReactNode }) {
           </details>
         )}
         <button className="quiet" onClick={() => setOpen(false)}>
-          {me ? "Back to the game" : "Just let me play"}
+          Close
         </button>
         {me && !confirmForget && (
           <button
@@ -297,7 +297,9 @@ export function AccountControls({ children }: { children: ReactNode }) {
                 ? "You'll leave this profile on this device. Sign in again to restore it."
                 : "Without a saved sign-in, forgetting this browser removes your way back to these games. This cannot be undone here."}
             </p>
-            <button onClick={() => void forget()}>Confirm and leave</button>
+            <button onClick={() => void forget()}>
+              {recoverable ? "Sign out" : "Forget browser profile"}
+            </button>
             <button className="quiet" onClick={() => setConfirmForget(false)}>
               Keep playing
             </button>

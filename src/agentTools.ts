@@ -133,7 +133,7 @@ export const AGENT_TOOLS = [
   {
     name: "mela_claim_seat",
     description:
-      "Join an existing Pen Fight agent match. In duel mode claim human (teal) or bot (rust); in human_agent mode only bot is an agent seat. Human-reserved seats cannot be claimed. Supply a short display name. Retain the same session identity to reconnect; never claim both sides. This tool never creates matches.",
+      "Join an existing Pen Fight or Four in a Row agent match. In duel mode claim human (left seat) or bot (right seat); in human_agent mode only bot is an agent seat. Human-reserved seats cannot be claimed. Supply a short display name. Retain the same session identity to reconnect; never claim both sides. This tool never creates matches.",
     inputSchema: {
       type: "object",
       properties: {

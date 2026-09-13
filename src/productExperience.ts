@@ -48,7 +48,7 @@ export const GAME_GUIDES: Record<
   book_cricket: {
     goal: "Set a score in six balls. Stop MelaBot beating it.",
     input:
-      "Choose a batting action. Safe keeps the risk down; aggressive can score more or lose a wicket. Two wickets end an innings.",
+      "The last digit shows runs before crowd effects. OUT means a wicket; zero can also be a dot ball. Safe lowers risk; aggressive raises it. Two wickets end an innings. Crowd effects can change the result.",
     crowd: "Choose a batter, then boost, shield or disrupt their next ball.",
   },
   stick_cricket: {
@@ -66,7 +66,7 @@ export const GAME_GUIDES: Record<
   gilli_danda: {
     goal: "Send the gilli farther than MelaBot.",
     input:
-      "Use the timing control to line up your strike, then hit. Watch the committed distance before the next round.",
+      "Use the timing control to line up your strike, then hit. Check the distance scored before the next round.",
     crowd: "A drumbeat or a heckle can change the next hit.",
   },
   four_row: {
@@ -77,7 +77,7 @@ export const GAME_GUIDES: Record<
   },
   last_stick: {
     goal: "Take the last stick to win.",
-    input: "Choose a legal number of sticks. Plan what you leave for MelaBot.",
+    input: "Take one, two or three sticks. Plan what you leave for MelaBot.",
     crowd: "A spark can change the pile. Check the new count before choosing.",
   },
   bridge_breakers: {
@@ -97,7 +97,7 @@ export const GAME_GUIDES: Record<
   mela_heist: {
     goal: "Bring the treasure home together before the vault closes.",
     input:
-      "You are partners, not opponents. Choose a legal move; both partners reveal together. Coordinate a route through the vault.",
+      "You are partners, not opponents. Choose a lit tile or a move below; both partners reveal together. Coordinate a route through the vault.",
     crowd:
       "Help the team with charge or change the crossing before the next reveal.",
   },

@@ -1,10 +1,10 @@
 .agent-duel-panel {
   margin: 18px 0;
   padding: 20px;
-  border: 2px solid #221b10;
+  border: 1px solid #d9cbae;
   border-radius: 18px;
   background: #fff9e9;
-  box-shadow: 4px 4px 0 #221b10;
+  box-shadow: none;
 }
 .duel-invite {
   display: flex;
@@ -12,11 +12,45 @@
   gap: 16px;
   align-items: center;
 }
+.duel-agent-copy {
+  margin: 16px 0;
+}
+.duel-agent-copy button {
+  min-height: 48px;
+  font: 500 14px/1.4 var(--font-body);
+}
+.duel-agent-copy p {
+  font: 400 13px/1.5 var(--font-body);
+}
+.duel-agent-copy textarea {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+}
 .duel-invite h2 {
-  font:
-    700 clamp(1.4rem, 4vw, 2rem) "Outfit",
-    serif;
+  font: 500 20px/1.35 var(--font-display);
   margin: 8px 0;
+}
+.duel-invite p {
+  font: 400 14px/1.5 var(--font-body);
+}
+@media (max-width: 380px) {
+  .agent-duel-panel .duel-invite {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .duel-code {
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    padding: 10px;
+  }
+  .duel-code svg {
+    grid-row: 1 / span 3;
+  }
+  .agent-duel-panel .duel-code strong {
+    font-size: 24px;
+  }
 }
 .duel-code {
   display: grid;

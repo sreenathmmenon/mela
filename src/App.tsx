@@ -12,7 +12,11 @@ import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
 import { ProductHome } from "./ProductHome";
 import { GameOrientation } from "./GameOrientation";
-import { supportsIntent, type PlayIntent } from "./productExperience";
+import {
+  memoryResult,
+  supportsIntent,
+  type PlayIntent,
+} from "./productExperience";
 import { CharacterStudio } from "./CharacterStudio";
 import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { EmailRecap } from "./EmailRecap";
@@ -70,13 +74,13 @@ const PLAY_CHOICES = [
   {
     style: "safe",
     title: "PLAY IT SAFE",
-    risk: "Stay in. Take the singles.",
+    risk: "Lower risk. Smaller scores.",
     copy: "",
   },
   {
     style: "aggressive",
     title: "GO FOR IT",
-    risk: "Big runs — or you're out.",
+    risk: "Higher scores. Higher wicket risk.",
     copy: "",
   },
 ] as const;
@@ -906,7 +910,7 @@ function App() {
       setFeedback(
         isStickCricket
           ? "Shot committed. The ball is in play."
-          : `${style.toUpperCase()} locked in. The world has resolved your ball.`,
+          : "Ball played. Watch the result.",
       );
     } catch (reason) {
       setError(
@@ -1051,11 +1055,7 @@ function App() {
         </header>
         <section className="memory-hero" aria-label="Completed match memory">
           <p className="eyebrow">NOW PART OF MELA</p>
-          <h2>
-            {sharedBookMemory.winner === "draw"
-              ? "A shared finish."
-              : `${sharedBookMemory.winner === "human" ? sharedBookMemory.humanName : sharedBookMemory.aiName} takes the story.`}
-          </h2>
+          <h2>{memoryResult(sharedBookMemory)}</h2>
           <p className="memory-story">{sharedBookMemory.notableMoment}</p>
           <div className="memory-facts">
             <span>
@@ -1296,14 +1296,14 @@ function App() {
       )}
       {!me && connected && profilesReady && Boolean(requestedJoinMatchId) && (
         <section className="join-card guest-invite">
-          <p className="eyebrow">YOU'RE INVITED · NO SIGN-UP</p>
           <h2>
             {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
             "active"
               ? `Join the ${GAME_LABELS[matches.find((m) => m.id === requestedJoinMatchId)!.gameKind] ?? "Mela"} crowd.`
-              : "Catch the next moment."}
+              : "Match unavailable"}
           </h2>
-          <p>Pick a side. Change the next move.</p>
+          {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
+            "active" && <p>Watch the match and influence the next move.</p>}
           {matches.find((m) => m.id === requestedJoinMatchId)?.status ===
           "active" ? (
             <button
@@ -1493,7 +1493,7 @@ function App() {
                 {suspense && <i className="book-leaf" aria-hidden="true" />}
               </div>
             )}
-            {suspense && (
+            {suspense && displayedMatch.status === "active" && (
               <div className="delivery-result waiting" role="status">
                 <span>
                   {isStickCricket ? "The bowler runs in…" : "Opening the book…"}
@@ -1542,8 +1542,11 @@ function App() {
             )}
             {displayedMatch.status === "complete" && (
               <p className="result">
-                Result:{" "}
-                {(result?.winner ?? displayedMatch.winner).toUpperCase()} wins
+                {memoryResult({
+                  winner: result?.winner ?? displayedMatch.winner,
+                  humanName,
+                  aiName: melaBot?.displayName ?? "MelaBot",
+                })}
               </p>
             )}
             {ownsMatch && matchState.turn === "human" && (
@@ -1552,7 +1555,7 @@ function App() {
                   <p className="how-to-play">
                     {isStickCricket
                       ? "Take guard. Your first shot sets the tone."
-                      : "Open the book. The page number is your runs."}
+                      : "The last digit shows runs before crowd effects. OUT means a wicket."}
                   </p>
                 )}
                 {/* What the crowd has spent is deliberately NOT shown before
@@ -1578,7 +1581,7 @@ function App() {
                     >
                       {pendingStyle
                         ? isStickCricket
-                          ? "BOWLING…"
+                          ? "Playing the ball…"
                           : "Opening…"
                         : isStickCricket
                           ? "PLAY FIRST BALL"
@@ -1611,7 +1614,11 @@ function App() {
                               : choice.risk}
                           </span>
                           {pendingStyle === choice.style && (
-                            <small>Opening the book…</small>
+                            <small>
+                              {isStickCricket
+                                ? "Playing the ball…"
+                                : "Opening the book…"}
+                            </small>
                           )}
                         </button>
                       ))}
@@ -1657,7 +1664,7 @@ function App() {
                   includeMargin
                 />
                 <div>
-                  <strong>Invite friends</strong>
+                  <strong>Invite spectators</strong>
                   <span>Scan to watch and influence.</span>
                   <a
                     href={screenUrlFor(activeMatch.id)}
@@ -1677,11 +1684,7 @@ function App() {
               aria-label="Completed match memory"
             >
               <p className="eyebrow">NOW PART OF MELA</p>
-              <h2>
-                {memory.winner === "draw"
-                  ? "A shared finish."
-                  : `${memory.winner === "human" ? memory.humanName : memory.aiName} takes the story.`}
-              </h2>
+              <h2>{memoryResult(memory)}</h2>
               <p className="memory-story">{memory.notableMoment}</p>
               {regretLine && <p className="regret-line">{regretLine}</p>}
               <div className="memory-facts">

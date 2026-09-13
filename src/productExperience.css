@@ -624,6 +624,8 @@ html:has(.home-landing) {
   border-left: 2px solid #d7dff6;
 }
 .product-stats dt {
+  min-block-size: 3em;
+  line-height: 1.5;
   font-size: 13px;
   color: #647086;
 }

@@ -15,6 +15,7 @@ import {
 } from "../spacetimedb/src/arenaRules";
 import { playSound, isMuted, toggleMuted } from "./sound";
 import { CharacterPortrait } from "./CharacterStudio";
+import { arenaBoardDescription, arenaMoveLabel } from "./arenaDescription";
 import {
   characterBrief,
   encodeCharacter,
@@ -307,13 +308,18 @@ export function ArenaGames({
         )
       : 0,
     queued = pending.find((p) => p.matchId === matchId);
+  const description = arenaBoardDescription(shown, [
+    room?.leftName ??
+      (row.mode === "agents" ? (cast?.[0].name ?? "Amber") : humanName),
+    room?.rightName ?? cast?.[1].name ?? "Teal",
+  ]);
   const outcome =
     state!.winner === "team"
-      ? "You brought it home. Together."
+      ? "Treasure rescued together."
       : state!.winner === "timeout"
         ? "The vault closed. One more plan?"
         : state!.winner === "draw"
-          ? "A rivalry worth a rematch."
+          ? "Match drawn."
           : state!.winner === "human"
             ? `${room?.leftName ?? (row.mode === "agents" ? (cast?.[0].name ?? "Amber") : humanName)} wins this round.`
             : `${room?.rightName ?? cast?.[1].name ?? "Teal"} takes this one.`;
@@ -422,6 +428,13 @@ export function ArenaGames({
               </label>
             </div>
           </div>
+          <details className="arena-board-description">
+            <summary>Board description</summary>
+            <p role="status" aria-live="polite">
+              {description.positions}
+            </p>
+            <p>{description.layout}</p>
+          </details>
           <div className="arena-call" role="status">
             <strong>
               {replay !== null && replay < row.revision
@@ -433,7 +446,9 @@ export function ArenaGames({
                     : room && row.phase === "lobby"
                       ? "Your arena is ready. Share the invitation to begin."
                       : room && ownLocked && row.phase === "planning"
-                        ? "Your move is locked. Waiting for your friend—no rush."
+                        ? room.mode === "friends"
+                          ? "Your move is locked. Waiting for your friend."
+                          : "Your move is locked. Waiting for the agent."
                         : room && isPlayer && row.phase === "planning"
                           ? `You’re ${side === 0 ? "Amber" : "Teal"}. Pick a lit tile or a move below.`
                           : room && row.phase === "thinking"
@@ -473,6 +488,7 @@ export function ArenaGames({
                   .map((a, i) => (
                     <button
                       key={i}
+                      aria-label={arenaMoveLabel(a, state!.pawns[side])}
                       onClick={() =>
                         void run(() =>
                           play({
@@ -540,13 +556,15 @@ export function ArenaGames({
               </div>
               <small>
                 Dash charge {state!.pawns[side].stamina}/2 · Both moves resolve
-                together. A tied pickup alternates by move number.
+                together.{" "}
+                {state!.kind !== "bridge_breakers" &&
+                  "A tied pickup alternates by move number."}
               </small>
             </div>
           )}
           {!connected && (
             <p role="alert">
-              Connection lost. Your committed moves are safe. Reconnecting…
+              Connection lost. Your confirmed moves are saved. Reconnecting…
             </p>
           )}
           {message && (
@@ -661,7 +679,7 @@ export function ArenaGames({
               <small>
                 {row.agentIdentity
                   ? "Live agent proposals. Any timed-out move is labeled MelaBot fallback in the notebook."
-                  : "Character tactics run deterministically in Mela. No live model calls."}
+                  : "These characters follow saved tactics. No live AI calls."}
               </small>
             </section>
           )}
@@ -706,10 +724,7 @@ export function ArenaGames({
                 className="arena-primary"
                 disabled={busy || !connected}
                 onClick={() =>
-                  void run(
-                    () => join({ matchId }),
-                    "You're in. Your first crowd move is ready.",
-                  )
+                  void run(() => join({ matchId }), "You joined the crowd.")
                 }
               >
                 Join the crowd →
@@ -718,11 +733,17 @@ export function ArenaGames({
             {isSpectator && !closed && (
               <>
                 <p role="status">
-                  {queued
-                    ? `${queued.actor} chose ${ARENA_POWERS[queued.power as keyof typeof ARENA_POWERS]?.label}. Revealed with the next move.`
-                    : remaining
-                      ? `Your next power in ${remaining}s`
-                      : "Your move is ready."}
+                  {!connected
+                    ? "Reconnecting. Powers return when connected."
+                    : queued
+                      ? `${queued.actor} chose ${ARENA_POWERS[queued.power as keyof typeof ARENA_POWERS]?.label}. Revealed with the next move.`
+                      : remaining
+                        ? `Your next power in ${remaining}s`
+                        : Object.values(ARENA_POWERS).some(
+                              (p) => (pool?.energy ?? 0) >= p.cost,
+                            )
+                          ? "Choose a power for the next move."
+                          : "Not enough crowd energy yet. Each reveal restores 3."}
                 </p>
                 {Object.entries(ARENA_POWERS).map(([key, value]) => (
                   <button
@@ -748,7 +769,7 @@ export function ArenaGames({
                         {POWER_COPY[key as keyof typeof POWER_COPY]}
                       </small>
                     </span>
-                    <b>{value.cost}</b>
+                    <b>{value.cost} energy</b>
                   </button>
                 ))}
               </>
@@ -769,7 +790,11 @@ export function ArenaGames({
           </section>
           {isPlayer && row.revision === 0 && !closed && !production && (
             <section className="arena-card">
-              <h2>Meet your rival</h2>
+              <h2>
+                {match.gameKind === "mela_heist"
+                  ? "Meet your teammate"
+                  : "Meet your rival"}
+              </h2>
               <p>
                 MelaBot always works. Connect Astra for live decisions from the
                 same board.
@@ -780,7 +805,9 @@ export function ArenaGames({
               >
                 {row.agentIdentity
                   ? "Agent connected"
-                  : "Play against live Astra"}
+                  : match.gameKind === "mela_heist"
+                    ? "Team up with live Astra"
+                    : "Play against live Astra"}
               </button>
             </section>
           )}
@@ -796,7 +823,11 @@ export function ArenaGames({
               Mode
               <select value={mode} onChange={(e) => setMode(e.target.value)}>
                 <option value="solo">You + MelaBot</option>
-                <option value="agents">Strategy vs strategy</option>
+                <option value="agents">
+                  {match.gameKind === "mela_heist"
+                    ? "Watch the team"
+                    : "Strategy vs strategy"}
+                </option>
               </select>
             </label>
             <label>

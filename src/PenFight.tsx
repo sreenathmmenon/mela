@@ -795,7 +795,7 @@ export function PenFight({
             }
           }}
         >
-          Copy invite
+          {match.status === "active" ? "Copy crowd link" : "Copy result link"}
         </button>
       </div>
     </section>
@@ -831,7 +831,7 @@ export function PenFight({
           </p>
         )}
       <a className="game-invite-link" href="#pen-invite">
-        Invite friends ↗
+        {match.status === "active" ? "Invite spectators ↓" : "Share result ↓"}
       </a>
       <AgentDuelPanel matchId={match.id} />
       {!conn.isActive && (
@@ -940,7 +940,9 @@ export function PenFight({
                     ? state.lastOutcome
                     : duel
                       ? duel.phase === "lobby"
-                        ? "Share the player invitation to start."
+                        ? duel.mode === "friends"
+                          ? "Share the player invitation to start."
+                          : "Copy the agent invitation above to start."
                         : duel.phase === "intent"
                           ? "Shot committed. The crowd has its moment."
                           : `${actor} is choosing a shot.`
@@ -1399,7 +1401,7 @@ export function PenFight({
           <p>
             {crowdCount
               ? `${crowdCount} in your crowd.`
-              : "Invite a friend with the QR above."}{" "}
+              : "Invite spectators with the QR above."}{" "}
             Crowd moves reveal after your flick.
           </p>
           {/* Deliberately no list of pending effects here. The player finds

@@ -80,8 +80,11 @@
   transform: rotate(-0.5deg);
 }
 .pg-binding {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
   text-align: center;
-  letter-spacing: 9px;
+  letter-spacing: 0;
   color: #8e795c;
   font-size: 23px;
   height: 38px;
@@ -161,7 +164,9 @@
 }
 .pg-board-help {
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
   color: #67563d;
   margin: 6px 0 12px;
 }
@@ -186,7 +191,8 @@
   color: #13594f;
 }
 .pg-paper-note {
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.5;
   text-align: center;
   color: #836f51;
 }
@@ -318,7 +324,14 @@
   margin: 0;
   font-size: 17px;
 }
+.pg-crowd-link {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font: 400 13px/1.5 var(--font-body);
+}
 .pg-invite a {
+  overflow-wrap: anywhere;
   display: block;
   font-size: 12px;
   margin-top: 12px;
@@ -544,7 +557,9 @@
     font-size: 9px;
   }
   .pg-score p {
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
   }
   .pg-score strong {
     font-size: 34px;

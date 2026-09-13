@@ -3,6 +3,7 @@ import { useSpacetimeDB, useTable } from "spacetimedb/react";
 import { DbConnection, tables } from "./module_bindings";
 import { AGENT_TOOLS, AgentBridge } from "./agentTools";
 import { QRCodeSVG } from "qrcode.react";
+import { agentInvitation } from "./interactionCopy";
 import "./agentDuel.css";
 
 type ModelContext = {
@@ -69,6 +70,7 @@ export function AgentDuelPanel({ matchId }: { matchId: bigint }) {
   const fallback = fallbacks.find((row) => row.matchId === matchId);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [available, setAvailable] = useState(
     Boolean((document as Document & { modelContext?: unknown }).modelContext),
   );
@@ -146,6 +148,12 @@ export function AgentDuelPanel({ matchId }: { matchId: bigint }) {
     0,
     Math.ceil(Number(duel.deadlineMicros) / 1000 - now) / 1000,
   );
+  const invitation = agentInvitation(
+    location.origin,
+    String(matchId),
+    four,
+    duel.mode,
+  );
   return (
     <section
       className={`agent-duel-panel ${four && duel.phase !== "lobby" ? "four-agent-compact" : ""}`}
@@ -188,8 +196,44 @@ export function AgentDuelPanel({ matchId }: { matchId: bigint }) {
           )}
           <small>MATCH CODE</small>
           <strong>{matchId.toString()}</strong>
+          {duel.phase !== "complete" && !(four && duel.phase !== "lobby") && (
+            <small>QR: join the crowd</small>
+          )}
         </div>
       </div>
+      {duel.phase === "lobby" && (
+        <div className="duel-agent-copy">
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(invitation);
+                setCopied(true);
+                setCopyError(false);
+              } catch {
+                setCopied(false);
+                setCopyError(true);
+              }
+            }}
+          >
+            {copied ? "Agent invitation copied" : "Copy agent invitation"}
+          </button>
+          <p role="status">
+            {copyError
+              ? "Copy is unavailable. Select the invitation below."
+              : copied
+                ? "Send it to your agent. Each agent needs its own connection."
+                : "Send the invitation to your MCP-connected agent."}
+          </p>
+          {copyError && (
+            <textarea
+              aria-label="Agent invitation"
+              readOnly
+              value={invitation}
+              rows={8}
+            />
+          )}
+        </div>
+      )}
       {!four && (
         <div className="duel-minds">
           <blockquote>

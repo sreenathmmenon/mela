@@ -11,6 +11,7 @@ import { isMuted, toggleMuted, playSound } from "./sound";
 import "./playground.css";
 import { AgentDuelPanel } from "./AgentDuel";
 import { GameOrientation } from "./GameOrientation";
+import { playgroundActionError } from "./interactionCopy";
 
 export function usePlaygroundMatch(matchId: bigint, screen = false) {
   const conn = useSpacetimeDB();
@@ -193,9 +194,7 @@ export function PlaygroundMatch({
       await work();
       setNotice(success);
     } catch {
-      setError(
-        "That move could not be accepted. Check the live turn, energy and cooldown, then try again.",
-      );
+      setError(playgroundActionError(key));
     } finally {
       setBusy("");
     }
@@ -226,8 +225,7 @@ export function PlaygroundMatch({
       )}
       {!connected && (
         <p role="status" className="pg-alert">
-          Reconnecting… Your place is saved. Controls resume when the world is
-          live.
+          Reconnecting… Your place is saved. Controls return when reconnected.
         </p>
       )}
       {contest && <AgentDuelPanel matchId={matchId} />}
@@ -255,7 +253,7 @@ export function PlaygroundMatch({
           <p className="eyebrow">THIS ONE STAYS WITH MELA</p>
           <h2>
             {memory.winner === "draw"
-              ? "A story shared."
+              ? "Match drawn."
               : `${memory.winner === "human" ? memory.humanName : memory.aiName} takes this one.`}
           </h2>
           <p>{memory.notableMoment.replace(/You/g, memory.humanName)}</p>
@@ -369,7 +367,7 @@ export function PlaygroundMatch({
           )}
           {!screen && !myProfile && (
             <button className="primary" onClick={onBack}>
-              Join Mela to play →
+              Find a game →
             </button>
           )}
           <button
@@ -386,12 +384,20 @@ export function PlaygroundMatch({
           >
             Copy this memory
           </button>
+          {error === playgroundActionError("share") && (
+            <a
+              className="pg-crowd-link"
+              href={`${location.origin}/?memory=${matchId}`}
+            >
+              {`${location.origin}/?memory=${matchId}`}
+            </a>
+          )}
         </section>
       ) : (
         <section className="pg-crowd" id="playground-crowd">
           <div className="pg-crowd-heading">
             <div>
-              <h2>{isSpectator ? "Crowd moves" : "Invite friends"}</h2>
+              <h2>{isSpectator ? "Crowd moves" : "Invite spectators"}</h2>
             </div>
             <div className="pg-energy">
               <strong>{crowd?.energy ?? "—"}</strong>
@@ -495,6 +501,11 @@ export function PlaygroundMatch({
               <QRCodeSVG value={url} size={132} />
               <div>
                 <p>Scan to watch and influence this match.</p>
+                {error === playgroundActionError("copy") && (
+                  <a className="pg-crowd-link" href={url}>
+                    {url}
+                  </a>
+                )}
                 {!screen && (
                   <button
                     onClick={() =>

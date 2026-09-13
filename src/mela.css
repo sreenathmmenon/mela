@@ -3215,12 +3215,17 @@ button:disabled {
 }
 .stick-cricket-stage figcaption {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   padding: 9px 14px;
   background: #12382e;
   color: #fff2cf;
-  font-weight: 800;
+  font-weight: 500;
+}
+.stick-cricket-stage figcaption > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .stick-cricket-stage figcaption small {
   color: #c8e1bc;
@@ -3347,7 +3352,9 @@ button:disabled {
     font-size: 0.82rem;
   }
   .stick-cricket-stage figcaption small {
-    max-width: 46%;
+    max-width: 100%;
+    flex-basis: 100%;
+    text-align: left;
   }
 }
 /* The page number in the corner is the whole explanation. Nobody is told to

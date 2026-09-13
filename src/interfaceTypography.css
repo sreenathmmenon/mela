@@ -1,4 +1,13 @@
 /* Shared navigation chrome only: do not resize game boards, HUDs or input geometry. */
+.pen-studio .pen-top,
+.arena-shell:not(.arena-screen) .arena-header,
+.playground-shell:not(.playground-screen) .pg-header,
+.mela-shell.game-cricket .hero-row {
+  flex-wrap: wrap;
+}
+.arena-shell:not(.arena-screen) .arena-header > div {
+  min-width: 0;
+}
 .pen-studio .pen-top h1,
 .arena-shell:not(.arena-screen) .arena-header h1,
 .playground-shell:not(.playground-screen) .pg-header h1,
@@ -29,6 +38,36 @@
 }
 
 /* Reading surfaces share a scale; score/board geometry retains game-specific sizing. */
+.guest-invite h2 {
+  font: 500 24px/1.35 var(--font-display);
+  letter-spacing: 0;
+}
+.guest-invite > p {
+  font: 400 14px/1.5 var(--font-body);
+}
+.guest-invite button {
+  min-height: 48px;
+  font: 500 14px/1.4 var(--font-body);
+}
+.memory-hero h2,
+.profile-glance h2 {
+  font: 500 24px/1.35 var(--font-display);
+  letter-spacing: 0;
+}
+.mela-shell.game-cricket .result {
+  font: 500 18px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.playground-shell:not(.playground-screen) .pg-crowd-heading h2 {
+  font: 500 18px/1.35 var(--font-display);
+}
+@media (max-width: 360px) {
+  .playground-shell:not(.playground-screen) .pg-crowd-heading {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+}
 .product-home
   :is(
     .product-paths strong,

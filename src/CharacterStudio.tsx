@@ -393,7 +393,7 @@ export function CharacterStudio({
               onChange={(e) => setMode(e.target.value)}
             >
               <option value="agents">Watch characters</option>
-              <option value="solo">I play Amber</option>
+              <option value="solo">I control the left character</option>
             </select>
           </label>
         </div>
@@ -418,10 +418,16 @@ export function CharacterStudio({
               <small>
                 {live
                   ? "Character moves are proposed by Astra. Limited capacity; timed-out moves use a labeled fallback."
-                  : "Off: instant, free deterministic characters. No API calls during play."}
+                  : "Off: characters follow their saved tactics. No live AI calls."}
               </small>
             </span>
           </label>
+        )}
+        {!independentRoom && (
+          <p className="studio-brief">
+            Both characters’ names and traits will be public in this match.
+            Looks do not change the rules.
+          </p>
         )}
         <button
           className="studio-start"
@@ -441,10 +447,10 @@ export function CharacterStudio({
                     : game === "mela_heist"
                       ? mode === "agents"
                         ? "Send the team on a heist →"
-                        : "Play alongside my character →"
+                        : `Team up with ${teal.name} →`
                       : mode === "agents"
                         ? "Start the character duel →"
-                        : "Play against my character →"}
+                        : `Play against ${teal.name} →`}
         </button>
         {!independentRoom && (
           <form
@@ -470,8 +476,8 @@ export function CharacterStudio({
               </button>
             </div>
             <small>
-              Optional. Astra designs the editable traits above. Names and
-              traits are public. Your prompt is not saved in Mela.
+              Optional. Astra suggests editable traits. Your prompt is not saved
+              in Mela.
             </small>
           </form>
         )}

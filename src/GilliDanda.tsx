@@ -335,7 +335,7 @@ export function GilliDanda({
             </p>
           )}
           <details className="pg-how">
-            <summary>How to play</summary>
+            <summary>Rules & crowd effects</summary>
             <p>
               Five strikes each. Most total paces wins. Gentle swings offer a
               wide contact window; Thunder rewards precise timing and can miss

@@ -233,7 +233,7 @@ export function StrategyGames({
             </p>
           )}
           <details className="pg-how">
-            <summary>How to play</summary>
+            <summary>Rules & crowd effects</summary>
             <p>
               {isFour
                 ? "Connect four of your discs horizontally, vertically or diagonally. Each arrow drops into its column. A full board without a line is a draw. The crowd can send a SIDEWIND: your next disc shifts one column right, or left at the right edge, unless that neighbour is full. The chosen column must be open."

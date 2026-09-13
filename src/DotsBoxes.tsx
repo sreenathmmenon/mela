@@ -78,7 +78,9 @@ export function DotsBoxes({
           </section>
           <div className="pg-notebook">
             <div className="pg-binding" aria-hidden="true">
-              ○ ○ ○ ○ ○ ○ ○ ○
+              {Array.from({ length: 8 }, (_, i) => (
+                <span key={i}>○</span>
+              ))}
             </div>
             <div
               className="pg-grid"
@@ -174,7 +176,7 @@ export function DotsBoxes({
             </p>
           )}
           <details className="pg-how">
-            <summary>How to play</summary>
+            <summary>Rules & crowd effects</summary>
             <p>
               Tap an empty space between neighbouring dots. Closing the fourth
               side earns the box and another turn. The most boxes wins. Avoid
