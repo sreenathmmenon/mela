@@ -47,3 +47,14 @@ test("illustrated friend and agent shelves retain only five supported games", ()
 test("connection or mutation pending disables every illustrated game card", () => {
   assert.equal((render("solo", true).match(/disabled=""/g) ?? []).length, 10);
 });
+
+test("solo cards have a named play action without ten repeated visible Play captions", () => {
+  const html = render("solo");
+  assert.equal(
+    (html.match(/class="discovery-sr-only">Play /g) ?? []).length,
+    10,
+  );
+  assert.equal((html.match(/aria-label=/g) ?? []).length, 1); // Games region only; preserve native card names.
+  assert.equal((html.match(/<b>/g) ?? []).length, 0);
+  assert.equal((render("friends").match(/<b>/g) ?? []).length, 5);
+});

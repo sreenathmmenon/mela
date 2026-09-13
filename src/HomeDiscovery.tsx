@@ -19,7 +19,7 @@ export const HOME_GAMES = [
     kind: "bridge_breakers",
     name: "Bridge Breakers",
     tag: "",
-    copy: "Race across. Build your own course.",
+    copy: "Race to the other side.",
     crowd: "Every crossing can change.",
     art: "bridge",
   },
@@ -27,7 +27,7 @@ export const HOME_GAMES = [
     kind: "mela_heist",
     name: "Mela Heist",
     tag: "",
-    copy: "Two partners. One treasure to rescue.",
+    copy: "Bring the treasure home together.",
     crowd: "Help the team get home.",
     art: "heist",
   },
@@ -51,7 +51,7 @@ export const HOME_GAMES = [
     kind: "stick_cricket",
     name: "Stick Cricket",
     tag: "BAT. BOWL. ONE OVER.",
-    copy: "Six balls each. Beat MelaBot's score.",
+    copy: "One over. Two wickets.",
     crowd: "Every cheer can shape the next ball.",
     art: "cricket",
   },
@@ -67,7 +67,7 @@ export const HOME_GAMES = [
     kind: "gilli_danda",
     name: "Gilli Danda",
     tag: "BACK TO THE COURTYARD",
-    copy: "Time your hit. Send it flying.",
+    copy: "Time your strike. Send it flying.",
     crowd: "A drumbeat or a heckle changes the hit.",
     art: "gilli",
   },
@@ -75,7 +75,7 @@ export const HOME_GAMES = [
     kind: "four_row",
     name: "Four in a Row",
     tag: "MAKE A LITTLE CONNECTION",
-    copy: "Connect four before your rival.",
+    copy: "Connect four to win.",
     crowd: "A sidewind can change where it lands.",
     art: "four",
   },
@@ -133,20 +133,40 @@ export function HomeDiscovery({
               aria-busy={busy && selected === game.kind}
               disabled={busy}
             >
+              {intent === "solo" && (
+                <span className="discovery-sr-only">
+                  {busy && selected === game.kind ? "Opening " : "Play "}
+                </span>
+              )}
               <span className="home-cover">
                 <GameCover kind={game.kind} />
                 <span className="home-cover-action" aria-hidden="true">
-                  ↗
+                  {busy && selected === game.kind ? (
+                    "…"
+                  ) : intent === "solo" ? (
+                    <svg
+                      viewBox="0 0 20 20"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                    >
+                      <path d="m6 3 11 7-11 7z" />
+                    </svg>
+                  ) : (
+                    "→"
+                  )}
                 </span>
               </span>
               <span className="home-game-copy">
                 <strong>{game.name}</strong>
                 <span>{game.copy}</span>
-                <b>
-                  {busy && selected === game.kind
-                    ? "Opening…"
-                    : launchLabel(game.kind, intent)}
-                </b>
+                {intent !== "solo" && (
+                  <b>
+                    {busy && selected === game.kind
+                      ? "Opening…"
+                      : launchLabel(game.kind, intent)}
+                  </b>
+                )}
               </span>
             </button>
           ))}

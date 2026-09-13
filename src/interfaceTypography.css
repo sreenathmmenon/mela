@@ -1,0 +1,54 @@
+/* Shared navigation chrome only: do not resize game boards, HUDs or input geometry. */
+.pen-studio .pen-top h1,
+.arena-shell:not(.arena-screen) .arena-header h1,
+.playground-shell:not(.playground-screen) .pg-header h1,
+.mela-shell.game-cricket .hero h1 {
+  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.35px;
+  margin: 0;
+}
+.pen-studio .pen-top button,
+.arena-shell:not(.arena-screen) .arena-header button,
+.playground-shell:not(.playground-screen) .pg-header button,
+.mela-shell.game-cricket .hero button,
+.mela-shell.game-cricket > .identity button {
+  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-width: 1px;
+  border-radius: 10px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.pen-studio .pen-top button:hover:not(:disabled),
+.arena-shell:not(.arena-screen) .arena-header button:hover:not(:disabled),
+.playground-shell:not(.playground-screen)
+  .pg-header
+  button:hover:not(:disabled),
+.mela-shell.game-cricket .hero button:hover:not(:disabled),
+.mela-shell.game-cricket > .identity button:hover:not(:disabled) {
+  transform: none;
+}
+@media (max-width: 600px) {
+  .pen-studio .pen-top h1,
+  .arena-shell:not(.arena-screen) .arena-header h1,
+  .playground-shell:not(.playground-screen) .pg-header h1,
+  .mela-shell.game-cricket .hero h1 {
+    font-size: 20px;
+  }
+  .pen-studio .pen-top button,
+  .arena-shell:not(.arena-screen) .arena-header button,
+  .playground-shell:not(.playground-screen) .pg-header button,
+  .mela-shell.game-cricket .hero button,
+  .mela-shell.game-cricket > .identity button {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+}

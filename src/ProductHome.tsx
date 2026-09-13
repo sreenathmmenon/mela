@@ -182,22 +182,20 @@ export function ProductHome({
         <div>
           <h2 ref={heading} tabIndex={-1}>
             {place === "play"
-              ? "What are we playing?"
+              ? "Choose a game"
               : place === "watch"
-                ? "Take a front-row seat."
+                ? "Watch a match"
                 : place === "agents"
-                  ? "A playground for your agent."
-                  : "Your corner of Mela."}
+                  ? "Play with agents"
+                  : "Your Mela"}
           </h2>
-          <p>
-            {place === "play"
-              ? "A little competition. A lot of company. No signup needed."
-              : place === "watch"
-                ? "Watch the game, choose your moment, change the next move."
-                : place === "agents"
-                  ? "Play an agent, host a duel, or make a character your own."
-                  : "Playing and cheering both count. Each game keeps its own score."}
-          </p>
+          {place !== "play" && place !== "memories" && (
+            <p>
+              {place === "watch"
+                ? "Join the crowd and influence the next move."
+                : "Connect your own agent or create a character."}
+            </p>
+          )}
         </div>
       </div>
 
@@ -209,16 +207,16 @@ export function ProductHome({
             aria-label="Who are you playing with?"
           >
             <button aria-pressed={!friends} onClick={() => setFriends(false)}>
-              Play now
+              With MelaBot
             </button>
             <button aria-pressed={friends} onClick={() => setFriends(true)}>
               With a friend
             </button>
-            <span>
-              {friends
-                ? "Choose a game. Send a private player link."
-                : "You play. MelaBot takes the other side."}
-            </span>
+            {friends ? (
+              <span>Invite with a private link.</span>
+            ) : !profile ? (
+              <span>No signup needed</span>
+            ) : null}
           </div>
           <HomeDiscovery
             busy={busy}
@@ -227,16 +225,6 @@ export function ProductHome({
             live={[]}
             onWatch={onWatch}
           />
-          <div className="product-crossroads">
-            <button onClick={() => changePlace("watch")}>
-              <strong>Rather watch?</strong>
-              <span>Join a crowd and influence a match →</span>
-            </button>
-            <button onClick={() => changePlace("agents")}>
-              <strong>Have an agent?</strong>
-              <span>Give it a seat at the table →</span>
-            </button>
-          </div>
           {resume && (
             <button
               className="product-resume"
@@ -255,17 +243,6 @@ export function ProductHome({
 
       {place === "watch" && (
         <>
-          <div className="product-crowd-explainer">
-            <span>
-              <b>01</b> Pick a room
-            </span>
-            <span>
-              <b>02</b> Choose a power
-            </span>
-            <span>
-              <b>03</b> Watch it land
-            </span>
-          </div>
           {rooms.length ? (
             <section className="product-rooms" aria-label="Active rooms">
               {rooms.map((room) => (
@@ -285,21 +262,17 @@ export function ProductHome({
             </section>
           ) : (
             <div className="product-empty">
-              <strong>No active rooms to join right now.</strong>
-              <p>
-                Start a game and invite your crowd, or explore a finished match
-                below.
-              </p>
+              <strong>No active matches right now.</strong>
+              <p>Start a game or explore a completed match below.</p>
               <button onClick={() => changePlace("play")}>
                 Start a game →
               </button>
             </div>
           )}
           <div className="product-subheading">
-            <h3>From the playground</h3>
-            <span>Completed matches · not live rooms</span>
+            <h3>Completed matches</h3>
           </div>
-          {cards(latest, "The first stories are still being played.")}
+          {cards(latest, "No completed matches yet.")}
         </>
       )}
 
@@ -315,14 +288,14 @@ export function ProductHome({
               onClick={() => setAgentPath("external")}
             >
               <strong>Connect an agent</strong>
-              <span>Your agent. Its own seat.</span>
+              <span>Bring a tool-connected agent</span>
             </button>
             <button
               aria-pressed={agentPath === "character"}
               onClick={() => setAgentPath("character")}
             >
               <strong>Create a character</strong>
-              <span>No agent setup needed.</span>
+              <span>No external setup</span>
             </button>
           </div>
           {agentPath === "character" ? (
@@ -346,9 +319,7 @@ export function ProductHome({
                 >
                   Agent vs agent
                 </button>
-                <span>
-                  Two seats. Spectators welcome. Heist is cooperative.
-                </span>
+                <span>Heist is cooperative.</span>
               </div>
               <HomeDiscovery
                 busy={busy}
@@ -405,12 +376,11 @@ export function ProductHome({
         <>
           <div className="product-profile">
             <div>
-              <small>Your place in Mela</small>
               <h3>{profile?.name ?? "Make your first memory"}</h3>
               <p>
                 {profile
-                  ? `Mela level ${profile.level} · Built by participation, not just wins.`
-                  : "Start as a guest. Your nickname and history begin with your first game."}
+                  ? `Mela level ${profile.level} · Earned through participation`
+                  : "Your profile starts with your first game."}
               </p>
             </div>
             <button onClick={onAccount}>
@@ -434,10 +404,7 @@ export function ProductHome({
             </dl>
           )}
           {profile?.record && (
-            <p className="product-saving-note">
-              {profile.record} Game records stay separate from Mela level and
-              crowd influence.
-            </p>
+            <p className="product-saving-note">{profile.record}</p>
           )}
           {resume && (
             <button
@@ -450,8 +417,7 @@ export function ProductHome({
             </button>
           )}
           <div className="product-subheading">
-            <h3>Your recent matches</h3>
-            <span>Games you played or watched</span>
+            <h3>Recently played or watched</h3>
           </div>
           {cards(personal, "No completed matches yet.")}
           <p className="product-saving-note">

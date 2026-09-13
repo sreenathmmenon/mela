@@ -805,7 +805,6 @@ export function PenFight({
       <header className="pen-top">
         <div>
           <h1>Pen Fight</h1>
-          <p>The school-desk classic. First to two.</p>
         </div>
         <button className="secondary" onClick={onBack}>
           ← Games

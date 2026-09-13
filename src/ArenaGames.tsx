@@ -319,12 +319,11 @@ export function ArenaGames({
             : `${room?.rightName ?? cast?.[1].name ?? "Teal"} takes this one.`;
   return (
     <main
-      className={`arena-shell arena-${match.gameKind} ${isSpectator ? "arena-audience" : ""}`}
+      className={`arena-shell arena-${match.gameKind} ${isSpectator ? "arena-audience" : ""} ${screen ? "arena-screen" : ""}`}
     >
       <header className="arena-header">
         <button onClick={onBack}>← Games</button>
         <div>
-          <span className="arena-overline">MELA ARENA</span>
           <h1>{ARENA_TITLES[match.gameKind]}</h1>
         </div>
         <button onClick={() => setMuted(toggleMuted())}>

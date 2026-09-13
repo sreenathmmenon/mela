@@ -16,9 +16,11 @@ export function GameOrientation({
     <details className="game-orientation">
       <summary>
         <span>{spectator ? "You're in the crowd" : "How to play"}</span>
-        <span>{spectator ? "Your powers matter" : guide.goal}</span>
       </summary>
       <div>
+        <p>
+          <strong>{guide.goal}</strong>
+        </p>
         <p>{spectator ? guide.crowd : guide.input}</p>
         <p>
           {spectator

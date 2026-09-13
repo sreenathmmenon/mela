@@ -47,13 +47,13 @@ html:has(.home-landing) {
   transform: rotate(-12deg);
 }
 .home-landing .hero .link-back {
-  min-height: 44px;
+  min-height: 48px;
   padding: 10px 18px;
   border: 1px solid #dce0eb;
   background: #fff;
   border-radius: 12px;
   box-shadow: none;
-  font: 650 14px/1.2 var(--font-display);
+  font: 600 14px/1.2 var(--font-display);
   color: #26324b;
   text-decoration: none;
 }
@@ -68,6 +68,17 @@ html:has(.home-landing) {
 }
 .product-home {
   padding-bottom: 12px;
+}
+.discovery-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .product-home :is(h2, h3, strong) {
   font-family: var(--font-display);
@@ -101,7 +112,7 @@ html:has(.home-landing) {
   box-shadow: none;
   color: #586277;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .product-nav button:hover:not([aria-pressed="true"]) {
   background: #eceff7;
@@ -120,12 +131,12 @@ html:has(.home-landing) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 36px 0 24px;
+  padding: 28px 0 20px;
 }
 .product-section-heading h2 {
   margin: 0;
-  font: 700 clamp(28px, 3.2vw, 40px)/1.15 var(--font-display);
-  letter-spacing: -1.5px;
+  font: 600 clamp(26px, 2.8vw, 32px)/1.2 var(--font-display);
+  letter-spacing: -0.6px;
   color: #1b2340;
 }
 .product-section-heading h2:focus {
@@ -150,15 +161,15 @@ html:has(.home-landing) {
   background: #fff;
   color: #505b72;
   border-radius: 10px;
-  min-height: 44px;
+  min-height: 48px;
   padding: 10px 17px;
   box-shadow: none;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .product-filter button[aria-pressed="true"] {
-  background: #26324b;
-  border-color: #26324b;
+  background: #354bd9;
+  border-color: #354bd9;
   color: #fff;
 }
 .product-filter > span {
@@ -239,19 +250,19 @@ html:has(.home-landing) {
   padding: 13px 2px 0;
 }
 .home-game-copy strong {
-  font: 700 20px/1.25 var(--font-display);
-  letter-spacing: -0.5px;
+  font: 600 18px/1.35 var(--font-display);
+  letter-spacing: -0.2px;
   color: #1e2940;
 }
 .home-game-copy > span {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
   color: #646e81;
 }
 .home-game-copy b {
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   color: #3f51c6;
   margin-top: auto;
   padding-top: 6px;
@@ -362,7 +373,7 @@ html:has(.home-landing) {
 .product-rooms button,
 .product-empty button {
   flex-shrink: 0;
-  min-height: 44px;
+  min-height: 48px;
   padding: 11px 16px;
   border: 0;
   border-radius: 10px;
@@ -434,7 +445,7 @@ html:has(.home-landing) {
 }
 .product-memory-card > strong {
   font: 700 20px/1.3 var(--font-display);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.2px;
 }
 .product-memory-card em {
   color: #4a61df;
@@ -504,7 +515,7 @@ html:has(.home-landing) {
   cursor: pointer;
   min-height: 52px;
   padding: 15px 0 0;
-  font-weight: 650;
+  font-weight: 600;
   font-size: 15px;
 }
 .product-agent-guide p,
@@ -525,7 +536,7 @@ html:has(.home-landing) {
 .product-agent-guide button {
   margin-top: 12px;
   padding: 10px 14px;
-  min-height: 44px;
+  min-height: 48px;
   border: 1px solid #dce1ed;
   border-radius: 9px;
   background: #edf1ff;
@@ -558,7 +569,7 @@ html:has(.home-landing) {
 .product-profile button {
   flex-shrink: 0;
   padding: 12px 16px;
-  min-height: 44px;
+  min-height: 48px;
   border: 1px solid #b3bfeb;
   border-radius: 10px;
   background: white;
@@ -630,7 +641,7 @@ html:has(.home-landing) {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  min-height: 44px;
+  min-height: 48px;
   cursor: pointer;
   font-size: 12px;
   list-style: none;
@@ -719,8 +730,8 @@ html:has(.home-landing) {
   .product-nav-loading > span {
     padding: 10px 3px;
     gap: 6px;
-    font-size: 12px;
-    min-height: 46px;
+    font-size: 13px;
+    min-height: 48px;
   }
   .product-nav button svg {
     width: 16px;
@@ -733,8 +744,8 @@ html:has(.home-landing) {
     padding: 25px 0 21px;
   }
   .product-section-heading h2 {
-    font-size: 29px;
-    letter-spacing: -1px;
+    font-size: 26px;
+    letter-spacing: -0.4px;
   }
   .product-section-heading p {
     font-size: 13px;
@@ -747,7 +758,7 @@ html:has(.home-landing) {
     margin-bottom: 20px;
   }
   .product-filter button {
-    font-size: 13px;
+    font-size: 14px;
     padding: 10px 15px;
   }
   .product-filter > span {
@@ -775,10 +786,10 @@ html:has(.home-landing) {
   }
   .home-game-copy strong {
     font-size: 17px;
-    letter-spacing: -0.45px;
+    letter-spacing: -0.15px;
   }
   .home-game-copy > span {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
   }
   .home-game-copy b {
@@ -853,7 +864,7 @@ html:has(.home-landing) {
     min-height: 52px;
   }
   .product-section-heading h2 {
-    font-size: 26px;
+    font-size: 25px;
   }
   .home-game-copy strong {
     font-size: 16px;
