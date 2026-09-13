@@ -10,7 +10,9 @@ import { PenFight } from "./PenFight";
 import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
-import { HomeDiscovery } from "./HomeDiscovery";
+import { ProductHome } from "./ProductHome";
+import { GameOrientation } from "./GameOrientation";
+import { supportsIntent, type PlayIntent } from "./productExperience";
 import { CharacterStudio } from "./CharacterStudio";
 import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { EmailRecap } from "./EmailRecap";
@@ -182,7 +184,8 @@ function App() {
   const [matchEvents, setMatchEvents] = useState<
     Array<{ id: bigint; matchId: bigint; message: string }>
   >([]);
-  const requestedJoinMatchId = useMemo(matchIdFromJoinLink, []);
+  const [requestedJoinMatchId, setRequestedJoinMatchId] =
+    useState(matchIdFromJoinLink);
   const [requestedMemoryId, setRequestedMemoryId] = useState(() => {
     const value = new URLSearchParams(window.location.search).get("memory");
     return value && /^[0-9]{1,20}$/.test(value) ? BigInt(value) : null;
@@ -218,6 +221,9 @@ function App() {
   }, []);
 
   const conn = useSpacetimeDB();
+  const [homeDestination, setHomeDestination] = useState<
+    "play" | "watch" | "agents" | "memories"
+  >("play");
   const { isActive: connected } = conn;
   const [profiles, profilesReady] = useTable(tables.playerProfile);
   const [identityLinks, identityLinksReady] = useTable(tables.myIdentityLink);
@@ -474,20 +480,16 @@ function App() {
     const played = myBookCricketRecord?.matchesPlayed ?? 0;
     if (played < 1) return null;
     const wins = myBookCricketRecord?.wins ?? 0;
-    const losses = Math.max(0, played - wins);
-    if (wins > losses) return `You lead MelaBot ${wins}\u2013${losses}.`;
-    if (losses > wins) return `MelaBot leads you ${losses}\u2013${wins}.`;
-    return `You and MelaBot are level at ${wins}\u2013${losses}.`;
+    return `Book Cricket: ${wins} ${wins === 1 ? "win" : "wins"} from ${played} ${played === 1 ? "match" : "matches"}.`;
   })();
 
-  // Regret is the reason to play one more: a loss only stings usefully if you
-  // know which of your own choices cost you.
+  // Describe the recorded result without inventing a player's intent.
   const regretLine = (() => {
     if (!matchState || !memory || memory.winner === "human") return null;
     const balls = (matchState.humanTimeline || "").split(",").filter(Boolean);
     const lastWicket = balls.lastIndexOf("W");
     if (lastWicket >= 0 && lastWicket >= balls.length - 2)
-      return "You went for it with the innings on the line.";
+      return "A wicket fell late in your innings.";
     if (matchState.humanWickets >= 2)
       return "Both wickets gone \u2014 the innings ended before the overs did.";
     const margin = Math.abs(memory.botScore - memory.humanScore);
@@ -619,6 +621,7 @@ function App() {
   );
 
   const createMatch = useReducer(reducers.createBookCricket);
+  const createStickMatch = useReducer(reducers.createStickCricket);
   const createPenFight = useReducer(reducers.createPenFight);
   const createDotsBoxes = useReducer(reducers.createDotsBoxes);
   const createGilliDanda = useReducer(reducers.createGilliDanda);
@@ -646,50 +649,60 @@ function App() {
       setJoining(false);
     }
   };
-  const modes = (
-    <details className="home-more-ways" aria-label="More ways to play">
-      <summary>
-        <span>Play together</span>
-        <small>Friends, agents, or both</small>
-      </summary>
-      <div className="home-more-ways-body">
-        {["pen_fight", "four_row"].map((kind) => (
-          <section
-            key={kind}
-            aria-label={GAME_LABELS[kind] + " opponents"}
-            className="opponent-choice"
-          >
-            <h3>{GAME_LABELS[kind]}</h3>
-            <div className="duel-launch">
-              <button
-                disabled={joining || !connected}
-                onClick={() => void openPenMode("friends", kind)}
-              >
-                Play with a friend
-              </button>
-              <button
-                disabled={joining || !connected}
-                onClick={() => void openPenMode("human_agent", kind)}
-              >
-                Challenge an agent
-              </button>
-              <button
-                disabled={joining || !connected}
-                onClick={() => void openPenMode("duel", kind)}
-              >
-                Host two agents
-              </button>
-            </div>
-          </section>
-        ))}
-      </div>
-    </details>
-  );
   const playBall = useReducer(reducers.playBall);
   const joinSpectator = useReducer(reducers.joinMatchAsSpectator);
   const useCrowdPower = useReducer(reducers.useCrowdPower);
   const enterGame = useReducer(reducers.enterGame);
   const createArenaGame = useReducer(reducers.createArena);
+  const createIndependentArena = useReducer(reducers.createArenaRoom);
+  const startProductGame = async (kind: string, intent: PlayIntent) => {
+    if (!supportsIntent(kind, intent)) return;
+    if (intent === "solo") {
+      if (!me || ARENA_TITLES[kind]) await enter(kind);
+      else if (kind === "book_cricket") await startMatch();
+      else if (kind === "stick_cricket") await startStickCricket();
+      else if (kind === "pen_fight") await startPenFight();
+      else
+        await startExperimentalGame(
+          kind === "dots_boxes"
+            ? "dots"
+            : kind === "gilli_danda"
+              ? "gilli"
+              : kind === "four_row"
+                ? "four"
+                : "stick",
+        );
+      return;
+    }
+    if (["pen_fight", "four_row"].includes(kind)) {
+      await openPenMode(intent === "agent_duel" ? "duel" : intent, kind);
+      return;
+    }
+    if (joinBusy.current || !connected || !profilesReady || !identityLinksReady)
+      return;
+    joinBusy.current = true;
+    setJoining(true);
+    setError(null);
+    try {
+      await createIndependentArena({
+        gameKind: kind,
+        mode: intent,
+        inviteCode:
+          intent === "friends" ? crypto.randomUUID().replace(/-/g, "") : "",
+      });
+      setRequestedMemoryId(null);
+      setPinnedMatchId(null);
+      setShowHome(false);
+      setFeedback(null);
+    } catch {
+      setError(
+        "That room could not open. Your existing games are safe. Try again.",
+      );
+    } finally {
+      joinBusy.current = false;
+      setJoining(false);
+    }
+  };
   // A scanned QR must land the visitor in THAT match — even if they have
   // played or watched here before. Fresh identities join during onboarding;
   // everyone else joins here, exactly once per page load.
@@ -708,8 +721,10 @@ function App() {
     const url = new URL(window.location.href);
     url.searchParams.delete("join");
     window.history.replaceState({}, "", url.href);
+    setRequestedJoinMatchId(undefined);
     const target = matches.find((match) => match.id === requestedJoinMatchId);
     if (!target || target.status !== "active") {
+      setShowHome(true);
       setError(
         "That match has ended. Start a fresh match or scan a live crowd QR.",
       );
@@ -741,13 +756,15 @@ function App() {
           "You joined the crowd. Spend Crowd Energy to change the next move.",
         ),
       )
-      .catch((reason) =>
+      .catch((reason) => {
+        setPinnedMatchId(null);
+        setShowHome(true);
         setError(
           reason instanceof Error
             ? reason.message
             : "Could not join that crowd.",
-        ),
-      );
+        );
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedJoinMatchId, connected, me, matches, matchesReady]);
 
@@ -805,7 +822,7 @@ function App() {
     try {
       await createMatch();
       setError(null);
-      setFeedback("Your innings. Set the target.");
+      setFeedback(null);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to start a match.",
@@ -819,9 +836,9 @@ function App() {
     setShowHome(false);
     setPinnedMatchId(null);
     try {
-      await enterGame({ gameKind: "stick_cricket" });
+      await createStickMatch();
       setError(null);
-      setFeedback("Take guard. Six balls to set the score.");
+      setFeedback(null);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -839,7 +856,7 @@ function App() {
     try {
       await createPenFight();
       setError(null);
-      setFeedback("The desk is live. Aim, choose force, and flick your pen.");
+      setFeedback(null);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to set up the desk.",
@@ -1020,14 +1037,17 @@ function App() {
     !showHome &&
     memories.find(
       (row) =>
-        row.matchId === requestedMemoryId && row.gameKind === "book_cricket",
+        row.matchId === requestedMemoryId &&
+        ["book_cricket", "stick_cricket"].includes(row.gameKind),
     );
   if (sharedBookMemory)
     return (
       <main className="mela-shell">
         <header className="hero">
-          <p className="eyebrow">MELA · BOOK CRICKET</p>
-          <h1>A match worth remembering.</h1>
+          <p className="eyebrow">
+            MELA · {GAME_LABELS[sharedBookMemory.gameKind]}
+          </p>
+          <h1>{GAME_LABELS[sharedBookMemory.gameKind]} result</h1>
         </header>
         <section className="memory-hero" aria-label="Completed match memory">
           <p className="eyebrow">NOW PART OF MELA</p>
@@ -1213,75 +1233,60 @@ function App() {
       </header>
 
       {!displayedMatch && !requestedJoinMatchId && (
-        <CharacterStudio
-          connected={connected && profilesReady && identityLinksReady}
-          identity={canonicalIdentity ?? identity}
-          onOpen={(id) => {
+        <ProductHome
+          initialPlace={homeDestination}
+          onPlaceChange={setHomeDestination}
+          busy={
+            joining ||
+            creatingMatch ||
+            !connected ||
+            !profilesReady ||
+            !identityLinksReady
+          }
+          rooms={discoverableRooms}
+          memories={memories}
+          personal={myRecentMemories}
+          profile={
+            me && myMelaProfile
+              ? {
+                  name: me.displayName,
+                  level: myMelaProfile.melaLevel,
+                  played: myMelaProfile.matchesPlayed,
+                  watched: myMelaProfile.matchesWatched,
+                  influence: myMelaProfile.crowdInfluence,
+                  record: rivalry,
+                }
+              : undefined
+          }
+          resume={resumableMatch}
+          onPlay={(kind, intent) => void startProductGame(kind, intent)}
+          onWatch={(id) => void watchMatch(id)}
+          onResume={(id) => {
             setPinnedMatchId(id);
             setRequestedMemoryId(null);
             setShowHome(false);
-            const url = new URL(location.href);
-            url.search = "";
-            window.history.replaceState(null, "", url);
           }}
+          onMemory={(id) => {
+            setRequestedMemoryId(id);
+            setPinnedMatchId(null);
+            setShowHome(false);
+          }}
+          onAccount={openAccount}
+          studio={
+            <CharacterStudio
+              connected={connected && profilesReady && identityLinksReady}
+              identity={canonicalIdentity ?? identity}
+              onOpen={(id) => {
+                setPinnedMatchId(id);
+                setRequestedMemoryId(null);
+                setShowHome(false);
+                const url = new URL(location.href);
+                url.search = "";
+                window.history.replaceState(null, "", url);
+              }}
+            />
+          }
         />
-      )}
-      {!displayedMatch &&
-        !requestedJoinMatchId &&
-        memories.some((m) => Boolean(ARENA_TITLES[m.gameKind])) && (
-          <section
-            className="arena-replay-shelf"
-            aria-label="Recent arena replays"
-          >
-            <h2>Watch a real match</h2>
-            <div>
-              {[...memories]
-                .filter((m) => Boolean(ARENA_TITLES[m.gameKind]))
-                .sort((a, b) => Number(b.sequence - a.sequence))
-                .slice(0, 3)
-                .map((m) => (
-                  <button
-                    key={String(m.matchId)}
-                    onClick={() => {
-                      setRequestedMemoryId(m.matchId);
-                      setPinnedMatchId(null);
-                      setShowHome(false);
-                    }}
-                  >
-                    <small>{ARENA_TITLES[m.gameKind]}</small>
-                    <strong>
-                      {m.humanName} <span>×</span> {m.aiName}
-                    </strong>
-                    <span>
-                      {m.winner === "draw"
-                        ? "Draw"
-                        : m.winner === "team"
-                          ? "Treasure rescued"
-                          : m.winner === "timeout"
-                            ? "The vault closed"
-                            : `${m.winner === "human" ? m.humanName : m.aiName} won`}
-                      {m.crowdActions
-                        ? ` · ${m.crowdActions} crowd move${m.crowdActions === 1 ? "" : "s"}`
-                        : ""}
-                    </span>
-                    <b>Replay →</b>
-                  </button>
-                ))}
-            </div>
-          </section>
-        )}
-      {!me && !requestedJoinMatchId && (
-        <>
-          <HomeDiscovery
-            onChoose={(game) => void enter(game)}
-            busy={
-              joining || !connected || !profilesReady || !identityLinksReady
-            }
-            live={discoverableRooms}
-            onWatch={(id) => void watchMatch(id)}
-          />
-          {modes}
-        </>
       )}
       {!me && (!connected || !profilesReady) && (
         <section id="join-mela" className="join-card" role="status">
@@ -1373,140 +1378,14 @@ function App() {
           </span>
         </section>
       )}
-      {me && !displayedMatch && (
-        <section className="game-picker home-return-picker">
-          {resumableMatch && (
-            <button
-              className="home-resume"
-              onClick={() => {
-                setPinnedMatchId(resumableMatch.id);
-                setRequestedMemoryId(null);
-                setShowHome(false);
-              }}
-            >
-              <span>
-                <small>Your unfinished game</small>
-                <strong>{GAME_LABELS[resumableMatch.gameKind]}</strong>
-              </span>
-              <b>Resume →</b>
-            </button>
-          )}
-          <HomeDiscovery
-            live={discoverableRooms}
-            onWatch={(id) => void watchMatch(id)}
-            busy={creatingMatch || joining || !connected}
-            onChoose={(kind) => {
-              setRequestedMemoryId(null);
-              if (ARENA_TITLES[kind]) void enter(kind);
-              else if (kind === "book_cricket") void startMatch();
-              else if (kind === "stick_cricket") void startStickCricket();
-              else if (kind === "pen_fight") void startPenFight();
-              else
-                void startExperimentalGame(
-                  kind === "dots_boxes"
-                    ? "dots"
-                    : kind === "gilli_danda"
-                      ? "gilli"
-                      : kind === "four_row"
-                        ? "four"
-                        : "stick",
-                );
-            }}
-          />
-          {myRecentMemories.length > 0 && (
-            <section
-              className="home-memories"
-              aria-labelledby="recent-games-title"
-            >
-              <h2 id="recent-games-title">Your recent games</h2>
-              <ul>
-                {myRecentMemories.map((memory) => (
-                  <li key={memory.matchId.toString()}>
-                    <button
-                      onClick={() => {
-                        setRequestedMemoryId(null);
-                        setPinnedMatchId(memory.matchId);
-                        setShowHome(false);
-                      }}
-                    >
-                      <span>
-                        <strong>{GAME_LABELS[memory.gameKind]}</strong>
-                        <span>
-                          {memory.humanName} vs {memory.aiName}
-                        </span>
-                        <small>
-                          {memory.winner === "draw"
-                            ? "Draw"
-                            : `${memory.winner === "human" ? memory.humanName : memory.aiName} won`}
-                          {memory.crowdActions > 0
-                            ? ` · ${memory.crowdActions} crowd moves`
-                            : ""}
-                        </small>
-                      </span>
-                      <b>Result →</b>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {modes}
-          {rivalry && (
-            <details className="home-extra">
-              <summary>Your rivalry</summary>
-              <p>{rivalry}</p>
-            </details>
-          )}
-          <details className="home-extra">
-            <summary>Let your AI agent play Pen Fight</summary>
-            <div className="duel-launch">
-              <button
-                className="secondary"
-                disabled={creatingMatch}
-                onClick={async () => {
-                  setCreatingMatch(true);
-                  try {
-                    await createAgentDuel({ mode: "melabot" });
-                    setShowHome(false);
-                    setPinnedMatchId(null);
-                  } catch (e) {
-                    setError(
-                      e instanceof Error ? e.message : "Unable to open duel.",
-                    );
-                  } finally {
-                    setCreatingMatch(false);
-                  }
-                }}
-              >
-                Host Agent vs MelaBot →
-              </button>
-              <button
-                className="secondary"
-                disabled={creatingMatch}
-                onClick={async () => {
-                  setCreatingMatch(true);
-                  try {
-                    await createAgentDuel({ mode: "duel" });
-                    setShowHome(false);
-                    setPinnedMatchId(null);
-                  } catch (e) {
-                    setError(
-                      e instanceof Error ? e.message : "Unable to open duel.",
-                    );
-                  } finally {
-                    setCreatingMatch(false);
-                  }
-                }}
-              >
-                Host two agents →
-              </button>
-            </div>
-          </details>
-        </section>
-      )}
 
       {displayedMatch && matchState && (
         <>
+          <GameOrientation
+            game={displayedMatch.gameKind}
+            spectator={isSpectator}
+            complete={displayedMatch.status !== "active"}
+          />
           {isSpectator &&
             displayedMatch.status === "active" &&
             rooms.find((r) => r.matchId === displayedMatch.id)?.hostPresent ===

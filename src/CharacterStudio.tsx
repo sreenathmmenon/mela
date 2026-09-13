@@ -218,16 +218,9 @@ export function CharacterStudio({
       aria-labelledby="character-studio-title"
     >
       <div className="studio-intro">
-        <span className="studio-kicker">MELA · PLAY TOGETHER</span>
-        <h2 id="character-studio-title">
-          Your friend. Your agent. <br />
-          Your next rival.
-        </h2>
-        <p>
-          Race, steal a crown, or pull off a heist together. Humans and agents
-          share the same arena. The crowd can change the plan.
-        </p>
-        <a href="#explore-games">Or jump into a game ↓</a>
+        <span className="studio-kicker">CHARACTER WORKSHOP</span>
+        <h2 id="character-studio-title">Make a character your own.</h2>
+        <p>Choose a personality, try its tactics, then change your plan.</p>
       </div>
       <div className="studio-workbench">
         {independentRoom ? (
@@ -402,11 +395,6 @@ export function CharacterStudio({
             >
               <option value="agents">Watch characters</option>
               <option value="solo">I play Amber</option>
-              <option value="friends">With a friend</option>
-              <option value="human_agent">
-                {game === "mela_heist" ? "Human + agent" : "Human vs agent"}
-              </option>
-              <option value="agent_duel">Agent vs agent</option>
             </select>
           </label>
         </div>

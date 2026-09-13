@@ -10,6 +10,7 @@ import {
 import { isMuted, toggleMuted, playSound } from "./sound";
 import "./playground.css";
 import { AgentDuelPanel } from "./AgentDuel";
+import { GameOrientation } from "./GameOrientation";
 
 export function usePlaygroundMatch(matchId: bigint, screen = false) {
   const conn = useSpacetimeDB();
@@ -216,6 +217,13 @@ export function PlaygroundMatch({
           {muted ? "Sound off" : "Sound on"}
         </button>
       </header>
+      {!screen && match && (
+        <GameOrientation
+          game={match.gameKind}
+          spectator={isSpectator}
+          complete={match.status !== "active"}
+        />
+      )}
       {!connected && (
         <p role="status" className="pg-alert">
           Reconnecting… Your place is saved. Controls resume when the world is

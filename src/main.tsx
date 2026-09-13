@@ -120,9 +120,27 @@ function AuthenticatedMela() {
 
   if (auth.isLoading)
     return (
-      <main className="mela-shell">
-        <h1>Mela</h1>
-        <p role="status">Opening your playground…</p>
+      <main className="mela-shell home-landing">
+        <header className="hero">
+          <div className="hero-row">
+            <h1>Mela</h1>
+            <span className="link-back">Guest play</span>
+          </div>
+        </header>
+        <div className="product-nav product-nav-loading" aria-hidden="true">
+          <span>Play</span>
+          <span>Watch</span>
+          <span>Agents</span>
+          <span>Your Mela</span>
+        </div>
+        <div className="product-section-heading">
+          <div>
+            <h2>Opening your playground…</h2>
+            <p role="status">
+              Getting your games ready. No signup needed to play.
+            </p>
+          </div>
+        </div>
         {slow && (
           <button onClick={() => void returnToPlay()}>
             Continue playing without sign-in

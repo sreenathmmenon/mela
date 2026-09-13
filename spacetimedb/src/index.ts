@@ -2670,6 +2670,10 @@ function startBookCricket(ctx: any, gameKind = "book_cricket") {
 export const createBookCricket = spacetimedb.reducer((ctx: any) =>
   startBookCricket(ctx),
 );
+// Explicit game selection is different from idempotent guest entry/resume.
+export const createStickCricket = spacetimedb.reducer((ctx: any) =>
+  startBookCricket(ctx, "stick_cricket"),
+);
 function createPenMatch(ctx: any) {
   const p = player(ctx);
   const identity = canonicalIdentity(ctx);

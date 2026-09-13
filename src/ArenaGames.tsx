@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { tables, reducers } from "./module_bindings";
 import { usePlaygroundMatch } from "./PlaygroundMatch";
 import { useRoomPresence } from "./useRoomPresence";
+import { GameOrientation } from "./GameOrientation";
 import {
   legalActions,
   ARENA_POWERS,
@@ -330,6 +331,13 @@ export function ArenaGames({
           {muted ? "Sound off" : "Sound on"}
         </button>
       </header>
+      {!screen && (
+        <GameOrientation
+          game={match.gameKind}
+          spectator={isSpectator}
+          complete={match.status !== "active"}
+        />
+      )}
       <div className="arena-layout">
         <section className="arena-main">
           {room && row.phase === "lobby" && (

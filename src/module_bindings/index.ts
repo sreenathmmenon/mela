@@ -53,6 +53,7 @@ import CreateFourRowDuelReducer from "./create_four_row_duel_reducer";
 import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
 import CreateLastStickReducer from "./create_last_stick_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
+import CreateStickCricketReducer from "./create_stick_cricket_reducer";
 import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
 import EnterGameReducer from "./enter_game_reducer";
 import FlickPenReducer from "./flick_pen_reducer";
@@ -926,6 +927,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_gilli_danda", CreateGilliDandaReducer),
   __reducerSchema("create_last_stick", CreateLastStickReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
+  __reducerSchema("create_stick_cricket", CreateStickCricketReducer),
   __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
   __reducerSchema("enter_game", EnterGameReducer),
   __reducerSchema("flick_pen", FlickPenReducer),

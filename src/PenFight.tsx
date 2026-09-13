@@ -1,3 +1,4 @@
+import { GameOrientation } from "./GameOrientation";
 import {
   useCallback,
   useEffect,
@@ -817,6 +818,11 @@ export function PenFight({
           Sound {muted ? "off" : "on"}
         </button>
       </header>
+      <GameOrientation
+        game="pen_fight"
+        spectator={spectating}
+        complete={match.status !== "active"}
+      />
       {spectating &&
         match.status === "active" &&
         !duel &&

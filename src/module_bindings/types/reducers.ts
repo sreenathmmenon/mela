@@ -25,6 +25,7 @@ import CreateFourRowDuelReducer from "../create_four_row_duel_reducer";
 import CreateGilliDandaReducer from "../create_gilli_danda_reducer";
 import CreateLastStickReducer from "../create_last_stick_reducer";
 import CreatePenFightReducer from "../create_pen_fight_reducer";
+import CreateStickCricketReducer from "../create_stick_cricket_reducer";
 import DrawDotsEdgeReducer from "../draw_dots_edge_reducer";
 import EnterGameReducer from "../enter_game_reducer";
 import FlickPenReducer from "../flick_pen_reducer";
@@ -69,6 +70,9 @@ export type CreateFourRowDuelParams = __Infer<typeof CreateFourRowDuelReducer>;
 export type CreateGilliDandaParams = __Infer<typeof CreateGilliDandaReducer>;
 export type CreateLastStickParams = __Infer<typeof CreateLastStickReducer>;
 export type CreatePenFightParams = __Infer<typeof CreatePenFightReducer>;
+export type CreateStickCricketParams = __Infer<
+  typeof CreateStickCricketReducer
+>;
 export type DrawDotsEdgeParams = __Infer<typeof DrawDotsEdgeReducer>;
 export type EnterGameParams = __Infer<typeof EnterGameReducer>;
 export type FlickPenParams = __Infer<typeof FlickPenReducer>;
