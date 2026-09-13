@@ -149,7 +149,9 @@ try {
       });
     }
     await until(
-      () => crowd.db.fourRowState.matchId.find(id)?.revision === 1,
+      () =>
+        crowd.db.fourRowState.matchId.find(id)?.revision === 1 &&
+        host.db.fourRowState.matchId.find(id)?.revision === 1,
       "first move converges",
     );
     assert.equal(
@@ -222,7 +224,7 @@ try {
       );
     }
     await until(
-      () => crowd.db.matchMemory.matchId.find(id) !== undefined,
+      () => crowd.db.matchMemory.matchId.find(id) != null,
       "durable result",
     );
     assert.equal(host.db.match.id.find(id)?.status, "complete");

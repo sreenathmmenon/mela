@@ -20,6 +20,7 @@ import {
   type ArenaCharacter,
 } from "../spacetimedb/src/arenaCharacter";
 import { downloadArenaPostcard } from "./arenaPostcard";
+import { ArenaRoomPanel } from "./ArenaRoomPanel";
 import "./arena.css";
 const Stage = lazy(() => import("./ArenaStage"));
 export const ARENA_TITLES: Record<string, string> = {
@@ -46,15 +47,37 @@ export function ArenaGames({
   const {
     match,
     identity,
-    isPlayer,
+    isPlayer: legacyPlayer,
     isSpectator,
     connected,
     humanName,
     spectators,
   } = usePlaygroundMatch(matchId, screen);
+  const [roomRows] = useTable(
+    tables.arenaRoom.where((r) => r.matchId.eq(matchId)),
+  );
+  const [ownMoves] = useTable(tables.myArenaMove);
+  const [crowdEnergy] = useTable(tables.myArenaEnergy);
+  const room = roomRows[0];
+  const host = Boolean(identity && match?.playerIdentity.isEqual(identity));
+  const mySide: 0 | 1 | undefined = room
+    ? identity &&
+      room.leftIdentity?.isEqual(identity) &&
+      room.mode !== "agent_duel"
+      ? 0
+      : identity &&
+          room.rightIdentity?.isEqual(identity) &&
+          room.mode === "friends"
+        ? 1
+        : undefined
+    : legacyPlayer
+      ? 0
+      : undefined;
+  const isPlayer = !screen && mySide !== undefined;
+  const ownLocked = ownMoves.some((m) => m.matchId === matchId);
   useRoomPresence(
     match?.status === "active" ? matchId : undefined,
-    Boolean(isPlayer || isSpectator),
+    Boolean(isPlayer || isSpectator || host),
   );
   const [rows] = useTable(
       tables.arenaState.where((r) => r.matchId.eq(matchId)),
@@ -95,7 +118,10 @@ export function ArenaGames({
           ArenaCharacter,
         ])
       : undefined,
-    pool = pools[0],
+    pool =
+      (isSpectator
+        ? crowdEnergy.find((p) => p.matchId === matchId)
+        : undefined) ?? pools[0],
     state = row ? (JSON.parse(row.state) as ArenaState) : undefined;
   const play = useReducer(reducers.playArena),
     power = useReducer(reducers.arenaPower),
@@ -104,6 +130,7 @@ export function ArenaGames({
     publish = useReducer(reducers.publishArenaCourse),
     connectAgent = useReducer(reducers.connectArenaAgent);
   const produce = useReducer(reducers.createCharacterArena);
+  const createRoom = useReducer(reducers.createArenaRoom);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [camera, setCamera] = useState("isometric"),
@@ -154,12 +181,14 @@ export function ArenaGames({
   const canPlay =
     connected &&
     isPlayer &&
-    row?.mode === "solo" &&
-    row.phase === "planning" &&
+    (room
+      ? row?.phase === "planning" && !ownLocked
+      : row?.mode === "solo" && row.phase === "planning") &&
     match?.status === "active" &&
     !busy &&
     replay === null;
-  const choices = state && canPlay ? legalActions(state, 0) : [];
+  const side = mySide ?? 0;
+  const choices = state && canPlay ? legalActions(state, side) : [];
   async function run(fn: () => Promise<unknown>, success = "") {
     setBusy(true);
     setMessage("");
@@ -182,6 +211,17 @@ export function ArenaGames({
     setFollowAfter(after);
   }
   async function rematch() {
+    if (room) {
+      const after = matches.reduce((n, m) => (m.id > n ? m.id : n), 0n);
+      await createRoom({
+        gameKind: match!.gameKind,
+        mode: room.mode,
+        inviteCode:
+          room.mode === "friends" ? crypto.randomUUID().replace(/-/g, "") : "",
+      });
+      setFollowAfter(after);
+      return;
+    }
     if (!production)
       return nextGame({
         gameKind: match!.gameKind,
@@ -274,8 +314,8 @@ export function ArenaGames({
         : state!.winner === "draw"
           ? "A rivalry worth a rematch."
           : state!.winner === "human"
-            ? `${row.mode === "agents" ? (cast?.[0].name ?? "Amber") : humanName} wins this round.`
-            : `${cast?.[1].name ?? "Teal"} takes this one.`;
+            ? `${room?.leftName ?? (row.mode === "agents" ? (cast?.[0].name ?? "Amber") : humanName)} wins this round.`
+            : `${room?.rightName ?? cast?.[1].name ?? "Teal"} takes this one.`;
   return (
     <main
       className={`arena-shell arena-${match.gameKind} ${isSpectator ? "arena-audience" : ""}`}
@@ -292,13 +332,17 @@ export function ArenaGames({
       </header>
       <div className="arena-layout">
         <section className="arena-main">
+          {room && row.phase === "lobby" && (
+            <ArenaRoomPanel matchId={matchId} host={host} closed={closed} />
+          )}
           <div className="arena-score">
             <div>
               <i className="amber-dot" />
               <strong>
-                {row.mode === "agents"
-                  ? (cast?.[0].name ?? "Amber · " + row.leftPolicy)
-                  : humanName}
+                {room?.leftName ??
+                  (row.mode === "agents"
+                    ? (cast?.[0].name ?? "Amber · " + row.leftPolicy)
+                    : humanName)}
               </strong>
               <b>{shown.pawns[0].score}</b>
             </div>
@@ -309,7 +353,8 @@ export function ArenaGames({
             <div>
               <b>{shown.pawns[1].score}</b>
               <strong>
-                {cast?.[1].name ??
+                {room?.rightName ??
+                  cast?.[1].name ??
                   (row.agentIdentity ? "Agent · Teal" : "MelaBot · Teal")}
               </strong>
               <i className="teal-dot" />
@@ -346,7 +391,7 @@ export function ArenaGames({
                       play({
                         matchId,
                         revision: row.revision,
-                        side: 0,
+                        side,
                         action: JSON.stringify(a),
                       }),
                     "Move locked. Watch both plans unfold.",
@@ -378,17 +423,27 @@ export function ArenaGames({
                   ? outcome
                   : closed
                     ? "This arena has closed. There’s another game waiting."
-                    : row.phase === "thinking"
-                      ? row.agentIdentity
-                        ? row.mode === "agents"
-                          ? "Two characters are choosing their next move."
-                          : `${cast?.[1].name ?? "Astra"} is choosing. Your plan is locked.`
-                        : "Plans locked. The crowd has its moment."
-                      : row.mode === "agents"
-                        ? "Two strategies. One arena."
-                        : isPlayer
-                          ? "Your move. Pick a lit tile."
-                          : "Watch the runners. Shape their next move."}
+                    : room && row.phase === "lobby"
+                      ? "Your arena is ready. Share the invitation to begin."
+                      : room && ownLocked && row.phase === "planning"
+                        ? "Your move is locked. Waiting for your friend—no rush."
+                        : room && isPlayer && row.phase === "planning"
+                          ? `You’re ${side === 0 ? "Amber" : "Teal"}. Pick a lit tile or a move below.`
+                          : room && row.phase === "thinking"
+                            ? room.mode === "friends"
+                              ? "Both moves are locked. Here comes the reveal."
+                              : "Agents are choosing. Both plans reveal together."
+                            : row.phase === "thinking"
+                              ? row.agentIdentity
+                                ? row.mode === "agents"
+                                  ? "Two characters are choosing their next move."
+                                  : `${cast?.[1].name ?? "Astra"} is choosing. Your plan is locked.`
+                                : "Plans locked. The crowd has its moment."
+                              : row.mode === "agents"
+                                ? "Two strategies. One arena."
+                                : isPlayer
+                                  ? "Your move. Pick a lit tile."
+                                  : "Watch the runners. Shape their next move."}
             </strong>
             <span>{shown.log.join(" ")}</span>
           </div>
@@ -416,18 +471,18 @@ export function ArenaGames({
                           play({
                             matchId,
                             revision: row.revision,
-                            side: 0,
+                            side,
                             action: JSON.stringify(a),
                           }),
                         )
                       }
                     >
                       {a.action === "dash" ? "Dash" : "Step"}{" "}
-                      {a.x > state!.pawns[0].x
+                      {a.x > state!.pawns[side].x
                         ? "→"
-                        : a.x < state!.pawns[0].x
+                        : a.x < state!.pawns[side].x
                           ? "←"
-                          : a.y > state!.pawns[0].y
+                          : a.y > state!.pawns[side].y
                             ? "↓"
                             : "↑"}
                     </button>
@@ -446,13 +501,13 @@ export function ArenaGames({
                       (a.action === "interact" &&
                         state!.kind !== "bridge_breakers" &&
                         ((state!.crown.carrier < 0 &&
-                          state!.pawns[0].x === state!.crown.x &&
-                          state!.pawns[0].y === state!.crown.y &&
+                          state!.pawns[side].x === state!.crown.x &&
+                          state!.pawns[side].y === state!.crown.y &&
                           (state!.kind !== "mela_heist" ||
                             state!.switchMask === 3)) ||
-                          (state!.crown.carrier === 0 &&
-                            state!.pawns[0].x === 0 &&
-                            state!.pawns[0].y === 4))),
+                          (state!.crown.carrier === side &&
+                            state!.pawns[side].x === (side === 0 ? 0 : 8) &&
+                            state!.pawns[side].y === 4))),
                   )
                   .map((a) => (
                     <button
@@ -462,7 +517,7 @@ export function ArenaGames({
                           play({
                             matchId,
                             revision: row.revision,
-                            side: 0,
+                            side,
                             action: JSON.stringify(a),
                           }),
                         )
@@ -477,7 +532,7 @@ export function ArenaGames({
                   ))}
               </div>
               <small>
-                Dash charge {state!.pawns[0].stamina}/2 · Both moves resolve
+                Dash charge {state!.pawns[side].stamina}/2 · Both moves resolve
                 together. A tied pickup alternates by move number.
               </small>
             </div>
@@ -520,10 +575,11 @@ export function ArenaGames({
                           state!,
                           ARENA_TITLES[match.gameKind],
                           [
-                            row.mode === "agents"
-                              ? (cast?.[0].name ?? "Amber")
-                              : humanName,
-                            cast?.[1].name ?? "Teal",
+                            room?.leftName ??
+                              (row.mode === "agents"
+                                ? (cast?.[0].name ?? "Amber")
+                                : humanName),
+                            room?.rightName ?? cast?.[1].name ?? "Teal",
                           ],
                           url.href,
                         ),
@@ -571,7 +627,10 @@ export function ArenaGames({
           )}
         </section>
         <aside className="arena-sidebar">
-          {cast && (
+          {room && row.phase !== "lobby" && (
+            <ArenaRoomPanel matchId={matchId} host={host} closed={closed} />
+          )}
+          {cast && !room && (
             <section className="arena-card arena-cast">
               <h2 className="arena-overline">THE CHARACTERS</h2>
               {cast.map((c, i) => (
@@ -631,7 +690,10 @@ export function ArenaGames({
               {pool?.energy ?? 0}
               <small> / {pool?.maxEnergy ?? 60} shared energy</small>
             </strong>
-            <p>One crowd choice per move. +3 energy after each reveal.</p>
+            <p>
+              One crowd choice per move. +3 energy after each reveal.
+              {!isSpectator && " Energy shown is from the last reveal."}
+            </p>
             {!isPlayer && !isSpectator && !closed && !screen && (
               <button
                 className="arena-primary"

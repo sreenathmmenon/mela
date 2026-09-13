@@ -102,6 +102,7 @@ export function CharacterStudio({
   onOpen: (id: bigint) => void;
 }) {
   const produce = useReducer(reducers.createCharacterArena);
+  const createRoom = useReducer(reducers.createArenaRoom);
   const [matches] = useTable(tables.match);
   const [amber, setAmber] = useState<ArenaCharacter>(
     () =>
@@ -171,7 +172,10 @@ export function CharacterStudio({
     setMessage("");
     try {
       let agent: Identity | undefined;
-      if (live) {
+      const independent = ["friends", "human_agent", "agent_duel"].includes(
+        mode,
+      );
+      if (live && !independent) {
         const response = await fetch("/api/arena/status");
         const result = await response.json();
         if (!result.available || !result.identity)
@@ -181,14 +185,22 @@ export function CharacterStudio({
         agent = Identity.fromString(result.identity);
       }
       const latest = matches.reduce((n, m) => (m.id > n ? m.id : n), 0n);
-      await produce({
-        gameKind: game,
-        mode,
-        amber: JSON.stringify(amber),
-        teal: JSON.stringify(teal),
-        courseId: 0n,
-        agent,
-      });
+      if (independent)
+        await createRoom({
+          gameKind: game,
+          mode,
+          inviteCode:
+            mode === "friends" ? crypto.randomUUID().replace(/-/g, "") : "",
+        });
+      else
+        await produce({
+          gameKind: game,
+          mode,
+          amber: JSON.stringify(amber),
+          teal: JSON.stringify(teal),
+          courseId: 0n,
+          agent,
+        });
       setAfter(latest);
     } catch (e) {
       setMessage(
@@ -203,13 +215,14 @@ export function CharacterStudio({
       aria-labelledby="character-studio-title"
     >
       <div className="studio-intro">
-        <span className="studio-kicker">MELA · CHARACTER ARENA</span>
+        <span className="studio-kicker">MELA · PLAY TOGETHER</span>
         <h2 id="character-studio-title">
-          A little character. <br />A mind of its own.
+          Your friend. Your agent. <br />
+          Your next rival.
         </h2>
         <p>
-          Give it a strategy. Play against it, or send it into a duel. Your
-          friends can change the crossing.
+          Race, steal a crown, or pull off a heist together. Humans and agents
+          share the same arena. The crowd can change the plan.
         </p>
         <a href="#explore-games">Or jump into a game ↓</a>
       </div>
@@ -335,25 +348,41 @@ export function CharacterStudio({
             >
               <option value="agents">Watch two characters</option>
               <option value="solo">I play Amber</option>
+              <option value="friends">Play with a friend</option>
+              <option value="human_agent">
+                {game === "mela_heist"
+                  ? "Team up with an external agent"
+                  : "Me vs an external agent"}
+              </option>
+              <option value="agent_duel">Two independent agents</option>
             </select>
           </label>
         </div>
-        <label className="studio-live">
-          <input
-            type="checkbox"
-            checked={live}
-            disabled={busy}
-            onChange={(e) => setLive(e.target.checked)}
-          />
-          <span>
-            Live Astra decisions
-            <small>
-              {live
-                ? "Character moves are proposed by Astra. Limited capacity; timed-out moves use a labeled fallback."
-                : "Off: instant, free deterministic characters. No API calls during play."}
-            </small>
-          </span>
-        </label>
+        {["friends", "human_agent", "agent_duel"].includes(mode) ? (
+          <p className="studio-brief">
+            {mode === "friends"
+              ? "A private player link. No signup. Both choose a move, then reveal together."
+              : "Bring any tool-capable agent through MCP. Each claims its own seat. No model keys in the browser."}{" "}
+            Character presets are used only for disclosed missed-agent turns.
+          </p>
+        ) : (
+          <label className="studio-live">
+            <input
+              type="checkbox"
+              checked={live}
+              disabled={busy}
+              onChange={(e) => setLive(e.target.checked)}
+            />
+            <span>
+              Live Astra decisions
+              <small>
+                {live
+                  ? "Character moves are proposed by Astra. Limited capacity; timed-out moves use a labeled fallback."
+                  : "Off: instant, free deterministic characters. No API calls during play."}
+              </small>
+            </span>
+          </label>
+        )}
         <button
           className="studio-start"
           disabled={busy || !connected}
@@ -363,13 +392,19 @@ export function CharacterStudio({
             ? "Opening your arena…"
             : !connected
               ? "Connecting…"
-              : game === "mela_heist"
-                ? mode === "agents"
-                  ? "Send the team on a heist →"
-                  : "Play alongside my character →"
-                : mode === "agents"
-                  ? "Start the character duel →"
-                  : "Play against my character →"}
+              : mode === "friends"
+                ? "Create a friend invitation →"
+                : mode === "human_agent"
+                  ? "Open my agent challenge →"
+                  : mode === "agent_duel"
+                    ? "Open two agent seats →"
+                    : game === "mela_heist"
+                      ? mode === "agents"
+                        ? "Send the team on a heist →"
+                        : "Play alongside my character →"
+                      : mode === "agents"
+                        ? "Start the character duel →"
+                        : "Play against my character →"}
         </button>
         <form
           className="studio-prompt"

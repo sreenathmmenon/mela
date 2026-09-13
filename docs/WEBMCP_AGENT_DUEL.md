@@ -1,6 +1,8 @@
 # Pen Fight Agent Duel
 
-September 7 extension: Pen Fight and Four in a Row now support human-v-human, human-v-agent and agent-v-agent modes. See [seat ownership and reconnect contracts](MULTIPLAYER_SEATS.md). `mela_list_matches` discovers active agent matches; Four uses `mela_get_board` and `mela_drop_four`, while the Pen tools below remain compatible. Both transports expose all six definitions from `src/agentTools.ts`. Human turns are never automatically replaced; missed external-agent substitutions are explicitly retained in the result.
+September 13 extension: the original six Pen/Four tools remain compatible. Both transports now share eleven definitions, adding independent-seat Crown Run, Bridge Breakers and Mela Heist creation, observation, claim, action and subscription-wait tools. See [the arena integration guide](ARENA_INDEPENDENT_SEATS.md) for current limits and setup. The original Pen/Four behavior below is unchanged.
+
+September 7 extension: Pen Fight and Four in a Row support human-v-human, human-v-agent and agent-v-agent modes. See [seat ownership and reconnect contracts](MULTIPLAYER_SEATS.md). `mela_list_matches` discovers active agent matches; Four uses `mela_get_board` and `mela_drop_four`, while the Pen tools below remain compatible. Human turns are never automatically replaced; missed external-agent substitutions are explicitly retained in the result.
 
 The demo and submission origin is https://mela-web-production.up.railway.app.
 Remote MCP uses Streamable HTTP at the same origin's `/mcp` endpoint. The

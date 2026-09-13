@@ -12,11 +12,25 @@ try {
     JSON.stringify({ tools: (await c.listTools()).tools.map((t) => t.name) }),
   );
   const result = await c.callTool({
-    name: "mela_get_desk",
-    arguments: { matchId: process.env.MATCH_ID || "4" },
+    name:
+      process.env.DISCOVERY_ONLY === "1"
+        ? "mela_list_matches"
+        : "mela_get_desk",
+    arguments:
+      process.env.DISCOVERY_ONLY === "1"
+        ? {}
+        : { matchId: process.env.MATCH_ID || "4" },
   });
   assert.notEqual(result.isError, true, "Remote desk read must succeed");
-  console.log(JSON.stringify(result));
+  if (process.env.DISCOVERY_ONLY === "1")
+    console.log(
+      JSON.stringify({
+        discoverySucceeded: true,
+        matchCount: JSON.parse((result.content as { text: string }[])[0].text)
+          .matches.length,
+      }),
+    );
+  else console.log(JSON.stringify(result));
   // Opt-in single opening shot on an existing human-opened QA desk only.
   // This is a transport test driver, not an AI provider or game authority.
   if (process.env.CLAIM_QA_SEAT === "yes") {

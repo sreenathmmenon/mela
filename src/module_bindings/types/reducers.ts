@@ -11,10 +11,12 @@ import AgentFlickReducer from "../agent_flick_reducer";
 import ArenaPowerReducer from "../arena_power_reducer";
 import BeginProfileLinkReducer from "../begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "../claim_agent_seat_reducer";
+import ClaimArenaSeatReducer from "../claim_arena_seat_reducer";
 import CompleteProfileLinkReducer from "../complete_profile_link_reducer";
 import ConnectArenaAgentReducer from "../connect_arena_agent_reducer";
 import CreateAgentDuelReducer from "../create_agent_duel_reducer";
 import CreateArenaReducer from "../create_arena_reducer";
+import CreateArenaRoomReducer from "../create_arena_room_reducer";
 import CreateBookCricketReducer from "../create_book_cricket_reducer";
 import CreateCharacterArenaReducer from "../create_character_arena_reducer";
 import CreateDotsBoxesReducer from "../create_dots_boxes_reducer";
@@ -49,12 +51,14 @@ export type AgentFlickParams = __Infer<typeof AgentFlickReducer>;
 export type ArenaPowerParams = __Infer<typeof ArenaPowerReducer>;
 export type BeginProfileLinkParams = __Infer<typeof BeginProfileLinkReducer>;
 export type ClaimAgentSeatParams = __Infer<typeof ClaimAgentSeatReducer>;
+export type ClaimArenaSeatParams = __Infer<typeof ClaimArenaSeatReducer>;
 export type CompleteProfileLinkParams = __Infer<
   typeof CompleteProfileLinkReducer
 >;
 export type ConnectArenaAgentParams = __Infer<typeof ConnectArenaAgentReducer>;
 export type CreateAgentDuelParams = __Infer<typeof CreateAgentDuelReducer>;
 export type CreateArenaParams = __Infer<typeof CreateArenaReducer>;
+export type CreateArenaRoomParams = __Infer<typeof CreateArenaRoomReducer>;
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
 export type CreateCharacterArenaParams = __Infer<
   typeof CreateCharacterArenaReducer

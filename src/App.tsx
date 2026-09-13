@@ -224,8 +224,11 @@ function App() {
   const [melaProfiles] = useTable(tables.melaProfile);
   const [matches, matchesReady] = useTable(tables.match);
   const [rooms] = useTable(tables.roomActivity);
-  const [seatPresence] = useTable(tables.penSeatPresence);
+  const [penPresence] = useTable(tables.penSeatPresence);
+  const [arenaPresence] = useTable(tables.arenaSeatPresence);
+  const seatPresence = [...penPresence, ...arenaPresence];
   const [penDuels] = useTable(tables.agentDuel);
+  const [arenaRooms] = useTable(tables.arenaRoom);
   const [participants] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
@@ -345,10 +348,15 @@ function App() {
     .slice(0, 12)
     .map((match) => ({
       id: match.id,
-      game: penDuels.some((d) => d.matchId === match.id)
-        ? `${GAME_LABELS[match.gameKind] ?? match.gameKind} · ${penDuels.find((d) => d.matchId === match.id)?.mode === "friends" ? "Friends" : penDuels.find((d) => d.matchId === match.id)?.mode === "human_agent" ? "Human vs agent" : "Agent match"}`
-        : (GAME_LABELS[match.gameKind] ?? match.gameKind),
+      game: arenaRooms.some((r) => r.matchId === match.id)
+        ? `${GAME_LABELS[match.gameKind] ?? match.gameKind} · ${arenaRooms.find((r) => r.matchId === match.id)?.mode === "friends" ? "Friends" : "Agent arena"}`
+        : penDuels.some((d) => d.matchId === match.id)
+          ? `${GAME_LABELS[match.gameKind] ?? match.gameKind} · ${penDuels.find((d) => d.matchId === match.id)?.mode === "friends" ? "Friends" : penDuels.find((d) => d.matchId === match.id)?.mode === "human_agent" ? "Human vs agent" : "Agent match"}`
+          : (GAME_LABELS[match.gameKind] ?? match.gameKind),
       host:
+        (arenaRooms.find((r) => r.matchId === match.id)
+          ? `${arenaRooms.find((r) => r.matchId === match.id)!.leftName} × ${arenaRooms.find((r) => r.matchId === match.id)!.rightName}`
+          : undefined) ??
         (penDuels.find((d) => d.matchId === match.id)
           ? `${penDuels.find((d) => d.matchId === match.id)!.leftName} vs ${penDuels.find((d) => d.matchId === match.id)!.rightName}`
           : undefined) ??
@@ -618,6 +626,7 @@ function App() {
     createLastStick = useReducer(reducers.createLastStick);
   const createAgentDuel = useReducer(reducers.createAgentDuel);
   const claimHumanSeat = useReducer(reducers.joinHumanSeat);
+  const claimArenaSeat = useReducer(reducers.claimArenaSeat);
   const createFourDuel = useReducer(reducers.createFourRowDuel);
   const openPenMode = async (mode: string, gameKind = "pen_fight") => {
     if (joinBusy.current || !connected) return;
@@ -929,27 +938,56 @@ function App() {
                   "pen_fight"
               ]
             }{" "}
-            · Your friend goes first.
+            ·{" "}
+            {ARENA_TITLES[
+              matches.find((m) => m.id === seatInvite)?.gameKind ?? ""
+            ]
+              ? "Choose your moves privately. Reveal together."
+              : "Your friend goes first."}
           </p>
           {error && <p role="alert">{error}</p>}
           <button
-            disabled={!connected || joining}
+            disabled={
+              !connected || joining || !matchesReady || !identityLinksReady
+            }
             onClick={async () => {
               setJoining(true);
               setError(null);
               try {
+                const invitedMatch = matches.find((m) => m.id === seatInvite);
+                if (!invitedMatch)
+                  throw Error(
+                    "This invitation is unavailable. Ask your friend for a new link.",
+                  );
                 const own = Boolean(
                   canonicalIdentity &&
                   matches
                     .find((m) => m.id === seatInvite)
                     ?.playerIdentity.isEqual(canonicalIdentity),
                 );
-                if (!own) await claimHumanSeat({ matchId: seatInvite });
+                if (!own) {
+                  if (
+                    ARENA_TITLES[
+                      matches.find((m) => m.id === seatInvite)?.gameKind ?? ""
+                    ]
+                  )
+                    await claimArenaSeat({
+                      matchId: seatInvite,
+                      side: 1,
+                      name: "",
+                      inviteCode:
+                        new URLSearchParams(location.search).get("invite") ??
+                        "",
+                    });
+                  else await claimHumanSeat({ matchId: seatInvite });
+                }
                 setPinnedMatchId(seatInvite);
                 setShowHome(false);
                 setSeatInvite(null);
                 const url = new URL(location.href);
                 url.searchParams.delete("seat");
+                url.searchParams.delete("invite");
+                url.searchParams.set("join", String(seatInvite));
                 window.history.replaceState(null, "", url);
               } catch (e) {
                 setError(

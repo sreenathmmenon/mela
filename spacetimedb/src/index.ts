@@ -599,6 +599,42 @@ export const connectArenaAgent = arena.connectAgent;
 export const myArenaAgent = arena.inbox;
 export const createCharacterArena = arena.produce;
 export const myArenaProduction = arena.productionInbox;
+export const createArenaRoom = arena.createRoom;
+export const claimArenaSeat = arena.claim;
+export const myArenaInvitation = arena.invitation;
+export const myArenaMove = arena.ownMove;
+export const myArenaEnergy = arena.energy;
+// No primary-key annotation on a computed presence row. Native view changes
+// replace values; these are not mutable stored table rows.
+export const arenaSeatPresence = spacetimedb.anonymousView(
+  { public: true },
+  t.array(
+    t.row("ArenaSeatPresenceProjection", {
+      matchId: t.u64(),
+      leftPresent: t.bool(),
+      rightPresent: t.bool(),
+    }),
+  ),
+  (ctx: any) =>
+    Array.from(ctx.db.arenaRoom.iter() as Iterable<any>)
+      .filter((r) => ctx.db.match.id.find(r.matchId)?.status === "active")
+      .map((r) => {
+        const visits = Array.from(
+          ctx.db.roomConnection.matchId.filter(r.matchId) as Iterable<any>,
+        ).filter((v) =>
+          ctx.db.connectionSession.connectionId.find(v.connectionId),
+        );
+        return {
+          matchId: r.matchId,
+          leftPresent: visits.some((v) =>
+            r.leftIdentity?.isEqual(canonicalIdentity(ctx, v.identity)),
+          ),
+          rightPresent: visits.some((v) =>
+            r.rightIdentity?.isEqual(canonicalIdentity(ctx, v.identity)),
+          ),
+        };
+      }),
+);
 
 /** Public counts only; identities and connection identifiers stay private. */
 export const roomActivity = spacetimedb.anonymousView(
@@ -655,12 +691,15 @@ export const setRoomPresence = spacetimedb.reducer(
     const match = ctx.db.match.id.find(matchId);
     const spectator = Boolean(spectatorFor(ctx, matchId, identity));
     const duel = ctx.db.agentDuel.matchId.find(matchId);
+    const arenaRoom = ctx.db.arenaRoom.matchId.find(matchId);
     if (
       !match ||
       match.status !== "active" ||
       !(
         match.playerIdentity.isEqual(identity) ||
         spectator ||
+        arenaRoom?.leftIdentity?.isEqual(identity) ||
+        arenaRoom?.rightIdentity?.isEqual(identity) ||
         duel?.leftIdentity?.isEqual(identity) ||
         duel?.rightIdentity?.isEqual(identity)
       )
@@ -2792,8 +2831,21 @@ function finishExperimentalMatch(
   const contest = ctx.db.agentDuel.matchId.find(match.id);
   const arenaResult = ctx.db.arenaState.matchId.find(match.id);
   const arenaProduction = ctx.db.arenaProduction.matchId.find(match.id);
-  const people =
-    arenaResult?.mode === "agents"
+  const arenaRoom = ctx.db.arenaRoom.matchId.find(match.id);
+  const people = arenaRoom
+    ? [0, 1]
+        .filter(
+          (side) =>
+            arenaRoom.mode === "friends" ||
+            (arenaRoom.mode === "human_agent" && side === 0),
+        )
+        .map((side) => ({
+          identity:
+            side === 0 ? arenaRoom.leftIdentity : arenaRoom.rightIdentity,
+          won:
+            winner === "team" || winner === (side === 0 ? "human" : "melabot"),
+        }))
+    : arenaResult?.mode === "agents"
       ? []
       : contest
         ? ["human", "bot"]
@@ -2844,17 +2896,20 @@ function finishExperimentalMatch(
     matchId: match.id,
     sequence: match.id,
     gameKind: match.gameKind,
-    humanName:
-      arenaResult?.mode === "agents"
+    humanName: arenaRoom
+      ? arenaRoom.leftName
+      : arenaResult?.mode === "agents"
         ? arenaProduction
           ? JSON.parse(arenaProduction.amber).name
           : `Amber · ${arenaResult.leftPolicy}`
         : (contest?.leftName ?? human.displayName),
-    aiName: arenaProduction
-      ? JSON.parse(arenaProduction.teal).name
-      : arenaResult?.agentIdentity
-        ? "External agent · Teal"
-        : (contest?.rightName ?? "MelaBot"),
+    aiName: arenaRoom
+      ? arenaRoom.rightName
+      : arenaProduction
+        ? JSON.parse(arenaProduction.teal).name
+        : arenaResult?.agentIdentity
+          ? "External agent · Teal"
+          : (contest?.rightName ?? "MelaBot"),
     winner,
     humanScore,
     humanWickets: 0,
@@ -3535,6 +3590,17 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
   (ctx: any, { matchId }: any) => {
     const identity = canonicalIdentity(ctx);
     const duel = ctx.db.agentDuel.matchId.find(matchId);
+    const arenaRoom = ctx.db.arenaRoom.matchId.find(matchId);
+    if (
+      arenaRoom?.leftIdentity?.isEqual(identity) ||
+      arenaRoom?.rightIdentity?.isEqual(identity) ||
+      ctx.db.arenaState.matchId
+        .find(matchId)
+        ?.agentIdentity?.isEqual(ctx.sender)
+    )
+      throw new SenderError(
+        "A player or agent seat cannot also join the crowd.",
+      );
     if (
       duel?.leftIdentity?.isEqual(identity) ||
       duel?.rightIdentity?.isEqual(identity)
@@ -3545,7 +3611,7 @@ export const joinMatchAsSpectator = spacetimedb.reducer(
       throw new SenderError("That match is not live.");
     ensureGuest(ctx);
     const profile = player(ctx);
-    if (!duel && match.playerIdentity.isEqual(identity))
+    if (!duel && !arenaRoom && match.playerIdentity.isEqual(identity))
       throw new SenderError("The player is already in this match.");
     if (spectatorFor(ctx, matchId, identity)) return;
     if (match.gameKind === "pen_fight") {

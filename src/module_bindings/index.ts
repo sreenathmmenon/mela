@@ -39,10 +39,12 @@ import AgentFlickReducer from "./agent_flick_reducer";
 import ArenaPowerReducer from "./arena_power_reducer";
 import BeginProfileLinkReducer from "./begin_profile_link_reducer";
 import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
+import ClaimArenaSeatReducer from "./claim_arena_seat_reducer";
 import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
 import ConnectArenaAgentReducer from "./connect_arena_agent_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateArenaReducer from "./create_arena_reducer";
+import CreateArenaRoomReducer from "./create_arena_room_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
 import CreateCharacterArenaReducer from "./create_character_arena_reducer";
 import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
@@ -82,6 +84,8 @@ import AiCharacterRow from "./ai_character_table";
 import ArenaCourseRow from "./arena_course_table";
 import ArenaFrameRow from "./arena_frame_table";
 import ArenaProductionRow from "./arena_production_table";
+import ArenaRoomRow from "./arena_room_table";
+import ArenaSeatPresenceRow from "./arena_seat_presence_table";
 import ArenaStateRow from "./arena_state_table";
 import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
@@ -103,6 +107,9 @@ import MelaProfileRow from "./mela_profile_table";
 import MyAccountStatusRow from "./my_account_status_table";
 import MyArenaAgentRow from "./my_arena_agent_table";
 import MyArenaCrowdRow from "./my_arena_crowd_table";
+import MyArenaEnergyRow from "./my_arena_energy_table";
+import MyArenaInvitationRow from "./my_arena_invitation_table";
+import MyArenaMoveRow from "./my_arena_move_table";
 import MyArenaProductionRow from "./my_arena_production_table";
 import MyEmailContactRow from "./my_email_contact_table";
 import MyIdentityLinkRow from "./my_identity_link_table";
@@ -248,6 +255,27 @@ const tablesSchema = __schema({
       ],
     },
     ArenaProductionRow,
+  ),
+  arenaRoom: __table(
+    {
+      name: "arena_room",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "arena_room_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "arena_room_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    ArenaRoomRow,
   ),
   arenaState: __table(
     {
@@ -755,6 +783,14 @@ const tablesSchema = __schema({
     },
     WorldPresenceRow,
   ),
+  arenaSeatPresence: __table(
+    {
+      name: "arena_seat_presence",
+      indexes: [],
+      constraints: [],
+    },
+    ArenaSeatPresenceRow,
+  ),
   myAccountStatus: __table(
     {
       name: "my_account_status",
@@ -778,6 +814,30 @@ const tablesSchema = __schema({
       constraints: [],
     },
     MyArenaCrowdRow,
+  ),
+  myArenaEnergy: __table(
+    {
+      name: "my_arena_energy",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaEnergyRow,
+  ),
+  myArenaInvitation: __table(
+    {
+      name: "my_arena_invitation",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaInvitationRow,
+  ),
+  myArenaMove: __table(
+    {
+      name: "my_arena_move",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaMoveRow,
   ),
   myArenaProduction: __table(
     {
@@ -852,10 +912,12 @@ const reducersSchema = __reducers(
   __reducerSchema("arena_power", ArenaPowerReducer),
   __reducerSchema("begin_profile_link", BeginProfileLinkReducer),
   __reducerSchema("claim_agent_seat", ClaimAgentSeatReducer),
+  __reducerSchema("claim_arena_seat", ClaimArenaSeatReducer),
   __reducerSchema("complete_profile_link", CompleteProfileLinkReducer),
   __reducerSchema("connect_arena_agent", ConnectArenaAgentReducer),
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
   __reducerSchema("create_arena", CreateArenaReducer),
+  __reducerSchema("create_arena_room", CreateArenaRoomReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
   __reducerSchema("create_character_arena", CreateCharacterArenaReducer),
   __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),

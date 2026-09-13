@@ -57,10 +57,15 @@ test("duplicate, stale and wrong-phase schedules cannot advance a turn", () => {
     false,
   );
 });
-test("both transports have exactly the same minimal tool contract and no creation tool", () => {
+test("both transports share the versioned game tool contract", () => {
   assert.deepEqual(
     AGENT_TOOLS.map((t) => t.name),
     [
+      "mela_wait_arena",
+      "mela_create_arena",
+      "mela_get_arena",
+      "mela_join_arena",
+      "mela_arena_move",
       "mela_get_board",
       "mela_drop_four",
       "mela_list_matches",

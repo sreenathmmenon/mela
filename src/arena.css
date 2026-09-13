@@ -586,3 +586,35 @@
     transition: none !important;
   }
 }
+.arena-room-panel {
+  margin-bottom: 16px;
+}
+.arena-seat-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+.arena-seat-list > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: #28424a;
+  border-radius: 12px;
+}
+.arena-seat-list span {
+  min-width: 0;
+}
+.arena-seat-list strong,
+.arena-seat-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.arena-seat-list small {
+  margin-top: 4px;
+  color: #c2d5d5;
+}
+.arena-room-panel code,
+.arena-room-panel .arena-message {
+  overflow-wrap: anywhere;
+}

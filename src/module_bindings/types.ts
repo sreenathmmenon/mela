@@ -58,6 +58,13 @@ export const AiCharacter = __t.object("AiCharacter", {
 });
 export type AiCharacter = __Infer<typeof AiCharacter>;
 
+export const ArenaBudget = __t.object("ArenaBudget", {
+  matchId: __t.u64(),
+  energy: __t.u32(),
+  maxEnergy: __t.u32(),
+});
+export type ArenaBudget = __Infer<typeof ArenaBudget>;
+
 export const ArenaCourse = __t.object("ArenaCourse", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -101,6 +108,20 @@ export const ArenaIntent = __t.object("ArenaIntent", {
 });
 export type ArenaIntent = __Infer<typeof ArenaIntent>;
 
+export const ArenaInvitation = __t.object("ArenaInvitation", {
+  matchId: __t.u64(),
+  owner: __t.identity(),
+  code: __t.string(),
+});
+export type ArenaInvitation = __Infer<typeof ArenaInvitation>;
+
+export const ArenaOwnMove = __t.object("ArenaOwnMove", {
+  matchId: __t.u64(),
+  revision: __t.u32(),
+  side: __t.u8(),
+});
+export type ArenaOwnMove = __Infer<typeof ArenaOwnMove>;
+
 export const ArenaProduction = __t.object("ArenaProduction", {
   matchId: __t.u64(),
   owner: __t.identity(),
@@ -110,6 +131,31 @@ export const ArenaProduction = __t.object("ArenaProduction", {
   createdAt: __t.timestamp(),
 });
 export type ArenaProduction = __Infer<typeof ArenaProduction>;
+
+export const ArenaRoom = __t.object("ArenaRoom", {
+  matchId: __t.u64(),
+  mode: __t.string(),
+  leftIdentity: __t.option(__t.identity()),
+  rightIdentity: __t.option(__t.identity()),
+  leftName: __t.string(),
+  rightName: __t.string(),
+});
+export type ArenaRoom = __Infer<typeof ArenaRoom>;
+
+export const ArenaSeatPresence = __t.object("ArenaSeatPresence", {});
+export type ArenaSeatPresence = __Infer<typeof ArenaSeatPresence>;
+
+export const ArenaSeatPresenceProjection = __t.object(
+  "ArenaSeatPresenceProjection",
+  {
+    matchId: __t.u64(),
+    leftPresent: __t.bool(),
+    rightPresent: __t.bool(),
+  },
+);
+export type ArenaSeatPresenceProjection = __Infer<
+  typeof ArenaSeatPresenceProjection
+>;
 
 export const ArenaState = __t.object("ArenaState", {
   matchId: __t.u64(),
@@ -413,6 +459,15 @@ export type MyArenaAgent = __Infer<typeof MyArenaAgent>;
 
 export const MyArenaCrowd = __t.object("MyArenaCrowd", {});
 export type MyArenaCrowd = __Infer<typeof MyArenaCrowd>;
+
+export const MyArenaEnergy = __t.object("MyArenaEnergy", {});
+export type MyArenaEnergy = __Infer<typeof MyArenaEnergy>;
+
+export const MyArenaInvitation = __t.object("MyArenaInvitation", {});
+export type MyArenaInvitation = __Infer<typeof MyArenaInvitation>;
+
+export const MyArenaMove = __t.object("MyArenaMove", {});
+export type MyArenaMove = __Infer<typeof MyArenaMove>;
 
 export const MyArenaProduction = __t.object("MyArenaProduction", {});
 export type MyArenaProduction = __Infer<typeof MyArenaProduction>;
