@@ -218,9 +218,8 @@ export function CharacterStudio({
       aria-labelledby="character-studio-title"
     >
       <div className="studio-intro">
-        <span className="studio-kicker">CHARACTER WORKSHOP</span>
-        <h2 id="character-studio-title">Make a character your own.</h2>
-        <p>Choose a personality, try its tactics, then change your plan.</p>
+        <h2 id="character-studio-title">Your characters</h2>
+        <p>Pick a character to edit its tactics.</p>
       </div>
       <div className="studio-workbench">
         {independentRoom ? (

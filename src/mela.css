@@ -74,10 +74,10 @@
   --line-gold: rgba(138, 90, 8, 0.35);
 
   /* Type */
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-body:
-    "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+    "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
 
   /* Rhythm (8px base) */
   --s1: 4px;
@@ -147,14 +147,16 @@ h2,
 h3 {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25;
   color: var(--ink);
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -173,8 +175,8 @@ button {
   border: 1.5px solid var(--ink);
   border-radius: var(--radius-m);
   font-family: var(--font-body);
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--ink);
   background: var(--surface);
   transition:

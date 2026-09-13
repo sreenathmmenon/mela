@@ -24,12 +24,21 @@
       content="Choose a game, invite a friend or give your agent a seat. Spectators influence the match. Mela remembers the result."
     />
     <meta property="og:type" content="website" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      href="/fonts/outfit-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
+    <link
+      rel="preload"
+      href="/fonts/dm-sans-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
     <style>
       /* Painted before any JavaScript runs, so a cold load is never a blank
          screen. #boot is removed by the app as soon as React mounts. */
@@ -39,7 +48,7 @@
         background: #f7f8fc;
         color: #221b10;
         font-family:
-          "Instrument Sans",
+          "DM Sans",
           ui-sans-serif,
           system-ui,
           -apple-system,
@@ -59,10 +68,10 @@
       }
       #boot h1 {
         margin: 0;
-        font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-        font-size: 36px;
-        font-weight: 700;
-        letter-spacing: -0.03em;
+        font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+        font-size: 30px;
+        font-weight: 500;
+        letter-spacing: 0;
         color: #1b2340;
       }
       #boot p {

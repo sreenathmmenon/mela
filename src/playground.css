@@ -26,7 +26,7 @@
 }
 .pg-title h1 {
   font:
-    900 clamp(28px, 4vw, 44px)/1.1 Georgia,
+    900 clamp(28px, 4vw, 44px)/1.1 "Outfit",
     serif;
   letter-spacing: -2px;
   margin: 10px 0;
@@ -44,7 +44,7 @@
 .pg-score strong {
   display: block;
   font-size: 44px;
-  font-family: Georgia, serif;
+  font-family: "Outfit", serif;
 }
 .pg-score small {
   display: block;
@@ -174,7 +174,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  font: italic 700 32px Georgia;
+  font: italic 700 32px "Outfit";
   transition: background 0.25s;
 }
 .pg-box.gold {
@@ -221,7 +221,7 @@
 }
 .pg-crowd h2,
 .pg-memory h2 {
-  font: 700 25px Georgia;
+  font: 700 25px "Outfit";
   margin: 6px 0;
 }
 .pg-crowd p,
@@ -236,7 +236,7 @@
   white-space: nowrap;
 }
 .pg-energy strong {
-  font: 700 40px Georgia;
+  font: 700 40px "Outfit";
   color: #a86e12;
 }
 .pg-energy span {
@@ -365,7 +365,7 @@
   padding-top: 16px;
 }
 .pg-next-match h3 {
-  font: 700 22px Georgia;
+  font: 700 22px "Outfit";
   margin: 8px 0;
 }
 .pg-next-link {
@@ -420,7 +420,7 @@
 }
 .pg-flight-result b {
   display: block;
-  font: 900 44px Georgia;
+  font: 900 44px "Outfit";
 }
 .pg-flight-result span {
   display: block;

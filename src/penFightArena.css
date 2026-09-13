@@ -174,7 +174,7 @@
 .pen-studio .pen-score > span:first-child strong,
 .pen-studio .pen-score > span:last-child strong {
   font:
-    700 48px/1 Georgia,
+    700 48px/1 "Outfit",
     serif;
   color: #77d6c1;
   order: 0;
@@ -196,7 +196,7 @@
 }
 .pen-score > b em {
   font:
-    italic 22px Georgia,
+    italic 22px "Outfit",
     serif;
   color: #e9c98c;
 }
@@ -392,7 +392,7 @@
 }
 .shot-control-heading strong {
   font:
-    700 25px Georgia,
+    700 25px "Outfit",
     serif;
 }
 .pen-studio .pen-target-controls {
@@ -615,7 +615,7 @@
 }
 .pen-final-score > span {
   font:
-    700 76px/1 Georgia,
+    700 76px/1 "Outfit",
     serif;
   color: #175347;
   text-align: center;
@@ -634,7 +634,7 @@
 .pen-final-score > i {
   color: #a38755;
   font:
-    24px Georgia,
+    24px "Outfit",
     serif;
 }
 .pen-studio .pen-replay {

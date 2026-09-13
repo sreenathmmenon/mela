@@ -288,7 +288,7 @@ export function ProductHome({
               onClick={() => setAgentPath("external")}
             >
               <strong>Connect an agent</strong>
-              <span>Bring a tool-connected agent</span>
+              <span>Bring your own agent</span>
             </button>
             <button
               aria-pressed={agentPath === "character"}

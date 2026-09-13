@@ -3,11 +3,11 @@
 .arena-shell:not(.arena-screen) .arena-header h1,
 .playground-shell:not(.playground-screen) .pg-header h1,
 .mela-shell.game-cricket .hero h1 {
-  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-display);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
-  letter-spacing: -0.35px;
+  letter-spacing: 0;
   margin: 0;
 }
 .pen-studio .pen-top button,
@@ -15,9 +15,9 @@
 .playground-shell:not(.playground-screen) .pg-header button,
 .mela-shell.game-cricket .hero button,
 .mela-shell.game-cricket > .identity button {
-  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
   letter-spacing: 0;
   min-height: 48px;
@@ -26,6 +26,174 @@
   border-radius: 10px;
   box-shadow: none;
   white-space: nowrap;
+}
+
+/* Reading surfaces share a scale; score/board geometry retains game-specific sizing. */
+.product-home
+  :is(
+    .product-paths strong,
+    .product-subheading h3,
+    .product-empty strong,
+    .product-rooms strong
+  ) {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.product-home
+  :is(
+    .product-paths span,
+    .product-saving-note,
+    .product-profile p,
+    .product-memory-card p,
+    .product-agent-guide p,
+    .product-agent-guide li,
+    .product-empty p
+  ) {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.product-home .product-memory-card > strong {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+.product-home .product-profile h3 {
+  font: 500 24px/1.3 var(--font-display);
+  letter-spacing: 0;
+}
+.product-home .product-paths strong {
+  font-size: 18px;
+}
+.product-home .product-paths span {
+  font-size: 14px;
+}
+.product-home .product-resume strong {
+  font-weight: 500;
+  font-size: 18px;
+}
+.product-home .product-stats dd {
+  font-weight: 500;
+}
+.product-home .product-memory-card small,
+.product-home .product-memory-foot,
+.product-home .product-memory-foot span {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.account-dialog h2,
+.character-studio .studio-intro h2 {
+  font: 500 26px/1.3 var(--font-display);
+  letter-spacing: 0;
+}
+.account-dialog :is(p, summary),
+.character-studio .studio-intro p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.account-dialog :is(button, label),
+.character-studio label,
+.character-studio .studio-presets button {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.account-dialog .account-close {
+  font-size: 24px;
+}
+.account-dialog :is(.account-note, .danger),
+.character-studio
+  :is(
+    .studio-brief,
+    .studio-live small,
+    .studio-prompt small,
+    .studio-character small,
+    .studio-character em,
+    .studio-message
+  ) {
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+.character-studio .studio-character strong {
+  font: 500 22px/1.3 var(--font-display);
+  letter-spacing: 0;
+}
+.character-studio :is(input:not([type="checkbox"]), select) {
+  font-size: 16px;
+  font-weight: 400;
+  min-height: 48px;
+}
+.character-studio .studio-presets button {
+  min-height: 44px;
+}
+.character-studio .studio-start {
+  font-size: 16px !important;
+  font-weight: 500 !important;
+}
+.game-orientation strong {
+  font-weight: 500;
+}
+.arena-shell .game-orientation summary {
+  color: #403c2e;
+}
+.pen-studio .pen-score > span > small,
+.pen-studio .pen-score > b small {
+  font: 500 11px/1.4 var(--font-body);
+  letter-spacing: 0.04em;
+}
+.pen-studio .pen-join-visible strong {
+  font: 500 14px/1.4 var(--font-display);
+  letter-spacing: 0;
+}
+.pen-studio .pen-join-visible span,
+.pen-studio .pen-join-visible a {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pen-studio .flick-strength-help {
+  font: 400 13px/1.5 var(--font-body);
+}
+.pen-studio .desk-gesture-hint {
+  font: 500 12px/1.4 var(--font-body);
+  letter-spacing: 0;
+}
+.duel-invite h2 {
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.3;
+}
+@media (max-width: 600px) {
+  .character-studio .studio-traits,
+  .character-studio .studio-launch {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .product-home .product-nav button {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .product-home
+    :is(
+      .product-paths span,
+      .product-saving-note,
+      .product-memory-card p,
+      .product-empty p
+    ) {
+    font-size: 14px;
+  }
+  .character-studio .studio-intro h2,
+  .account-dialog h2 {
+    font-size: 24px;
+  }
+  .character-studio .studio-character strong {
+    font-size: 19px;
+  }
 }
 .pen-studio .pen-top button:hover:not(:disabled),
 .arena-shell:not(.arena-screen) .arena-header button:hover:not(:disabled),

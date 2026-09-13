@@ -1,0 +1,15 @@
+/* Self-hosted, unmodified Google Fonts Latin variable subsets; see OFL files. */
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./outfit-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./dm-sans-latin.woff2") format("woff2");
+}

@@ -14,7 +14,7 @@
 }
 .duel-invite h2 {
   font:
-    700 clamp(1.4rem, 4vw, 2rem) Fraunces,
+    700 clamp(1.4rem, 4vw, 2rem) "Outfit",
     serif;
   margin: 8px 0;
 }
@@ -27,7 +27,7 @@
 }
 .duel-code strong {
   font:
-    900 2.7rem Fraunces,
+    900 2.7rem "Outfit",
     serif;
 }
 .duel-minds {

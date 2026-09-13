@@ -775,7 +775,7 @@ export function PenFight({
         }
       />
       <div>
-        <strong>{completed ? "KEEP THIS MATCH" : "INVITE YOUR CROWD"}</strong>
+        <strong>{completed ? "Keep this match" : "Invite your crowd"}</strong>
         <span>
           {completed
             ? "Scan to revisit this duel."
@@ -1167,7 +1167,7 @@ export function PenFight({
                 <div className="desk-gesture-hint">
                   {aiming
                     ? `Release to flick · ${powerPct}% force`
-                    : "Touch any part of your pen · pull back · release · off-centre glances"}
+                    : "Grip your pen · pull back · release"}
                 </div>
               )}
             </div>
