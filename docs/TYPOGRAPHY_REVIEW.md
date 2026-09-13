@@ -6,18 +6,18 @@ not evidence that the user now likes the result.
 
 ## Type system
 
-| Role                                     | Typeface / weight | Desktop | Phone                       |
-| ---------------------------------------- | ----------------- | ------- | --------------------------- |
-| Mela wordmark                            | Outfit 500        | 30px    | 29px                        |
-| Discovery section heading                | Outfit 400        | 28px    | 24px                        |
-| Game-card name                           | Outfit 500        | 22px    | 19px; 18px at narrow widths |
-| Game-card description                    | DM Sans 400       | 15px    | 14px                        |
-| Navigation / mode buttons                | DM Sans 500       | 14px    | 13–14px                     |
-| Game-page title                          | Outfit 500        | 24px    | 20px                        |
-| Expanded game instructions               | DM Sans 400/500   | 15px    | 15px                        |
-| Profile / workshop heading               | Outfit 500        | 24–26px | 24px                        |
-| Workshop form values                     | DM Sans 400       | 16px    | 16px                        |
-| Supporting workshop / account disclosure | DM Sans 400       | 13px    | 13px                        |
+| Role                                     | Typeface / weight | Desktop | Phone   |
+| ---------------------------------------- | ----------------- | ------- | ------- |
+| Mela wordmark                            | Outfit 500        | 24px    | 24px    |
+| Discovery section heading (not Play)     | DM Sans 500       | 20px    | 20px    |
+| Game-card name                           | DM Sans 500       | 16px    | 15px    |
+| Game-card description                    | DM Sans 400       | 13px    | 13px    |
+| Navigation / mode buttons                | DM Sans 500       | 14px    | 13–14px |
+| Game-page title                          | Outfit 500        | 24px    | 20px    |
+| Expanded game instructions               | DM Sans 400/500   | 15px    | 15px    |
+| Profile / workshop heading               | Outfit 500        | 24–26px | 24px    |
+| Workshop form values                     | DM Sans 400       | 16px    | 16px    |
+| Supporting workshop / account disclosure | DM Sans 400       | 13px    | 13px    |
 
 Remove compressed negative tracking on headings and game names. Use actual
 variable weights rather than synthesised heavy interface headings. Gameplay
@@ -25,6 +25,15 @@ numbers keep their existing sizes but use the new display family. Game-stage
 geometry, camera projection, hit testing and authoritative state are untouched.
 
 ## Visible-text review coverage
+
+Follow-up: the user's actual in-app tab still rendered the older Instrument Sans
+32px heading while the preceding release had been verified in another browser.
+Reloading that tab exposed the new font, but the heading remained unnecessarily
+dominant. Play now has no visible instruction heading: its accessible `Games`
+heading remains for focus/navigation. Mode selection is a compact neutral
+segmented control with 13px labels and 44px targets; navigation uses an underline
+instead of a filled selected tile. Game names now use the calmer body family.
+This supersedes the previous 28/24px heading and 22/19px card-name scale.
 
 - Play: masthead, navigation, mode choices, ten names/descriptions, guest note,
   pending card labels and existing-match resume treatment.

@@ -5,6 +5,14 @@ import { readFileSync } from "node:fs";
 const read = (path: string) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
+test("play entry omits the instruction hero and keeps an accessible heading", () => {
+  const source = read("src/ProductHome.tsx");
+  assert.doesNotMatch(source, /Choose a game/);
+  assert.match(source, /place === "play" \? "discovery-sr-only"/);
+  assert.match(source, /aria-label="Who are you playing with\?"/);
+  assert.match(source, /product-filter product-play-mode/);
+});
+
 test("both interface typefaces ship as real licensed WOFF2 assets", () => {
   for (const [file, license] of [
     ["outfit-latin", "Outfit"],

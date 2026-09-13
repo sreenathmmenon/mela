@@ -178,11 +178,15 @@ export function ProductHome({
           </button>
         ))}
       </nav>
-      <div className="product-section-heading">
+      <div
+        className={
+          place === "play" ? "discovery-sr-only" : "product-section-heading"
+        }
+      >
         <div>
           <h2 ref={heading} tabIndex={-1}>
             {place === "play"
-              ? "Choose a game"
+              ? "Games"
               : place === "watch"
                 ? "Watch a match"
                 : place === "agents"
@@ -201,17 +205,19 @@ export function ProductHome({
 
       {place === "play" && (
         <>
-          <div
-            className="product-filter"
-            role="group"
-            aria-label="Who are you playing with?"
-          >
-            <button aria-pressed={!friends} onClick={() => setFriends(false)}>
-              With MelaBot
-            </button>
-            <button aria-pressed={friends} onClick={() => setFriends(true)}>
-              With a friend
-            </button>
+          <div className="product-mode-row">
+            <div
+              className="product-filter product-play-mode"
+              role="group"
+              aria-label="Who are you playing with?"
+            >
+              <button aria-pressed={!friends} onClick={() => setFriends(false)}>
+                With MelaBot
+              </button>
+              <button aria-pressed={friends} onClick={() => setFriends(true)}>
+                With a friend
+              </button>
+            </div>
             {friends ? (
               <span>Invite with a private link.</span>
             ) : !profile ? (

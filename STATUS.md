@@ -1,5 +1,13 @@
 # MELA STATUS
 
+## Current pass — compact homepage and actual-tab verification (2026-09-13)
+
+- Found the user's actual in-app production tab rendering the old **Instrument Sans 600/32px** “Choose a game” heading. Earlier release verification had used a separate browser. Reloading the actual tab showed the deployed Outfit version and preserved profile/resume state; no credentials or storage were cleared.
+- Removed the visible Play instruction heading, retaining an accessible `Games` heading. Compact neutral mode switch, underlined navigation, 24px wordmark, DM Sans 16px desktop / 15px phone game names and 13px descriptions. This supersedes the larger discovery scale below. No game logic, authentication, subscriptions or database changes.
+- Verification: **171/171 tests passed**, including a new instruction-hero regression guard; frontend typecheck and production build passed. Existing bundle-size warnings remain. All four destinations passed overflow checks at **320/390/768/1440px**; ten solo and five friend choices verified. Pen Fight and Book Cricket entry/return passed. Desktop/phone screenshots visually inspected in `output/playwright/compact-home-*` (local artifacts). These checks do not establish user aesthetic approval or full-match coverage.
+- Release state: source commit/push and Railway release pending this entry; actual-tab verification required after deployment.
+- Next task: complete production release and inspect the same open user tab, not only the separate QA browser.
+
 ## Current pass — actual typeface replacement and text review (2026-09-13)
 
 - Sreenath rejected the preceding subtle adjustment. Replaced Instrument Sans/Fraunces/Georgia interface styling with **Outfit headings and DM Sans body/controls**, including self-hosted variable WOFF2 assets and licenses. Both font faces were confirmed **loaded** in the browser. Cold entry uses the same pair. The transport adds only the WOFF2 MIME mapping; game authority and authentication are unchanged.
