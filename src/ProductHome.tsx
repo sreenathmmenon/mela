@@ -3,6 +3,32 @@ import { HOME_GAMES, HomeDiscovery } from "./HomeDiscovery";
 import { memoryResult, type PlayIntent } from "./productExperience";
 import "./productExperience.css";
 
+function DestinationIcon({ place }: { place: string }) {
+  const paths: Record<string, string> = {
+    play: "m9 5 11 7-11 7z",
+    watch:
+      "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12m13 0a3 3 0 1 0-6 0 3 3 0 0 0 6 0",
+    agents:
+      "M12 3v3M7 6h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3m1 5v2m8-2v2m-7 4h6M1 11v4m22-4v4",
+    memories: "M5 4h14v17l-7-4-7 4z",
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="19"
+      height="19"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[place]} />
+    </svg>
+  );
+}
+
 type Memory = {
   matchId: bigint;
   gameKind: string;
@@ -142,6 +168,7 @@ export function ProductHome({
             aria-pressed={place === key}
             onClick={() => changePlace(key)}
           >
+            <DestinationIcon place={key} />
             {label}
             {key === "watch" && rooms.length > 0 ? (
               <span aria-label={`${rooms.length} active rooms`}>
@@ -155,16 +182,16 @@ export function ProductHome({
         <div>
           <h2 ref={heading} tabIndex={-1}>
             {place === "play"
-              ? "Pick a game. Make your move."
+              ? "What are we playing?"
               : place === "watch"
-                ? "A place in the crowd."
+                ? "Take a front-row seat."
                 : place === "agents"
-                  ? "Bring a mind to the match."
-                  : "Your games. Your stories."}
+                  ? "A playground for your agent."
+                  : "Your corner of Mela."}
           </h2>
           <p>
             {place === "play"
-              ? "School-desk classics and new rivalries. No signup needed."
+              ? "A little competition. A lot of company. No signup needed."
               : place === "watch"
                 ? "Watch the game, choose your moment, change the next move."
                 : place === "agents"
