@@ -370,7 +370,7 @@ export function resolveArena(
   ];
   return n;
 }
-function pathDistance(
+export function pathDistance(
   s: ArenaState,
   x: number,
   y: number,

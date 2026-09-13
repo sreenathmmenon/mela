@@ -1,5 +1,10 @@
 import { ScheduleAt, SenderError, table, t } from "spacetimedb/server";
 import {
+  validateCharacter,
+  decideCharacter,
+  characterEvents,
+} from "./arenaCharacter";
+import {
   ARENA_POWERS,
   POLICIES,
   decideArena,
@@ -22,6 +27,17 @@ const arenaWake = table(
   },
 );
 export const arenaTables = {
+  arenaProduction: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      owner: t.identity().index(),
+      amber: t.string(),
+      teal: t.string(),
+      courseId: t.u64(),
+      createdAt: t.timestamp(),
+    },
+  ),
   arenaState: table(
     { public: true },
     {
@@ -161,12 +177,19 @@ export function arenaModule(db: any, services: any) {
     )
       return;
     const proposals = intents(ctx, id);
+    const production = ctx.db.arenaProduction.matchId.find(id);
     if (row.mode !== "agents" && !proposals.some((p) => p.side === 0)) return;
     const actions = ([0, 1] as Side[]).map((side) => {
       const p = proposals.find((v) => v.side === side);
       return p
         ? JSON.parse(p.action)
-        : decideArena(s, side, side === 0 ? row.leftPolicy : row.rightPolicy);
+        : production
+          ? decideCharacter(
+              s,
+              side,
+              JSON.parse(side === 0 ? production.amber : production.teal),
+            )
+          : decideArena(s, side, side === 0 ? row.leftPolicy : row.rightPolicy);
     }) as any;
     const source = ([0, 1] as Side[]).map(
       (side) =>
@@ -175,6 +198,12 @@ export function arenaModule(db: any, services: any) {
     );
     const crowd = ctx.db.arenaCrowd.matchId.find(id);
     const next = resolveArena(s, actions, crowd);
+    if (production) {
+      const amber =
+        row.mode === "agents" ? JSON.parse(production.amber).name : "Amber";
+      const teal = JSON.parse(production.teal).name;
+      next.log = characterEvents(next.log, amber, teal);
+    }
     const finished = Boolean(next.winner);
     ctx.db.arenaState.matchId.update({
       ...row,
@@ -289,6 +318,65 @@ export function arenaModule(db: any, services: any) {
       }
       if (row.agentIdentity && intents(ctx, a.matchId).length === 2)
         wake(ctx, a.matchId, row.revision);
+    },
+  );
+  const produce = db.reducer(
+    {
+      gameKind: t.string(),
+      mode: t.string(),
+      amber: t.string(),
+      teal: t.string(),
+      courseId: t.u64(),
+      agent: t.identity().optional(),
+    },
+    (ctx: any, a: any) => {
+      if (!["solo", "agents"].includes(a.mode)) fail("Choose play or watch.");
+      if (a.amber.length > 400 || a.teal.length > 400)
+        fail("Character is too long.");
+      let amber, teal;
+      try {
+        amber = validateCharacter(JSON.parse(a.amber));
+        teal = validateCharacter(JSON.parse(a.teal));
+      } catch {
+        fail("Choose supported character traits and a short name.");
+      }
+      const course = a.courseId
+        ? ctx.db.arenaCourse.id.find(a.courseId)
+        : undefined;
+      if (a.courseId && !course) fail("That course was not found.");
+      if (a.agent?.isEqual(ctx.sender))
+        fail("An agent needs an independent connection.");
+      const id = start(
+        ctx,
+        a.gameKind,
+        a.mode,
+        "runner",
+        "trickster",
+        course ? JSON.parse(course.walls) : undefined,
+      );
+      ctx.db.arenaProduction.insert({
+        matchId: id,
+        owner: services.identity(ctx),
+        amber: JSON.stringify(amber),
+        teal: JSON.stringify(teal),
+        courseId: a.courseId,
+        createdAt: ctx.timestamp,
+      });
+      for (const p of ctx.db.matchParticipant.iter())
+        if (p.matchId === id && (a.mode === "agents" || p.role !== "player"))
+          ctx.db.matchParticipant.id.update({
+            ...p,
+            displayName: p.role === "player" ? amber!.name : teal!.name,
+          });
+      const row = ctx.db.arenaState.matchId.find(id);
+      if (a.agent)
+        ctx.db.arenaState.matchId.update({
+          ...row,
+          agentIdentity: a.agent,
+          provenance: "External agent connected",
+        });
+      // A local character duel has no setup wait. External agents retain their bounded deadline.
+      else if (a.mode === "agents") wake(ctx, id, 0);
     },
   );
   const connectAgent = db.reducer(
@@ -442,7 +530,21 @@ export function arenaModule(db: any, services: any) {
           ctx.db.match.id.find(r.matchId)?.status === "active",
       ),
   );
+  const productionInbox = db.view(
+    { public: true },
+    t.array(arenaTables.arenaProduction.rowType),
+    (ctx: any) =>
+      Array.from(ctx.db.arenaProduction.iter()).filter(
+        (r: any) =>
+          ctx.db.arenaState.matchId
+            .find(r.matchId)
+            ?.agentIdentity?.isEqual(ctx.sender) &&
+          ctx.db.match.id.find(r.matchId)?.status === "active",
+      ),
+  );
   return {
+    produce,
+    productionInbox,
     start,
     create,
     action,

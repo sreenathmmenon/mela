@@ -11,6 +11,7 @@ import { DotsBoxes } from "./DotsBoxes";
 import { GilliDanda } from "./GilliDanda";
 import { StrategyGames } from "./StrategyGames";
 import { HomeDiscovery } from "./HomeDiscovery";
+import { CharacterStudio } from "./CharacterStudio";
 import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { EmailRecap } from "./EmailRecap";
 import { isMuted, playSound, toggleMuted } from "./sound";
@@ -1173,6 +1174,64 @@ function App() {
         </div>
       </header>
 
+      {!displayedMatch && !requestedJoinMatchId && (
+        <CharacterStudio
+          connected={connected && profilesReady && identityLinksReady}
+          identity={canonicalIdentity ?? identity}
+          onOpen={(id) => {
+            setPinnedMatchId(id);
+            setRequestedMemoryId(null);
+            setShowHome(false);
+            const url = new URL(location.href);
+            url.search = "";
+            window.history.replaceState(null, "", url);
+          }}
+        />
+      )}
+      {!displayedMatch &&
+        !requestedJoinMatchId &&
+        memories.some((m) => Boolean(ARENA_TITLES[m.gameKind])) && (
+          <section
+            className="arena-replay-shelf"
+            aria-label="Recent arena replays"
+          >
+            <h2>Watch a real match</h2>
+            <div>
+              {[...memories]
+                .filter((m) => Boolean(ARENA_TITLES[m.gameKind]))
+                .sort((a, b) => Number(b.sequence - a.sequence))
+                .slice(0, 3)
+                .map((m) => (
+                  <button
+                    key={String(m.matchId)}
+                    onClick={() => {
+                      setRequestedMemoryId(m.matchId);
+                      setPinnedMatchId(null);
+                      setShowHome(false);
+                    }}
+                  >
+                    <small>{ARENA_TITLES[m.gameKind]}</small>
+                    <strong>
+                      {m.humanName} <span>×</span> {m.aiName}
+                    </strong>
+                    <span>
+                      {m.winner === "draw"
+                        ? "Draw"
+                        : m.winner === "team"
+                          ? "Treasure rescued"
+                          : m.winner === "timeout"
+                            ? "The vault closed"
+                            : `${m.winner === "human" ? m.humanName : m.aiName} won`}
+                      {m.crowdActions
+                        ? ` · ${m.crowdActions} crowd move${m.crowdActions === 1 ? "" : "s"}`
+                        : ""}
+                    </span>
+                    <b>Replay →</b>
+                  </button>
+                ))}
+            </div>
+          </section>
+        )}
       {!me && !requestedJoinMatchId && (
         <>
           <HomeDiscovery

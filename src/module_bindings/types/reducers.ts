@@ -16,6 +16,7 @@ import ConnectArenaAgentReducer from "../connect_arena_agent_reducer";
 import CreateAgentDuelReducer from "../create_agent_duel_reducer";
 import CreateArenaReducer from "../create_arena_reducer";
 import CreateBookCricketReducer from "../create_book_cricket_reducer";
+import CreateCharacterArenaReducer from "../create_character_arena_reducer";
 import CreateDotsBoxesReducer from "../create_dots_boxes_reducer";
 import CreateFourRowReducer from "../create_four_row_reducer";
 import CreateFourRowDuelReducer from "../create_four_row_duel_reducer";
@@ -55,6 +56,9 @@ export type ConnectArenaAgentParams = __Infer<typeof ConnectArenaAgentReducer>;
 export type CreateAgentDuelParams = __Infer<typeof CreateAgentDuelReducer>;
 export type CreateArenaParams = __Infer<typeof CreateArenaReducer>;
 export type CreateBookCricketParams = __Infer<typeof CreateBookCricketReducer>;
+export type CreateCharacterArenaParams = __Infer<
+  typeof CreateCharacterArenaReducer
+>;
 export type CreateDotsBoxesParams = __Infer<typeof CreateDotsBoxesReducer>;
 export type CreateFourRowParams = __Infer<typeof CreateFourRowReducer>;
 export type CreateFourRowDuelParams = __Infer<typeof CreateFourRowDuelReducer>;

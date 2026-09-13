@@ -101,6 +101,16 @@ export const ArenaIntent = __t.object("ArenaIntent", {
 });
 export type ArenaIntent = __Infer<typeof ArenaIntent>;
 
+export const ArenaProduction = __t.object("ArenaProduction", {
+  matchId: __t.u64(),
+  owner: __t.identity(),
+  amber: __t.string(),
+  teal: __t.string(),
+  courseId: __t.u64(),
+  createdAt: __t.timestamp(),
+});
+export type ArenaProduction = __Infer<typeof ArenaProduction>;
+
 export const ArenaState = __t.object("ArenaState", {
   matchId: __t.u64(),
   revision: __t.u32(),
@@ -403,6 +413,9 @@ export type MyArenaAgent = __Infer<typeof MyArenaAgent>;
 
 export const MyArenaCrowd = __t.object("MyArenaCrowd", {});
 export type MyArenaCrowd = __Infer<typeof MyArenaCrowd>;
+
+export const MyArenaProduction = __t.object("MyArenaProduction", {});
+export type MyArenaProduction = __Infer<typeof MyArenaProduction>;
 
 export const MyEmailContact = __t.object("MyEmailContact", {});
 export type MyEmailContact = __Infer<typeof MyEmailContact>;

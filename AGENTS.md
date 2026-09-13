@@ -51,7 +51,7 @@ Use narrow subscriptions for a player’s current world/match plus relevant even
 - Use typed contracts and clear, small modules; keep reducer validation close to state transitions.
 - Preserve backwards-compatible migrations and document every schema/reducer change.
 - Keep UI mobile-first and big-screen readable; ensure keyboard access, semantic controls, contrast, and visible focus.
-- Homepage copy is functional, not promotional: Sreenath rejected taglines, slogan heroes, decorative Live badges and repeated invitations to play. Lead directly with games; keep brief rules/action labels, optional sign-in and actionable connection errors. Do not reintroduce slogans in later polish passes.
+- On 2026-09-13 Sreenath explicitly authorized revising the homepage and prior product constraints for the Astra challenge. Lead with a usable character-creation/play experience, not an oversized marketing-only hero. Keep concise, specific copy, direct access to existing games, optional sign-in and actionable errors. Do not use fabricated activity, guaranteed-superiority claims or decorative badges as a substitute for working gameplay.
 - Keep events append-only where practical; protect user inputs and avoid exposing secrets or internal errors.
 - Prefer deterministic tests for game rules; test invalid actions, concurrent actions, reconnects, and multi-client synchronization.
 - Run formatter/lint/typecheck/tests/build after meaningful increments. Verify the local product in a browser before calling a feature complete.
@@ -80,6 +80,8 @@ Internal state transitions use shared domain/rule functions called by public red
 When changing a SpacetimeDB architectural assumption, verify it against current official documentation and record whether it is a researched fact, recommendation, assumption, or human approval decision.
 
 ## 9. Current constraints and risks
+
+The 2026-09-13 Character Arena refinement gives a match two public, immutable character snapshots: names, pace, route preference, caution and cosmetic look. Prompts are not stored in Mela; names/traits are disclosed as public before creation. A character is not executable code or an authentication identity. Server validation and the shared resolver remain authoritative; appearance never changes competitive outcomes. Clearly distinguish Astra-designed traits, deterministic execution, actual live proposals and fallback. Match replays, postcards and remix links must reflect committed results. Research precedent and uncertainty are recorded in `docs/ASTRA_CHALLENGE_WINNER_RESEARCH.md`.
 
 Sreenath approved the new game-first Mela Arena direction on 2026-09-12: Crown Run, Bridge Breakers and cooperative Mela Heist. See `docs/MELA_ARENA.md`. Preserve the existing games. New arena plans and pending crowd choices remain private until committed resolution; durable replay frames are normal tables. Distinguish Astra-created deterministic strategies, actual live external proposals and disclosed MelaBot fallback in UX/history. Hosted model keys stay server-side, with bounded usage and an always-playable deterministic path. Cosmetic Easter eggs must not create hidden competitive or progression advantages. No claim of guaranteed challenge placement, virality, investment or acquisition.
 

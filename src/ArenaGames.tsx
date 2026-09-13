@@ -13,6 +13,13 @@ import {
   type ArenaState,
 } from "../spacetimedb/src/arenaRules";
 import { playSound, isMuted, toggleMuted } from "./sound";
+import { CharacterPortrait } from "./CharacterStudio";
+import {
+  characterBrief,
+  encodeCharacter,
+  type ArenaCharacter,
+} from "../spacetimedb/src/arenaCharacter";
+import { downloadArenaPostcard } from "./arenaPostcard";
 import "./arena.css";
 const Stage = lazy(() => import("./ArenaStage"));
 export const ARENA_TITLES: Record<string, string> = {
@@ -53,6 +60,9 @@ export function ArenaGames({
       tables.arenaState.where((r) => r.matchId.eq(matchId)),
     ),
     [frames] = useTable(tables.arenaFrame.where((r) => r.matchId.eq(matchId))),
+    [productions] = useTable(
+      tables.arenaProduction.where((r) => r.matchId.eq(matchId)),
+    ),
     [pools] = useTable(tables.matchCrowd.where((r) => r.matchId.eq(matchId))),
     [pending] = useTable(tables.myArenaCrowd),
     [rematches] = useTable(
@@ -78,6 +88,13 @@ export function ArenaGames({
     }
   }, [matches, identity, followAfter, onOpen]);
   const row = rows[0],
+    production = productions[0],
+    cast = production
+      ? ([JSON.parse(production.amber), JSON.parse(production.teal)] as [
+          ArenaCharacter,
+          ArenaCharacter,
+        ])
+      : undefined,
     pool = pools[0],
     state = row ? (JSON.parse(row.state) as ArenaState) : undefined;
   const play = useReducer(reducers.playArena),
@@ -86,10 +103,12 @@ export function ArenaGames({
     join = useReducer(reducers.joinMatchAsSpectator),
     publish = useReducer(reducers.publishArenaCourse),
     connectAgent = useReducer(reducers.connectArenaAgent);
+  const produce = useReducer(reducers.createCharacterArena);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [camera, setCamera] = useState("isometric"),
     [replay, setReplay] = useState<number | null>(null),
+    [replaying, setReplaying] = useState(false),
     [muted, setMuted] = useState(isMuted()),
     [mode, setMode] = useState("solo"),
     [policy, setPolicy] = useState("runner"),
@@ -108,6 +127,22 @@ export function ArenaGames({
     setMessage("");
   }, [row?.revision, row?.phase]);
   const sorted = [...frames].sort((a, b) => a.revision - b.revision);
+  useEffect(() => {
+    if (!replaying || !row) return;
+    const timer = setInterval(
+      () =>
+        setReplay((previous) => {
+          const next = (previous ?? 0) + 1;
+          if (next >= row.revision) {
+            setReplaying(false);
+            return row.revision;
+          }
+          return next;
+        }),
+      1100,
+    );
+    return () => clearInterval(timer);
+  }, [replaying, row?.revision]);
   const shown =
     replay === null
       ? state
@@ -144,6 +179,26 @@ export function ArenaGames({
   async function nextGame(args: Parameters<typeof create>[0]) {
     const after = matches.reduce((n, m) => (m.id > n ? m.id : n), 0n);
     await create(args);
+    setFollowAfter(after);
+  }
+  async function rematch() {
+    if (!production)
+      return nextGame({
+        gameKind: match!.gameKind,
+        mode: row.mode,
+        leftPolicy: row.leftPolicy,
+        rightPolicy: row.rightPolicy,
+        courseId: 0n,
+      });
+    const after = matches.reduce((n, m) => (m.id > n ? m.id : n), 0n);
+    await produce({
+      gameKind: match!.gameKind,
+      mode: row.mode,
+      amber: production.amber,
+      teal: production.teal,
+      courseId: production.courseId,
+      agent: row.agentIdentity,
+    });
     setFollowAfter(after);
   }
   const url = new URL(location.href);
@@ -219,10 +274,12 @@ export function ArenaGames({
         : state!.winner === "draw"
           ? "A rivalry worth a rematch."
           : state!.winner === "human"
-            ? "Amber wins this round."
-            : "Teal takes this one.";
+            ? `${row.mode === "agents" ? (cast?.[0].name ?? "Amber") : humanName} wins this round.`
+            : `${cast?.[1].name ?? "Teal"} takes this one.`;
   return (
-    <main className={`arena-shell arena-${match.gameKind}`}>
+    <main
+      className={`arena-shell arena-${match.gameKind} ${isSpectator ? "arena-audience" : ""}`}
+    >
       <header className="arena-header">
         <button onClick={onBack}>← Games</button>
         <div>
@@ -240,7 +297,7 @@ export function ArenaGames({
               <i className="amber-dot" />
               <strong>
                 {row.mode === "agents"
-                  ? "Amber · " + row.leftPolicy
+                  ? (cast?.[0].name ?? "Amber · " + row.leftPolicy)
                   : humanName}
               </strong>
               <b>{shown.pawns[0].score}</b>
@@ -252,11 +309,26 @@ export function ArenaGames({
             <div>
               <b>{shown.pawns[1].score}</b>
               <strong>
-                {row.agentIdentity ? "Agent · Teal" : "MelaBot · Teal"}
+                {cast?.[1].name ??
+                  (row.agentIdentity ? "Agent · Teal" : "MelaBot · Teal")}
               </strong>
               <i className="teal-dot" />
             </div>
           </div>
+          {!isPlayer && !closed && !screen && (
+            <button
+              className="arena-crowd-shortcut"
+              onClick={() =>
+                document
+                  .getElementById("arena-crowd-controls")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              {isSpectator
+                ? "Your crowd powers ↓"
+                : "Join the crowd · change the next move ↓"}
+            </button>
+          )}
           <div className="arena-stage-wrap">
             <Suspense
               fallback={
@@ -281,6 +353,7 @@ export function ArenaGames({
                   )
                 }
                 camera={camera}
+                looks={cast?.map((c) => c.look)}
               />
             </Suspense>
             <div className="arena-camera">
@@ -307,7 +380,9 @@ export function ArenaGames({
                     ? "This arena has closed. There’s another game waiting."
                     : row.phase === "thinking"
                       ? row.agentIdentity
-                        ? "Agent is choosing. Your plan is locked."
+                        ? row.mode === "agents"
+                          ? "Two characters are choosing their next move."
+                          : `${cast?.[1].name ?? "Astra"} is choosing. Your plan is locked.`
                         : "Plans locked. The crowd has its moment."
                       : row.mode === "agents"
                         ? "Two strategies. One arena."
@@ -431,21 +506,33 @@ export function ArenaGames({
                 <button
                   className="arena-primary"
                   disabled={busy}
-                  onClick={() =>
-                    void run(() =>
-                      nextGame({
-                        gameKind: match.gameKind,
-                        mode: row.mode,
-                        leftPolicy: row.leftPolicy,
-                        rightPolicy: row.rightPolicy,
-                        courseId: 0n,
-                      }),
-                    )
-                  }
+                  onClick={() => void run(rematch)}
                 >
                   Play again →
                 </button>
                 <button onClick={() => void share()}>Share this story</button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () =>
+                        downloadArenaPostcard(
+                          state!,
+                          ARENA_TITLES[match.gameKind],
+                          [
+                            row.mode === "agents"
+                              ? (cast?.[0].name ?? "Amber")
+                              : humanName,
+                            cast?.[1].name ?? "Teal",
+                          ],
+                          url.href,
+                        ),
+                      "Postcard downloaded. The replay link is printed on it.",
+                    )
+                  }
+                >
+                  Save match postcard ↓
+                </button>
               </div>
               <label>
                 Replay the match{" "}
@@ -455,14 +542,63 @@ export function ArenaGames({
                   min={0}
                   max={row.revision}
                   value={replay ?? row.revision}
-                  onChange={(e) => setReplay(Number(e.target.value))}
+                  onChange={(e) => {
+                    setReplaying(false);
+                    setReplay(Number(e.target.value));
+                  }}
                 />
               </label>
-              <button onClick={() => setReplay(null)}>Final moment</button>
+              <button
+                onClick={() => {
+                  if (replaying) setReplaying(false);
+                  else {
+                    if (replay === null || replay >= row.revision) setReplay(0);
+                    setReplaying(true);
+                  }
+                }}
+              >
+                {replaying ? "Pause replay" : "Play replay"}
+              </button>{" "}
+              <button
+                onClick={() => {
+                  setReplaying(false);
+                  setReplay(null);
+                }}
+              >
+                Final moment
+              </button>
             </section>
           )}
         </section>
         <aside className="arena-sidebar">
+          {cast && (
+            <section className="arena-card arena-cast">
+              <h2 className="arena-overline">THE CHARACTERS</h2>
+              {cast.map((c, i) => (
+                <div className="arena-cast-member" key={i}>
+                  <CharacterPortrait character={c} teal={i === 1} />
+                  <div>
+                    <h3>{c.name}</h3>
+                    <p>
+                      {i === 0 && row.mode === "solo"
+                        ? `${isPlayer ? "You choose" : `${humanName} chooses`} every move. These tactics apply only when the character plays autonomously.`
+                        : characterBrief(c)}
+                    </p>
+                    <a
+                      href={`/?character=${encodeCharacter(c)}&arena=${match.gameKind}`}
+                    >
+                      Remix this character ↗
+                    </a>
+                  </div>
+                </div>
+              ))}
+              <small>
+                {row.agentIdentity
+                  ? "Live agent proposals. Any timed-out move is labeled MelaBot fallback in the notebook."
+                  : "Character tactics run deterministically in Mela. No live model calls."}
+              </small>
+            </section>
+          )}
           <section className="arena-card">
             <span className="arena-overline">THE OBJECTIVE</span>
             <h2>
@@ -486,7 +622,7 @@ export function ArenaGames({
                 : "Move, then use Pick up / deliver on the goal tile."}
             </small>
           </section>
-          <section className="arena-card arena-crowd">
+          <section id="arena-crowd-controls" className="arena-card arena-crowd">
             <div className="arena-card-top">
               <h2>The crowd</h2>
               <span>{spectators.length} joined</span>
@@ -548,16 +684,21 @@ export function ArenaGames({
                 ))}
               </>
             )}
-            {isPlayer && (
+            {isPlayer && !closed && (
               <p>The crowd’s choice stays hidden until your moves resolve.</p>
             )}
-            <button onClick={() => void share()}>Invite a spectator ↗</button>
+            <button onClick={() => void share()}>
+              {closed ? "Share the replay ↗" : "Invite a spectator ↗"}
+            </button>
             <details>
               <summary>Show crowd QR</summary>
               <QRCodeSVG value={url.href} size={156} marginSize={2} />
+              <a className="arena-crowd-link" href={url.href}>
+                {closed ? "Open this replay" : "Open the crowd link"} ↗
+              </a>
             </details>
           </section>
-          {isPlayer && row.revision === 0 && !closed && (
+          {isPlayer && row.revision === 0 && !closed && !production && (
             <section className="arena-card">
               <h2>Meet your rival</h2>
               <p>
@@ -575,7 +716,13 @@ export function ArenaGames({
             </section>
           )}
           <details className="arena-card">
-            <summary>Characters & next match</summary>
+            <summary>Classic strategies & custom courses</summary>
+            {production && (
+              <p>
+                These settings start a classic strategy match. Use Play again to
+                keep these characters, or remix a character above.
+              </p>
+            )}
             <label>
               Mode
               <select value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -697,7 +844,7 @@ export function ArenaGames({
                         name: courseName,
                         walls: JSON.stringify(walls),
                       }),
-                    "Course published. Choose it in Characters & next match.",
+                    "Course published. Choose it in Classic strategies & custom courses.",
                   )
                 }
               >

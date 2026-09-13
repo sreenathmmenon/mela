@@ -597,6 +597,8 @@ export const publishArenaCourse = arena.publish;
 export const processArenaWake = arena.scheduled;
 export const connectArenaAgent = arena.connectAgent;
 export const myArenaAgent = arena.inbox;
+export const createCharacterArena = arena.produce;
+export const myArenaProduction = arena.productionInbox;
 
 /** Public counts only; identities and connection identifiers stay private. */
 export const roomActivity = spacetimedb.anonymousView(
@@ -2789,6 +2791,7 @@ function finishExperimentalMatch(
     metrics = metricsIdentityFor(ctx, match.playerIdentity);
   const contest = ctx.db.agentDuel.matchId.find(match.id);
   const arenaResult = ctx.db.arenaState.matchId.find(match.id);
+  const arenaProduction = ctx.db.arenaProduction.matchId.find(match.id);
   const people =
     arenaResult?.mode === "agents"
       ? []
@@ -2843,11 +2846,15 @@ function finishExperimentalMatch(
     gameKind: match.gameKind,
     humanName:
       arenaResult?.mode === "agents"
-        ? `Amber · ${arenaResult.leftPolicy}`
+        ? arenaProduction
+          ? JSON.parse(arenaProduction.amber).name
+          : `Amber · ${arenaResult.leftPolicy}`
         : (contest?.leftName ?? human.displayName),
-    aiName: arenaResult?.agentIdentity
-      ? "External agent · Teal"
-      : (contest?.rightName ?? "MelaBot"),
+    aiName: arenaProduction
+      ? JSON.parse(arenaProduction.teal).name
+      : arenaResult?.agentIdentity
+        ? "External agent · Teal"
+        : (contest?.rightName ?? "MelaBot"),
     winner,
     humanScore,
     humanWickets: 0,

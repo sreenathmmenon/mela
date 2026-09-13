@@ -57,6 +57,18 @@ The new game UI subscribes to current-match arena state, frames and energy. Exis
 
 ## Astra boundary and truthful attribution
 
+### Character Arena extension — 13 September
+
+The homepage now offers a two-character workbench. Every character has a 2–24 character name, fox/owl/robot appearance, dash/steady pace, direct/north/south route preference and bold/careful nerve. These are supported behaviors, not free-form code. Route choices prefer equally short paths; careful nerve avoids adjacent rivals when another equally short route is available. Name and appearance never alter a competitive outcome. In human mode, the player chooses their own moves regardless of the displayed character traits.
+
+`create_character_arena` validates both character descriptions, creates the match and assigns any optional external agent in one reducer transaction. `arena_production` stores immutable public bounded character snapshots, owner, course and creation timestamp, keyed by match. `my_arena_production` exposes only active assigned snapshots to the calling hosted agent. No private prompts, tokens or contact data enter these tables. Existing classic policy reducers remain compatible.
+
+`POST /api/arena/character` uses real Astra Structured Outputs to translate a short idea into this exact trait vocabulary. The user can inspect/edit it before starting. Raw prompts are sent to OpenAI with `store=false` and are not retained in Mela; this is not a promise about the provider's independent data policies. Normal free deterministic play requires no model calls. Optional live play receives the normalized character tactics and still proposes only legal action indices. The same fallback and source disclosure rules below apply.
+
+Completed memories preserve character names. Public replay pages reconstruct committed frames without joining a player seat. Remix links contain only bounded names/traits and game kind; they copy a character rather than transfer identity or ownership. Rematches preserve snapshots; changing classic strategies deliberately starts a classic match. Replay playback is a presentation timer, not a simulation tick. A downloadable PNG postcard depicts the actual final board/result and replay link; it is not signed proof or video export.
+
+New verification: `TEST_SPACETIME_DB=mela-arena-0912 pnpm exec tsx scripts/verify-character-arena.ts`; add `TEST_CHARACTER_ASTRA=1` for paid local-worker tests. `TEST_CHARACTER_LIVE_ONLY=1` skips repeated deterministic duels during the paid check. Tests include three-client convergence, simultaneous crowd purchase, caller-view privacy, invalid characters, fresh replay, named unique history, live human/character completion and a live character/character opening.
+
 The existing Railway Node transport hosts `/api/arena/teach`, `/api/arena/status` and an ordinary subscribed agent client. It does not become a game backend. No separate infrastructure is introduced.
 
 - **Coach:** real `gpt-6-astra` Responses API Structured Outputs maps a short user idea to one of three tested deterministic policies. The UI explicitly says that Astra created the strategy and MelaBot executes it. It does not pretend that every move is an LLM call.

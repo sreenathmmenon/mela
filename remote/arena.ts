@@ -2,6 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHash } from "node:crypto";
 import { DbConnection } from "../src/module_bindings";
 import {
+  validateCharacter,
+  characterBrief,
+} from "../spacetimedb/src/arenaCharacter";
+import {
   legalActions,
   type ArenaState,
   type Side,
@@ -96,13 +100,20 @@ export function createArenaService(origin: string) {
     }
   }
   async function observe(row: any) {
+    // Defer until every table delta in this transaction is applied: a new
+    // match and its immutable character snapshot arrive in the same commit.
+    await Promise.resolve();
     if (
       !connection ||
+      !ready ||
       !row.agentIdentity?.isEqual(connection.identity!) ||
       row.phase !== "thinking"
     )
       return;
     const s = JSON.parse(row.state) as ArenaState;
+    const production = connection.db.myArenaProduction.matchId.find(
+      row.matchId,
+    );
     if (s.winner) return;
     await Promise.all(
       ((row.mode === "agents" ? [0, 1] : [1]) as Side[]).map(async (side) => {
@@ -112,9 +123,14 @@ export function createArenaService(origin: string) {
         if (attempted.size > 4000)
           attempted.delete(attempted.values().next().value!);
         const legal = legalActions(s, side);
+        const character = production
+          ? validateCharacter(
+              JSON.parse(side === 0 ? production.amber : production.teal),
+            )
+          : undefined;
         try {
           const result = await call(
-            `Choose one legalAction index for side ${side}. Policy: ${side === 0 ? row.leftPolicy : row.rightPolicy}. Rules: crown_run pick up centre crown with interact then carry to your home (side 0 x0,y4; side 1 x8,y4) and interact to bank. First 2 wins. bridge_breakers reach opposite home. mela_heist first stand together on switches (1,1) and (7,7), then pick up and deliver treasure to either home. Move/dash uses destination. Guard blocks shove. Dash costs 2 stamina, cannot dash carrying crown. At most 24 moves. Public state: ${JSON.stringify(s)}. LegalActions: ${JSON.stringify(legal)}`,
+            `Choose one legalAction index for side ${side}. Character tactics: ${character ? characterBrief(character) : side === 0 ? row.leftPolicy : row.rightPolicy}. Follow these preferences while pursuing the objective. Rules: crown_run pick up centre crown with interact then carry to your home (side 0 x0,y4; side 1 x8,y4) and interact to bank. First 2 wins. bridge_breakers reach opposite home. mela_heist first stand together on switches (1,1) and (7,7), then pick up and deliver treasure to either home. Move/dash uses destination. Guard blocks shove. Dash costs 2 stamina, cannot dash carrying crown. At most 24 moves. Public state: ${JSON.stringify(s)}. LegalActions: ${JSON.stringify(legal)}`,
             { choice: { type: "integer", enum: legal.map((_, i) => i) } },
           );
           if (!Number.isInteger(result.choice) || !legal[result.choice])
@@ -150,6 +166,10 @@ export function createArenaService(origin: string) {
         identity = c.identity!.toHexString();
         c.db.myArenaAgent.onInsert((_ctx, row) => void observe(row));
         c.db.myArenaAgent.onUpdate((_ctx, _old, row) => void observe(row));
+        c.db.myArenaProduction.onInsert((_ctx, row) => {
+          const match = c.db.myArenaAgent.matchId.find(row.matchId);
+          if (match) void observe(match);
+        });
         c.subscriptionBuilder()
           .onApplied(() => {
             ready = true;
@@ -159,14 +179,19 @@ export function createArenaService(origin: string) {
             ready = false;
             console.warn("Arena agent inbox unavailable.");
           })
-          .subscribe("SELECT * FROM my_arena_agent");
+          .subscribe([
+            "SELECT * FROM my_arena_agent",
+            "SELECT * FROM my_arena_production",
+          ]);
       })
       .onConnectError(() => {
         ready = false;
-        reconnectTimer = setTimeout(connect, 15000);
+        clearTimeout(reconnectTimer);
+        if (!stopped) reconnectTimer = setTimeout(connect, 15000);
       })
       .onDisconnect(() => {
         ready = false;
+        clearTimeout(reconnectTimer);
         if (!stopped) reconnectTimer = setTimeout(connect, 15000);
       })
       .build();
@@ -204,7 +229,10 @@ export function createArenaService(origin: string) {
       });
       return true;
     }
-    if (path !== "/api/arena/teach" || req.method !== "POST") {
+    if (
+      !["/api/arena/teach", "/api/arena/character"].includes(path) ||
+      req.method !== "POST"
+    ) {
       reply(404, { error: "Not found." });
       return true;
     }
@@ -236,6 +264,25 @@ export function createArenaService(origin: string) {
         prompt.length > 400
       )
         throw Error("Use 4–400 characters for your strategy.");
+      if (path === "/api/arena/character") {
+        const proposal = await call(
+          `Turn this idea into a playful game character. Give it a memorable family-friendly name of 2–24 characters. Only these real traits exist: pace dash (use two-cell moves when charged) or steady (one-cell moves); route direct, north or south (preferred equally short paths); nerve bold or careful (avoid close encounters when another equally short path exists); look fox, owl or robot. This is a bounded game character, not executable code. Do not promise abilities outside these traits. Idea: ${JSON.stringify(prompt)}`,
+          {
+            name: { type: "string" },
+            pace: { type: "string", enum: ["dash", "steady"] },
+            route: { type: "string", enum: ["direct", "north", "south"] },
+            nerve: { type: "string", enum: ["bold", "careful"] },
+            look: { type: "string", enum: ["fox", "owl", "robot"] },
+          },
+        );
+        const character = validateCharacter(proposal);
+        reply(200, {
+          character,
+          summary: characterBrief(character),
+          model: "gpt-6-astra",
+        });
+        return true;
+      }
       const result = await call(
         `Map this idea to one existing policy. runner: shortest path, goal focused. defender: guard centre briefly then goal. trickster: alternate equally short paths. Give a concise 1-sentence explanation without repeating user text. Idea: ${JSON.stringify(prompt)}`,
         {

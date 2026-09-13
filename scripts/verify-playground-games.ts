@@ -135,7 +135,8 @@ try {
   await until(
     () =>
       [player, a, b].every(
-        (c) => c.db.matchMemory.matchId.find(id) !== undefined,
+        // Current SDK returns null until the committed row reaches this client.
+        (c) => c.db.matchMemory.matchId.find(id) != null,
       ),
     "Dots memory convergence",
   );

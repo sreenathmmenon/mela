@@ -8,15 +8,17 @@ export default function ArenaStage({
   choices,
   onChoose,
   camera,
+  looks,
 }: {
   state: ArenaState;
   choices: Action[];
   onChoose: (a: Action) => void;
   camera: string;
+  looks?: string[];
 }) {
   const host = useRef<HTMLDivElement>(null),
-    latest = useRef({ state, choices, onChoose, camera });
-  latest.current = { state, choices, onChoose, camera };
+    latest = useRef({ state, choices, onChoose, camera, looks });
+  latest.current = { state, choices, onChoose, camera, looks };
   const [error, setError] = useState(false);
   useEffect(() => {
     if (!host.current) return;
@@ -135,6 +137,7 @@ export default function ArenaStage({
       );
       return o;
     });
+    const costumes: Record<string, THREE.Group>[] = [];
     function character(color: THREE.Material) {
       const g = new THREE.Group();
       scene.add(g);
@@ -153,6 +156,40 @@ export default function ArenaStage({
         mesh(new THREE.BoxGeometry(0.14, 0.12, 0.25), dark, x, 0.07, 0.02, g);
       }
       mesh(new THREE.BoxGeometry(0.37, 0.09, 0.12), color, 0, 0.58, -0.2, g);
+      const fox = new THREE.Group(),
+        owlFace = new THREE.Group(),
+        robot = new THREE.Group();
+      g.add(fox, owlFace, robot);
+      for (const x of [-0.17, 0.17]) {
+        mesh(new THREE.ConeGeometry(0.12, 0.3, 4), color, x, 1.07, 0, fox);
+        mesh(
+          new THREE.SphereGeometry(0.115, 10, 8),
+          cream,
+          x * 0.65,
+          0.82,
+          0.21,
+          owlFace,
+        );
+        mesh(
+          new THREE.SphereGeometry(0.045, 8, 8),
+          dark,
+          x * 0.65,
+          0.82,
+          0.3,
+          owlFace,
+        );
+      }
+      mesh(new THREE.BoxGeometry(0.43, 0.18, 0.1), dark, 0, 0.85, 0.2, robot);
+      mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6),
+        gold,
+        0,
+        1.12,
+        0,
+        robot,
+      );
+      mesh(new THREE.SphereGeometry(0.07, 8, 8), gold, 0, 1.24, 0, robot);
+      costumes.push({ fox, owl: owlFace, robot });
       return g;
     }
     const pawns = [character(amber), character(teal)];
@@ -287,8 +324,23 @@ export default function ArenaStage({
           0,
           a.y - 4,
         );
-        p.position.lerp(target, reduced ? 1 : 1 - Math.exp(-dt * 8));
-        p.rotation.y = i ? -0.35 : 0.35;
+        const moving =
+          Math.hypot(p.position.x - target.x, p.position.z - target.z) > 0.03;
+        if (moving) {
+          const angle = Math.atan2(
+            target.x - p.position.x,
+            target.z - p.position.z,
+          );
+          p.rotation.y = angle;
+        }
+        p.position.lerp(target, reduced ? 1 : 1 - Math.exp(-dt * 6));
+        p.position.y =
+          reduced || !moving ? 0 : Math.abs(Math.sin(time * 0.024)) * 0.14;
+        p.scale.setScalar(latest.current.looks ? 1.12 : 1);
+        Object.entries(costumes[i]).forEach(
+          ([look, group]) =>
+            (group.visible = latest.current.looks?.[i] === look),
+        );
       });
       switches.forEach((o) => (o.visible = s.kind === "mela_heist"));
       crown.visible =

@@ -68,6 +68,63 @@
 .arena-main {
   min-width: 0;
 }
+.arena-crowd-shortcut {
+  width: 100%;
+  border-radius: 0 !important;
+  border-bottom: 0 !important;
+  background: #405749 !important;
+  color: #ffe4ac !important;
+  font-size: 13px !important;
+}
+.arena-audience .arena-crowd {
+  order: -1;
+  scroll-margin-top: 16px;
+}
+.arena-crowd-link {
+  display: block;
+  color: #b7e1c4;
+  font-size: 13px;
+  line-height: 2;
+  margin-top: 10px;
+  text-underline-offset: 4px;
+}
+.arena-cast-member .character-portrait {
+  background: transparent !important;
+}
+.arena-cast-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #3c5754;
+}
+.arena-cast-member .character-portrait {
+  width: 74px;
+  height: 80px;
+  flex: none;
+}
+.arena-cast-member h3 {
+  margin: 0 0 5px;
+  font-size: 17px;
+  color: #ffe0a9;
+}
+.arena-cast-member p {
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  margin: 0 0 8px !important;
+}
+.arena-cast-member a {
+  font-size: 11px;
+  color: #a5d9c2;
+  text-underline-offset: 3px;
+}
+.arena-cast > small {
+  display: block;
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #a6c2b5;
+}
 .arena-score {
   display: flex;
   align-items: center;
@@ -513,6 +570,14 @@
   .arena-result h2 {
     font-size: 24px;
   }
+}
+.arena-shell .arena-follow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #d8edc3;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 @media (prefers-reduced-motion: reduce) {
   .arena-shell * {

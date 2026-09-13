@@ -44,6 +44,7 @@ import ConnectArenaAgentReducer from "./connect_arena_agent_reducer";
 import CreateAgentDuelReducer from "./create_agent_duel_reducer";
 import CreateArenaReducer from "./create_arena_reducer";
 import CreateBookCricketReducer from "./create_book_cricket_reducer";
+import CreateCharacterArenaReducer from "./create_character_arena_reducer";
 import CreateDotsBoxesReducer from "./create_dots_boxes_reducer";
 import CreateFourRowReducer from "./create_four_row_reducer";
 import CreateFourRowDuelReducer from "./create_four_row_duel_reducer";
@@ -80,6 +81,7 @@ import AgentFallbackRecordRow from "./agent_fallback_record_table";
 import AiCharacterRow from "./ai_character_table";
 import ArenaCourseRow from "./arena_course_table";
 import ArenaFrameRow from "./arena_frame_table";
+import ArenaProductionRow from "./arena_production_table";
 import ArenaStateRow from "./arena_state_table";
 import BookCricketRecordRow from "./book_cricket_record_table";
 import BookCricketStateRow from "./book_cricket_state_table";
@@ -101,6 +103,7 @@ import MelaProfileRow from "./mela_profile_table";
 import MyAccountStatusRow from "./my_account_status_table";
 import MyArenaAgentRow from "./my_arena_agent_table";
 import MyArenaCrowdRow from "./my_arena_crowd_table";
+import MyArenaProductionRow from "./my_arena_production_table";
 import MyEmailContactRow from "./my_email_contact_table";
 import MyIdentityLinkRow from "./my_identity_link_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
@@ -218,6 +221,33 @@ const tablesSchema = __schema({
       ],
     },
     ArenaFrameRow,
+  ),
+  arenaProduction: __table(
+    {
+      name: "arena_production",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "arena_production_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+        {
+          accessor: "owner",
+          name: "arena_production_owner_idx_btree",
+          algorithm: "btree",
+          columns: ["owner"],
+        },
+      ],
+      constraints: [
+        {
+          name: "arena_production_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    ArenaProductionRow,
   ),
   arenaState: __table(
     {
@@ -749,6 +779,14 @@ const tablesSchema = __schema({
     },
     MyArenaCrowdRow,
   ),
+  myArenaProduction: __table(
+    {
+      name: "my_arena_production",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaProductionRow,
+  ),
   myEmailContact: __table(
     {
       name: "my_email_contact",
@@ -819,6 +857,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_agent_duel", CreateAgentDuelReducer),
   __reducerSchema("create_arena", CreateArenaReducer),
   __reducerSchema("create_book_cricket", CreateBookCricketReducer),
+  __reducerSchema("create_character_arena", CreateCharacterArenaReducer),
   __reducerSchema("create_dots_boxes", CreateDotsBoxesReducer),
   __reducerSchema("create_four_row", CreateFourRowReducer),
   __reducerSchema("create_four_row_duel", CreateFourRowDuelReducer),

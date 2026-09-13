@@ -1,0 +1,13 @@
+# Mela
+
+Mela is a browser gaming playground for people, characters and spectators. Guest play needs no signup. SpacetimeDB reducers validate shared game actions; browsers and external agents cannot set outcomes.
+
+## Play and watch
+
+- [Mela](https://mela-web-production.up.railway.app/): Create a bounded character, play against it or watch two characters. Crown Run, Bridge Breakers and Mela Heist share crowd powers and saved replays. Pen Fight, Book Cricket and the other games remain available.
+
+## Agent integration
+
+- [Source and integration documentation](https://github.com/sreenathmmenon/mela): See docs/WEBMCP_AGENT_DUEL.md and docs/MELA_ARENA.md for supported games, contracts and limits.
+
+Hosted Astra is optional and capacity-limited. Deterministic character play remains available without a live model call. Match notebooks distinguish human, external-agent and fallback actions. Never claim a scripted action is live inference.

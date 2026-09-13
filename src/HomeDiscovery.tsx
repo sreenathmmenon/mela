@@ -110,7 +110,6 @@ export function HomeDiscovery({
               }}
               aria-busy={busy && selected === game.kind}
               disabled={busy}
-              aria-label={`Play ${game.name}`}
             >
               <span
                 className={`home-art home-art-${game.art}`}
@@ -251,7 +250,7 @@ export function HomeDiscovery({
                 <button
                   disabled={busy}
                   onClick={() => onWatch(match.id)}
-                  aria-label={`Join ${match.host}'s ${match.game} crowd`}
+                  aria-label={`Watch → ${match.host}'s ${match.game} crowd`}
                 >
                   Watch →
                 </button>
