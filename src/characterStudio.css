@@ -380,3 +380,21 @@
     transform: translateY(-4px) rotate(-3deg);
   }
 }
+.studio-seat-preview {
+  margin-bottom: 18px;
+}
+.studio-human-avatar {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin: 6px 0;
+  border-radius: 50%;
+  color: #233e38;
+  background: #ffdb9e;
+  font-size: 36px;
+  font-weight: 800;
+}
+.studio-seat-preview .studio-character em {
+  font-size: 11px;
+}

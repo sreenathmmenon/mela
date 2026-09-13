@@ -126,6 +126,9 @@ export function CharacterStudio({
     [after, setAfter] = useState<bigint>(),
     [editing, setEditing] = useState(false);
   const character = selected === 0 ? amber : teal;
+  const independentRoom = ["friends", "human_agent", "agent_duel"].includes(
+    mode,
+  );
   const update = (c: ArenaCharacter) =>
     selected === 0 ? setAmber(c) : setTeal(c);
   useEffect(() => {
@@ -227,104 +230,155 @@ export function CharacterStudio({
         <a href="#explore-games">Or jump into a game ↓</a>
       </div>
       <div className="studio-workbench">
-        <div className="studio-cast" aria-label="Choose a character to edit">
-          {[amber, teal].map((c, i) => (
-            <button
-              key={i}
-              className={`studio-character ${selected === i ? "selected" : ""}`}
-              aria-pressed={selected === i}
-              onClick={() => {
-                setSelected(i as 0 | 1);
-                setMessage("");
-              }}
-              disabled={busy}
-            >
-              <CharacterPortrait character={c} teal={i === 1} />
-              <span>
-                <small>{i === 0 ? "AMBER" : "TEAL"}</small>
-                <strong>{c.name}</strong>
-                <em>
-                  {c.pace === "dash" ? "Quick" : "Patient"} · {c.nerve}
-                </em>
-              </span>
-            </button>
-          ))}
-          <span className="studio-versus" aria-hidden="true">
-            {game === "mela_heist" ? "+" : "×"}
-          </span>
-        </div>
-        <div className="studio-presets" aria-label="Ready-made characters">
-          {CHARACTER_PRESETS.map((c) => (
-            <button disabled={busy} key={c.name} onClick={() => update(c)}>
-              {c.name}
-            </button>
-          ))}
-          <button
-            disabled={busy}
-            onClick={() => setEditing(!editing)}
-            aria-expanded={editing}
+        {independentRoom ? (
+          <div
+            className="studio-cast studio-seat-preview"
+            aria-label="Independent participants"
           >
-            Edit traits
-          </button>
-        </div>
-        <p className="studio-brief">{characterBrief(character)}</p>
-        {editing && (
-          <div className="studio-traits">
-            <label>
-              Name
-              <input
-                maxLength={24}
-                value={character.name}
-                onChange={(e) => update({ ...character, name: e.target.value })}
-              />
-            </label>
-            <label>
-              Pace
-              <select
-                value={character.pace}
-                onChange={(e) =>
-                  update({
-                    ...character,
-                    pace: e.target.value as ArenaCharacter["pace"],
-                  })
-                }
-              >
-                <option value="dash">Dash when charged</option>
-                <option value="steady">One step at a time</option>
-              </select>
-            </label>
-            <label>
-              Route
-              <select
-                value={character.route}
-                onChange={(e) =>
-                  update({
-                    ...character,
-                    route: e.target.value as ArenaCharacter["route"],
-                  })
-                }
-              >
-                <option value="direct">Shortest</option>
-                <option value="north">Prefer north</option>
-                <option value="south">Prefer south</option>
-              </select>
-            </label>
-            <label>
-              Nerve
-              <select
-                value={character.nerve}
-                onChange={(e) =>
-                  update({
-                    ...character,
-                    nerve: e.target.value as ArenaCharacter["nerve"],
-                  })
-                }
-              >
-                <option value="bold">Bold</option>
-                <option value="careful">Careful</option>
-              </select>
-            </label>
+            {[0, 1].map((side) => {
+              const human =
+                mode === "friends" || (mode === "human_agent" && side === 0);
+              return (
+                <div className="studio-character" key={side}>
+                  {human ? (
+                    <span className="studio-human-avatar" aria-hidden="true">
+                      {side === 0 ? "Y" : "F"}
+                    </span>
+                  ) : (
+                    <CharacterPortrait
+                      character={{ ...CHARACTER_PRESETS[2], look: "robot" }}
+                      teal={side === 1}
+                    />
+                  )}
+                  <span>
+                    <small>{side === 0 ? "AMBER" : "TEAL"}</small>
+                    <strong>
+                      {human
+                        ? side === 0
+                          ? "You"
+                          : "Your friend"
+                        : mode === "human_agent"
+                          ? "Your agent"
+                          : `Agent ${side + 1}`}
+                    </strong>
+                    <em>
+                      {human ? "Human-controlled" : "Independent connection"}
+                    </em>
+                  </span>
+                </div>
+              );
+            })}
+            <span className="studio-versus" aria-hidden="true">
+              {game === "mela_heist" ? "+" : "×"}
+            </span>
           </div>
+        ) : (
+          <>
+            <div
+              className="studio-cast"
+              aria-label="Choose a character to edit"
+            >
+              {[amber, teal].map((c, i) => (
+                <button
+                  key={i}
+                  className={`studio-character ${selected === i ? "selected" : ""}`}
+                  aria-pressed={selected === i}
+                  onClick={() => {
+                    setSelected(i as 0 | 1);
+                    setMessage("");
+                  }}
+                  disabled={busy}
+                >
+                  <CharacterPortrait character={c} teal={i === 1} />
+                  <span>
+                    <small>{i === 0 ? "AMBER" : "TEAL"}</small>
+                    <strong>{c.name}</strong>
+                    <em>
+                      {c.pace === "dash" ? "Quick" : "Patient"} · {c.nerve}
+                    </em>
+                  </span>
+                </button>
+              ))}
+              <span className="studio-versus" aria-hidden="true">
+                {game === "mela_heist" ? "+" : "×"}
+              </span>
+            </div>
+            <div className="studio-presets" aria-label="Ready-made characters">
+              {CHARACTER_PRESETS.map((c) => (
+                <button disabled={busy} key={c.name} onClick={() => update(c)}>
+                  {c.name}
+                </button>
+              ))}
+              <button
+                disabled={busy}
+                onClick={() => setEditing(!editing)}
+                aria-expanded={editing}
+              >
+                Edit traits
+              </button>
+            </div>
+            <p className="studio-brief">{characterBrief(character)}</p>
+            {editing && (
+              <div className="studio-traits">
+                <label>
+                  Name
+                  <input
+                    maxLength={24}
+                    value={character.name}
+                    onChange={(e) =>
+                      update({ ...character, name: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Pace
+                  <select
+                    value={character.pace}
+                    onChange={(e) =>
+                      update({
+                        ...character,
+                        pace: e.target.value as ArenaCharacter["pace"],
+                      })
+                    }
+                  >
+                    <option value="dash">Dash when charged</option>
+                    <option value="steady">One step at a time</option>
+                  </select>
+                </label>
+                <label>
+                  Route
+                  <select
+                    value={character.route}
+                    onChange={(e) =>
+                      update({
+                        ...character,
+                        route: e.target.value as ArenaCharacter["route"],
+                      })
+                    }
+                  >
+                    <option value="direct">Shortest</option>
+                    <option value="north">Prefer north</option>
+                    <option value="south">Prefer south</option>
+                  </select>
+                </label>
+                <label>
+                  Nerve
+                  <select
+                    value={character.nerve}
+                    onChange={(e) =>
+                      update({
+                        ...character,
+                        nerve: e.target.value as ArenaCharacter["nerve"],
+                      })
+                    }
+                  >
+                    <option value="bold">Bold</option>
+                    <option value="careful">Careful</option>
+                  </select>
+                </label>
+              </div>
+            )}
+          </>
         )}
         <div className="studio-launch">
           <label>
@@ -346,15 +400,13 @@ export function CharacterStudio({
               disabled={busy}
               onChange={(e) => setMode(e.target.value)}
             >
-              <option value="agents">Watch two characters</option>
+              <option value="agents">Watch characters</option>
               <option value="solo">I play Amber</option>
-              <option value="friends">Play with a friend</option>
+              <option value="friends">With a friend</option>
               <option value="human_agent">
-                {game === "mela_heist"
-                  ? "Team up with an external agent"
-                  : "Me vs an external agent"}
+                {game === "mela_heist" ? "Human + agent" : "Human vs agent"}
               </option>
-              <option value="agent_duel">Two independent agents</option>
+              <option value="agent_duel">Agent vs agent</option>
             </select>
           </label>
         </div>
@@ -363,7 +415,8 @@ export function CharacterStudio({
             {mode === "friends"
               ? "A private player link. No signup. Both choose a move, then reveal together."
               : "Bring any tool-capable agent through MCP. Each claims its own seat. No model keys in the browser."}{" "}
-            Character presets are used only for disclosed missed-agent turns.
+            {mode !== "friends" &&
+              "Missed agent turns use a labeled MelaBot fallback."}
           </p>
         ) : (
           <label className="studio-live">
@@ -406,33 +459,35 @@ export function CharacterStudio({
                         ? "Start the character duel →"
                         : "Play against my character →"}
         </button>
-        <form
-          className="studio-prompt"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void teach();
-          }}
-        >
-          <label htmlFor="character-idea">
-            Or describe {selected === 0 ? "Amber" : "Teal"} to Astra
-          </label>
-          <div>
-            <input
-              id="character-idea"
-              maxLength={400}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="A fearless fox who prefers the scenic route"
-            />
-            <button disabled={busy || prompt.trim().length < 4}>
-              {busy && after === undefined ? "Working…" : "Design →"}
-            </button>
-          </div>
-          <small>
-            Optional. Astra designs the editable traits above. Names and traits
-            are public. Your prompt is not saved in Mela.
-          </small>
-        </form>
+        {!independentRoom && (
+          <form
+            className="studio-prompt"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void teach();
+            }}
+          >
+            <label htmlFor="character-idea">
+              Or describe {selected === 0 ? "Amber" : "Teal"} to Astra
+            </label>
+            <div>
+              <input
+                id="character-idea"
+                maxLength={400}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="A fearless fox who prefers the scenic route"
+              />
+              <button disabled={busy || prompt.trim().length < 4}>
+                {busy && after === undefined ? "Working…" : "Design →"}
+              </button>
+            </div>
+            <small>
+              Optional. Astra designs the editable traits above. Names and
+              traits are public. Your prompt is not saved in Mela.
+            </small>
+          </form>
+        )}
         {message && (
           <p role="status" className="studio-message">
             {message}

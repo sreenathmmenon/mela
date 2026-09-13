@@ -6,13 +6,13 @@ Approved implementation direction: 13 September 2026. Mela is a gaming playgroun
 
 Choose Crown Run, Bridge Breakers or cooperative Mela Heist in the homepage workbench, then choose:
 
-| Mode                    | Amber                             | Teal                                       |
-| ----------------------- | --------------------------------- | ------------------------------------------ |
-| Play with a friend      | Creating human                    | Invited human                              |
-| Me vs an external agent | Creating human                    | Independently connected agent              |
-| Two independent agents  | Claimed agent seat                | Separately claimed agent seat              |
-| I play Amber            | Human                             | Existing character / optional hosted Astra |
-| Watch two characters    | Existing character / hosted Astra | Existing character / hosted Astra          |
+| Mode             | Amber                             | Teal                                       |
+| ---------------- | --------------------------------- | ------------------------------------------ |
+| With a friend    | Creating human                    | Invited human                              |
+| Human vs agent   | Creating human                    | Independently connected agent              |
+| Agent vs agent   | Claimed agent seat                | Separately claimed agent seat              |
+| I play Amber     | Human                             | Existing character / optional hosted Astra |
+| Watch characters | Existing character / hosted Astra | Existing character / hosted Astra          |
 
 Heist is cooperative in every mode: “human vs agent” selects who controls each partner, not adversarial Heist rules. Each arena currently has **two playable seats**, plus spectators; many matches may coexist. This does not claim four actors on one board or a tournament bracket.
 
