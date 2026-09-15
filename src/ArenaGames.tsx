@@ -16,6 +16,7 @@ import {
 import { playSound, isMuted, toggleMuted, unlockAudio } from "./sound";
 import { matchMoments } from "./matchStories";
 import { arenaCue } from "./arenaCue";
+import { followMatchDestination } from "./matchNavigation";
 import { CharacterPortrait } from "./CharacterStudio";
 import { arenaBoardDescription, arenaMoveLabel } from "./arenaDescription";
 import {
@@ -164,6 +165,9 @@ export function ArenaGames({
   }, [matchId, row?.revision]);
   const sorted = [...frames].sort((a, b) => a.revision - b.revision);
   const moments = matchMoments(sorted);
+  const nextMatchLink = followMatchDestination(
+    matches.find((m) => m.id === rematches[0]?.nextMatchId),
+  );
   useEffect(() => {
     if (!replaying || !row) return;
     const timer = setInterval(
@@ -492,12 +496,9 @@ export function ArenaGames({
           {closed && !complete && (
             <button onClick={onBack}>Choose your next game →</button>
           )}
-          {closed && !isPlayer && rematches[0] && (
-            <a
-              className="arena-follow"
-              href={`/?join=${rematches[0].nextMatchId}`}
-            >
-              Follow the next match →
+          {closed && !isPlayer && nextMatchLink && (
+            <a className="arena-follow" href={nextMatchLink.href}>
+              {nextMatchLink.label}
             </a>
           )}
           {canPlay && (

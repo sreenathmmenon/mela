@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matchFromLocation, matchLocation } from "../src/matchNavigation";
+import {
+  matchFromLocation,
+  matchLocation,
+  followMatchDestination,
+} from "../src/matchNavigation";
 
 test("restored match identifiers are bounded; locations confer no seat claims", () => {
   assert.equal(matchFromLocation("?match=10"), 10n);
@@ -40,5 +44,18 @@ test("back to games removes stale replay and match navigation, preserving the de
       id: 8n,
     }),
     "https://example.com/mela/?memory=8",
+  );
+});
+
+test("follow links never invite a spectator into an abandoned or completed game", () => {
+  assert.equal(followMatchDestination(undefined), null);
+  assert.equal(followMatchDestination({ id: 10n, status: "abandoned" }), null);
+  assert.equal(
+    followMatchDestination({ id: 10n, status: "complete" })?.href,
+    "?memory=10",
+  );
+  assert.equal(
+    followMatchDestination({ id: 10n, status: "active" })?.href,
+    "?join=10",
   );
 });

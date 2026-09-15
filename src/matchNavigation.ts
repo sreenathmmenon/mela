@@ -16,3 +16,14 @@ export function matchLocation(
     url.searchParams.set(destination.kind, String(destination.id));
   return url.href;
 }
+
+export function followMatchDestination(
+  match: { id: bigint; status: string } | undefined,
+) {
+  if (!match) return null;
+  if (match.status === "active")
+    return { href: `?join=${match.id}`, label: "Follow the next match →" };
+  if (match.status === "complete")
+    return { href: `?memory=${match.id}`, label: "Watch the next result →" };
+  return null;
+}
