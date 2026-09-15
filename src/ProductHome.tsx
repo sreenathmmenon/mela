@@ -92,7 +92,11 @@ export function ProductHome({
   const heading = useRef<HTMLHeadingElement>(null);
   const latest = selectStories(memories);
   const recentArenas = selectStories(
-    memories.filter((m) => isArenaKind(m.gameKind)),
+    memories.filter(
+      (m) =>
+        isArenaKind(m.gameKind) &&
+        !m.notableMoment.startsWith("Unranked practice from match "),
+    ),
   );
   const featured =
     recentArenas.find((m) => m.crowdActions > 0) ?? recentArenas[0];
@@ -116,7 +120,12 @@ export function ProductHome({
             <span className="product-memory-art" aria-hidden="true">
               <GameCover kind={m.gameKind} />
             </span>
-            <small>{gameName(m.gameKind)} · Finished</small>
+            <small>
+              {gameName(m.gameKind)} ·{" "}
+              {m.notableMoment.startsWith("Unranked practice from match ")
+                ? "Practice"
+                : "Finished"}
+            </small>
             <strong>
               {m.humanName} <em>{m.gameKind === "mela_heist" ? "+" : "×"}</em>{" "}
               {m.aiName}

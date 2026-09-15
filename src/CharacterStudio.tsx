@@ -102,7 +102,14 @@ export function CharacterStudio({
   identity?: Identity;
   onOpen: (id: bigint) => void;
 }) {
-  const produce = useReducer(reducers.createCharacterArena);
+  const produce = useReducer(reducers.createSavedCharacterArena);
+  const saveCharacter = useReducer(reducers.saveArenaCharacter);
+  const [saved, savedReady] = useTable(tables.mySavedArenaCharacters);
+  const [entries] = useTable(tables.myArenaCharacterEntries);
+  const [memories] = useTable(tables.matchMemory);
+  const [amberId, setAmberId] = useState(0n),
+    [tealId, setTealId] = useState(0n);
+  const [parentId, setParentId] = useState(0n);
   const createRoom = useReducer(reducers.createArenaRoom);
   const [matches] = useTable(tables.match);
   const [amber, setAmber] = useState<ArenaCharacter>(
@@ -130,8 +137,45 @@ export function CharacterStudio({
   const independentRoom = ["friends", "human_agent", "agent_duel"].includes(
     mode,
   );
-  const update = (c: ArenaCharacter) =>
-    selected === 0 ? setAmber(c) : setTeal(c);
+  const update = (c: ArenaCharacter) => {
+    const known = saved.find((s) => s.character === JSON.stringify(c));
+    const sourceId = saved.find(
+      (s) => s.character === JSON.stringify(character),
+    )?.id;
+    if (selected === 0) {
+      setParentId(sourceId || amberId || parentId);
+      setAmber(c);
+      setAmberId(known?.id ?? 0n);
+    } else {
+      setParentId(sourceId || tealId || parentId);
+      setTeal(c);
+      setTealId(known?.id ?? 0n);
+    }
+  };
+  // Saved editions are immutable; choosing one changes local setup, not an old match.
+  const selectedId = selected === 0 ? amberId : tealId;
+  const savedCurrent = saved.find(
+    (s) => s.character === JSON.stringify(character),
+  );
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    setSaving(true);
+    setMessage("");
+    try {
+      await saveCharacter({ character: JSON.stringify(character), parentId });
+      setMessage(
+        `${character.name} saved to your roster. Its past matches keep their original tactics.`,
+      );
+    } catch (e) {
+      setMessage(
+        e instanceof Error
+          ? e.message
+          : "Could not save. Your setup is still here.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
   useEffect(() => {
     if (after === undefined || !identity) return;
     const m = matches
@@ -202,6 +246,10 @@ export function CharacterStudio({
           mode,
           amber: JSON.stringify(amber),
           teal: JSON.stringify(teal),
+          amberId:
+            saved.find((s) => s.character === JSON.stringify(amber))?.id ?? 0n,
+          tealId:
+            saved.find((s) => s.character === JSON.stringify(teal))?.id ?? 0n,
           courseId: 0n,
           agent,
         });
@@ -220,7 +268,66 @@ export function CharacterStudio({
     >
       <div className="studio-intro">
         <h2 id="character-studio-title">Your characters</h2>
-        <p>Pick a character to edit its tactics.</p>
+        <p>Saved characters travel between arenas.</p>
+        {saved.length > 0 && (
+          <div
+            className="saved-roster"
+            aria-label="Your saved character roster"
+          >
+            {[...saved]
+              .sort((a, b) => Number(b.id - a.id))
+              .map((s) => {
+                const c = JSON.parse(s.character) as ArenaCharacter;
+                const played = entries
+                  .filter((e) => e.amberId === s.id || e.tealId === s.id)
+                  .map((e) => ({
+                    entry: e,
+                    memory: memories.find((m) => m.matchId === e.matchId),
+                  }))
+                  .filter((v) => v.memory);
+                const kinds = new Set(played.map((v) => v.memory!.gameKind));
+                return (
+                  <div className="saved-character-card" key={String(s.id)}>
+                    <button
+                      className="saved-character-select"
+                      disabled={busy}
+                      aria-pressed={
+                        selectedId === s.id || savedCurrent?.id === s.id
+                      }
+                      onClick={() => {
+                        update(c);
+                        setParentId(s.id);
+                        setMessage(
+                          `${c.name} selected for ${selected === 0 ? "Amber" : "Teal"}.`,
+                        );
+                      }}
+                    >
+                      <CharacterPortrait character={c} teal={selected === 1} />
+                      <span>
+                        <strong>{c.name}</strong>
+                        <small>
+                          Edition {s.edition} ·{" "}
+                          {played.length
+                            ? `${played.length} ${played.length === 1 ? "match" : "matches"} in ${kinds.size} ${kinds.size === 1 ? "arena" : "arenas"}`
+                            : "Ready for a first match"}
+                        </small>
+                      </span>
+                    </button>
+                    {played.length > 0 && (
+                      <button
+                        className="saved-character-memory"
+                        onClick={() =>
+                          onOpen(played[played.length - 1].memory!.matchId)
+                        }
+                      >
+                        Watch latest match ↗
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
       <div className="studio-workbench">
         {independentRoom ? (
@@ -278,6 +385,7 @@ export function CharacterStudio({
                   aria-pressed={selected === i}
                   onClick={() => {
                     setSelected(i as 0 | 1);
+                    setParentId(i === 0 ? amberId : tealId);
                     setMessage("");
                   }}
                   disabled={busy}
@@ -310,78 +418,113 @@ export function CharacterStudio({
                 Edit traits
               </button>
             </div>
-            <p className="studio-brief">
-              {characterBrief(
-                character,
-                isArenaKind(game) ? game : "bridge_breakers",
-              )}
-            </p>
-            {editing && (
-              <div className="studio-traits">
-                <label>
-                  Name
-                  <input
-                    maxLength={24}
-                    value={character.name}
-                    onChange={(e) =>
-                      update({ ...character, name: e.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Pace
-                  <select
-                    value={character.pace}
-                    onChange={(e) =>
-                      update({
-                        ...character,
-                        pace: e.target.value as ArenaCharacter["pace"],
-                      })
-                    }
-                  >
-                    <option value="dash">Dash when charged</option>
-                    <option value="steady">One step at a time</option>
-                  </select>
-                </label>
-                <label>
-                  Route
-                  <select
-                    value={character.route}
-                    onChange={(e) =>
-                      update({
-                        ...character,
-                        route: e.target.value as ArenaCharacter["route"],
-                      })
-                    }
-                  >
-                    <option value="direct">Shortest</option>
-                    <option value="north">Prefer north</option>
-                    <option value="south">Prefer south</option>
-                  </select>
-                </label>
-                <label>
-                  Nerve
-                  <select
-                    value={character.nerve}
-                    onChange={(e) =>
-                      update({
-                        ...character,
-                        nerve: e.target.value as ArenaCharacter["nerve"],
-                      })
-                    }
-                  >
-                    <option value="bold">Bold</option>
-                    <option value="careful">Careful</option>
-                  </select>
-                </label>
+            <details className="studio-optional" open={editing}>
+              <summary
+                onClick={(e) => {
+                  e.preventDefault();
+                  setEditing(!editing);
+                }}
+              >
+                Tactics & saving
+              </summary>
+              <p className="studio-brief">
+                {characterBrief(
+                  character,
+                  isArenaKind(game) ? game : "bridge_breakers",
+                )}
+              </p>
+              <div className="studio-save-row">
+                <button
+                  disabled={
+                    busy || saving || !connected || Boolean(savedCurrent)
+                  }
+                  onClick={() => void save()}
+                >
+                  {saving
+                    ? "Saving…"
+                    : savedCurrent
+                      ? "Saved to your roster ✓"
+                      : parentId
+                        ? "Save new edition"
+                        : "Save this character"}
+                </button>
+                <small>
+                  Saved on your Mela identity. Match names and tactics are
+                  public; unused drafts stay private.
+                </small>
               </div>
-            )}
+              {editing && (
+                <div className="studio-traits">
+                  <label>
+                    Name
+                    <input
+                      name="character-name"
+                      maxLength={24}
+                      value={character.name}
+                      onChange={(e) =>
+                        update({ ...character, name: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Pace
+                    <select
+                      name="character-pace"
+                      value={character.pace}
+                      onChange={(e) =>
+                        update({
+                          ...character,
+                          pace: e.target.value as ArenaCharacter["pace"],
+                        })
+                      }
+                    >
+                      <option value="dash">Dash when charged</option>
+                      <option value="steady">One step at a time</option>
+                    </select>
+                  </label>
+                  <label>
+                    Route
+                    <select
+                      name="character-route"
+                      value={character.route}
+                      onChange={(e) =>
+                        update({
+                          ...character,
+                          route: e.target.value as ArenaCharacter["route"],
+                        })
+                      }
+                    >
+                      <option value="direct">Shortest</option>
+                      <option value="north">Prefer north</option>
+                      <option value="south">Prefer south</option>
+                    </select>
+                  </label>
+                  <label>
+                    Nerve
+                    <select
+                      name="character-nerve"
+                      value={character.nerve}
+                      onChange={(e) =>
+                        update({
+                          ...character,
+                          nerve: e.target.value as ArenaCharacter["nerve"],
+                        })
+                      }
+                    >
+                      <option value="bold">Bold</option>
+                      <option value="careful">Careful</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+            </details>
           </>
         )}
         <div className="studio-launch">
           <label>
             Arena
             <select
+              name="character-arena"
               value={game}
               disabled={busy}
               onChange={(e) => setGame(e.target.value)}
@@ -394,6 +537,7 @@ export function CharacterStudio({
           <label>
             How to play
             <select
+              name="character-mode"
               value={mode}
               disabled={busy}
               onChange={(e) => setMode(e.target.value)}
@@ -415,6 +559,7 @@ export function CharacterStudio({
           <label className="studio-live">
             <input
               type="checkbox"
+              name="live-character-decisions"
               checked={live}
               disabled={busy}
               onChange={(e) => setLive(e.target.checked)}
@@ -437,7 +582,7 @@ export function CharacterStudio({
         )}
         <button
           className="studio-start"
-          disabled={busy || !connected}
+          disabled={busy || saving || !savedReady || !connected}
           onClick={() => void start()}
         >
           {after !== undefined
@@ -459,33 +604,36 @@ export function CharacterStudio({
                         : `Play against ${teal.name} →`}
         </button>
         {!independentRoom && (
-          <form
-            className="studio-prompt"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void teach();
-            }}
-          >
-            <label htmlFor="character-idea">
-              Or describe {selected === 0 ? "Amber" : "Teal"} to Astra
-            </label>
-            <div>
-              <input
-                id="character-idea"
-                maxLength={400}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="A fearless fox who prefers the scenic route"
-              />
-              <button disabled={busy || prompt.trim().length < 4}>
-                {busy && after === undefined ? "Working…" : "Design →"}
-              </button>
-            </div>
-            <small>
-              Optional. Astra suggests editable traits. Your prompt is not saved
-              in Mela.
-            </small>
-          </form>
+          <details className="studio-optional">
+            <summary>Design a character with Astra</summary>
+            <form
+              className="studio-prompt"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void teach();
+              }}
+            >
+              <label htmlFor="character-idea">
+                Or describe {selected === 0 ? "Amber" : "Teal"} to Astra
+              </label>
+              <div>
+                <input
+                  id="character-idea"
+                  maxLength={400}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="A fearless fox who prefers the scenic route"
+                />
+                <button disabled={busy || prompt.trim().length < 4}>
+                  {busy && after === undefined ? "Working…" : "Design →"}
+                </button>
+              </div>
+              <small>
+                Optional. Astra suggests editable traits. Your prompt is not
+                saved in Mela.
+              </small>
+            </form>
+          </details>
         )}
         {message && (
           <p role="status" className="studio-message">

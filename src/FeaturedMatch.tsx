@@ -9,6 +9,7 @@ import { ReplayBoard } from "./ReplayBoard";
 import { memoryResult } from "./productExperience";
 import { HOME_GAMES } from "./HomeDiscovery";
 import { GameCover } from "./GameCover";
+import { recommendedCheckpoint, momentLink } from "./challengePresentation";
 
 export function FeaturedMatch({
   memory,
@@ -25,6 +26,7 @@ export function FeaturedMatch({
     tables.arenaFrame.where((r) => r.matchId.eq(memory.matchId)),
   );
   const moment = featuredMoment(frames);
+  const checkpoint = recommendedCheckpoint(frames);
   const frame = moment?.state ?? (frames[0] && readArenaFrame(frames[0]));
   const game = HOME_GAMES.find((g) => g.kind === memory.gameKind);
   if (!game) return null;
@@ -57,7 +59,9 @@ export function FeaturedMatch({
         <h3>
           {moment?.kind === "crowd"
             ? "The crowd had a hand in this."
-            : memoryResult(memory)}
+            : checkpoint
+              ? "Could you change the ending?"
+              : memoryResult(memory)}
         </h3>
         <p>
           {moment?.detail ??
@@ -67,9 +71,22 @@ export function FeaturedMatch({
           <button disabled={busy} onClick={() => onWatch(memory.matchId)}>
             {frame ? "Watch replay →" : "View result →"}
           </button>
-          <button disabled={busy} onClick={() => onPlay(memory.gameKind)}>
-            Play {game.name}
-          </button>
+          {checkpoint ? (
+            <a
+              className="featured-challenge-link"
+              href={momentLink(
+                location.href,
+                memory.matchId,
+                checkpoint.revision,
+              )}
+            >
+              Try this moment →
+            </a>
+          ) : (
+            <button disabled={busy} onClick={() => onPlay(memory.gameKind)}>
+              Play {game.name}
+            </button>
+          )}
         </div>
       </div>
     </section>

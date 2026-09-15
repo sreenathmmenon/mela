@@ -38,6 +38,7 @@ import AgentDropFourReducer from "./agent_drop_four_reducer";
 import AgentFlickReducer from "./agent_flick_reducer";
 import ArenaPowerReducer from "./arena_power_reducer";
 import BeginProfileLinkReducer from "./begin_profile_link_reducer";
+import ChallengeArenaMomentReducer from "./challenge_arena_moment_reducer";
 import ClaimAgentSeatReducer from "./claim_agent_seat_reducer";
 import ClaimArenaSeatReducer from "./claim_arena_seat_reducer";
 import CompleteProfileLinkReducer from "./complete_profile_link_reducer";
@@ -53,6 +54,7 @@ import CreateFourRowDuelReducer from "./create_four_row_duel_reducer";
 import CreateGilliDandaReducer from "./create_gilli_danda_reducer";
 import CreateLastStickReducer from "./create_last_stick_reducer";
 import CreatePenFightReducer from "./create_pen_fight_reducer";
+import CreateSavedCharacterArenaReducer from "./create_saved_character_arena_reducer";
 import CreateStickCricketReducer from "./create_stick_cricket_reducer";
 import DrawDotsEdgeReducer from "./draw_dots_edge_reducer";
 import EnterGameReducer from "./enter_game_reducer";
@@ -69,6 +71,7 @@ import PlayBallReducer from "./play_ball_reducer";
 import PlayStrategyMoveReducer from "./play_strategy_move_reducer";
 import PublishArenaCourseReducer from "./publish_arena_course_reducer";
 import RematchPlaygroundReducer from "./rematch_playground_reducer";
+import SaveArenaCharacterReducer from "./save_arena_character_reducer";
 import SetRoomPresenceReducer from "./set_room_presence_reducer";
 import StrikeGilliReducer from "./strike_gilli_reducer";
 import UseCrowdPowerReducer from "./use_crowd_power_reducer";
@@ -82,6 +85,8 @@ import * as PlaygroundClockProcedure from "./playground_clock_procedure";
 import AgentDuelRow from "./agent_duel_table";
 import AgentFallbackRecordRow from "./agent_fallback_record_table";
 import AiCharacterRow from "./ai_character_table";
+import ArenaChallengeRow from "./arena_challenge_table";
+import ArenaCharacterEntryRow from "./arena_character_entry_table";
 import ArenaCourseRow from "./arena_course_table";
 import ArenaFrameRow from "./arena_frame_table";
 import ArenaProductionRow from "./arena_production_table";
@@ -107,6 +112,7 @@ import MelaMetricsRow from "./mela_metrics_table";
 import MelaProfileRow from "./mela_profile_table";
 import MyAccountStatusRow from "./my_account_status_table";
 import MyArenaAgentRow from "./my_arena_agent_table";
+import MyArenaCharacterEntriesRow from "./my_arena_character_entries_table";
 import MyArenaCrowdRow from "./my_arena_crowd_table";
 import MyArenaEnergyRow from "./my_arena_energy_table";
 import MyArenaInvitationRow from "./my_arena_invitation_table";
@@ -114,6 +120,7 @@ import MyArenaMoveRow from "./my_arena_move_table";
 import MyArenaProductionRow from "./my_arena_production_table";
 import MyEmailContactRow from "./my_email_contact_table";
 import MyIdentityLinkRow from "./my_identity_link_table";
+import MySavedArenaCharactersRow from "./my_saved_arena_characters_table";
 import OwnSpectatorCooldownRow from "./own_spectator_cooldown_table";
 import PenDeskStateRow from "./pen_desk_state_table";
 import PenFightMetricsRow from "./pen_fight_metrics_table";
@@ -189,6 +196,60 @@ const tablesSchema = __schema({
       ],
     },
     AiCharacterRow,
+  ),
+  arenaChallenge: __table(
+    {
+      name: "arena_challenge",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "arena_challenge_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+        {
+          accessor: "sourceFrameId",
+          name: "arena_challenge_source_frame_id_idx_btree",
+          algorithm: "btree",
+          columns: ["sourceFrameId"],
+        },
+        {
+          accessor: "sourceMatchId",
+          name: "arena_challenge_source_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["sourceMatchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "arena_challenge_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    ArenaChallengeRow,
+  ),
+  arenaCharacterEntry: __table(
+    {
+      name: "arena_character_entry",
+      indexes: [
+        {
+          accessor: "matchId",
+          name: "arena_character_entry_match_id_idx_btree",
+          algorithm: "btree",
+          columns: ["matchId"],
+        },
+      ],
+      constraints: [
+        {
+          name: "arena_character_entry_match_id_key",
+          constraint: "unique",
+          columns: ["matchId"],
+        },
+      ],
+    },
+    ArenaCharacterEntryRow,
   ),
   arenaCourse: __table(
     {
@@ -808,6 +869,14 @@ const tablesSchema = __schema({
     },
     MyArenaAgentRow,
   ),
+  myArenaCharacterEntries: __table(
+    {
+      name: "my_arena_character_entries",
+      indexes: [],
+      constraints: [],
+    },
+    MyArenaCharacterEntriesRow,
+  ),
   myArenaCrowd: __table(
     {
       name: "my_arena_crowd",
@@ -864,6 +933,14 @@ const tablesSchema = __schema({
     },
     MyIdentityLinkRow,
   ),
+  mySavedArenaCharacters: __table(
+    {
+      name: "my_saved_arena_characters",
+      indexes: [],
+      constraints: [],
+    },
+    MySavedArenaCharactersRow,
+  ),
   ownSpectatorCooldown: __table(
     {
       name: "own_spectator_cooldown",
@@ -912,6 +989,7 @@ const reducersSchema = __reducers(
   __reducerSchema("agent_flick", AgentFlickReducer),
   __reducerSchema("arena_power", ArenaPowerReducer),
   __reducerSchema("begin_profile_link", BeginProfileLinkReducer),
+  __reducerSchema("challenge_arena_moment", ChallengeArenaMomentReducer),
   __reducerSchema("claim_agent_seat", ClaimAgentSeatReducer),
   __reducerSchema("claim_arena_seat", ClaimArenaSeatReducer),
   __reducerSchema("complete_profile_link", CompleteProfileLinkReducer),
@@ -927,6 +1005,10 @@ const reducersSchema = __reducers(
   __reducerSchema("create_gilli_danda", CreateGilliDandaReducer),
   __reducerSchema("create_last_stick", CreateLastStickReducer),
   __reducerSchema("create_pen_fight", CreatePenFightReducer),
+  __reducerSchema(
+    "create_saved_character_arena",
+    CreateSavedCharacterArenaReducer,
+  ),
   __reducerSchema("create_stick_cricket", CreateStickCricketReducer),
   __reducerSchema("draw_dots_edge", DrawDotsEdgeReducer),
   __reducerSchema("enter_game", EnterGameReducer),
@@ -943,6 +1025,7 @@ const reducersSchema = __reducers(
   __reducerSchema("play_strategy_move", PlayStrategyMoveReducer),
   __reducerSchema("publish_arena_course", PublishArenaCourseReducer),
   __reducerSchema("rematch_playground", RematchPlaygroundReducer),
+  __reducerSchema("save_arena_character", SaveArenaCharacterReducer),
   __reducerSchema("set_room_presence", SetRoomPresenceReducer),
   __reducerSchema("strike_gilli", StrikeGilliReducer),
   __reducerSchema("use_crowd_power", UseCrowdPowerReducer),

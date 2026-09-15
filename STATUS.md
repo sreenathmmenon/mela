@@ -1,5 +1,14 @@
 # MELA STATUS
 
+## Current pass — playable memories and returning characters (2026-09-15)
+
+- Implemented playable committed-moment challenges across Crown Run, Bridge Breakers and Heist, plus a persistent private character roster with immutable editions and real per-edition match history. Guest-first sharing, fresh crowd participation, original-versus-practice comparison and owner-safe rematches are included. Detailed contracts and evidence: `docs/MELA_V3_PLAYABLE_MEMORIES.md`.
+- Added three tables (`arena_challenge`, private `saved_arena_character`, `arena_character_entry`), three public reducers and two caller-scoped views. Existing reducer signatures/table fields remain. Practice never rewrites the original or awards full-match progression; saved characters are not external-agent credentials. No existing game physics/rules changed.
+- **196/196 tests passed**; module build, frontend typecheck/production build, transport build, formatting and diff checks passed. Two new real-client suites passed plus all seven existing regression families, including all nine arena seat/game scenarios. Actual browser player/crowd Heist practice completed and converged; mobile roster save/edition/rematch and guest moment link validated. See the evidence document for IDs, limitations and SDK warnings.
+- Mobile snapshots: roster 32/0, practice result 28/0, shared moment 30/0 passed/failed; report failure lists read. Inline visuals checked at 320/390px. No human usability study, physical-device certification, paid inference or claimed worldwide ranking.
+- Release not yet published at this entry; commit, Maincloud migration and Railway result will be recorded after verification. Existing production remains the previous release until then.
+- **Next task:** finish release verification and publish these tested loops; continue the larger v3 roadmap afterward. Circuit, Carrom/Kite, delegated external-agent passports and durable hosted budgets remain unimplemented, not silently treated as complete.
+
 ## Current pass — Mela v3 first implementation release (2026-09-15)
 
 - Sreenath approved implementation and supplied `astra_games_research.html`; all 169 data records and metadata were read. Full inventory: 126 project/demo leads, 163 distinct recovered URLs, 31 records with demo URLs. Reconciled `docs/MELA_V3_RESEARCH_AND_PLAN.md`; these are not independently verified finished-game counts. Detailed implementation/evidence/remaining work: `docs/MELA_V3_RELEASE_1.md`.

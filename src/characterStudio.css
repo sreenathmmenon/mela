@@ -398,3 +398,85 @@
 .studio-seat-preview .studio-character em {
   font-size: 11px;
 }
+.saved-roster {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.saved-character-card {
+  border: 1px solid #668b7f;
+  border-radius: 16px;
+  background: #204843;
+  overflow: hidden;
+}
+.saved-character-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 10px !important;
+  color: #fff4dd !important;
+}
+.saved-character-select .character-portrait {
+  width: 62px;
+  height: 62px;
+  flex: none;
+}
+.saved-character-select strong {
+  display: block;
+  font: 600 16px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.saved-character-select small {
+  display: block;
+  margin-top: 5px;
+  color: #ceddd1;
+  font: 400 12px/1.5 var(--font-body);
+}
+.saved-character-select[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px #e0c07e;
+  border-radius: 14px;
+}
+.saved-character-memory {
+  margin: 0 10px 10px;
+  font-size: 12px !important;
+  min-height: 44px;
+}
+.studio-save-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+.studio-save-row small {
+  max-width: 38ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c8dbd0;
+}
+@media (max-width: 700px) {
+  .saved-roster {
+    max-height: 260px;
+  }
+}
+.studio-optional {
+  border-top: 1px solid #54796f;
+  margin: 14px 0;
+}
+.studio-optional > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font: 500 13px/1.5 var(--font-body);
+  color: #e7e4d2;
+}
+.studio-optional .studio-prompt {
+  margin-top: 8px;
+}

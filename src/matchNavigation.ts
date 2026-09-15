@@ -12,6 +12,7 @@ export function matchLocation(
 ): string {
   const url = new URL(href);
   for (const key of ["join", "match", "memory"]) url.searchParams.delete(key);
+  if (destination.kind !== "memory") url.searchParams.delete("moment");
   if (destination.kind !== "home")
     url.searchParams.set(destination.kind, String(destination.id));
   return url.href;

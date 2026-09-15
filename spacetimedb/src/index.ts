@@ -590,6 +590,11 @@ const arena = arenaModule(spacetimedb, {
   profile: (ctx: any, id: any) => ensureMelaProfile(ctx, id),
 });
 export const createArena = arena.create;
+export const challengeArenaMoment = arena.challenge;
+export const saveArenaCharacter = arena.saveCharacter;
+export const mySavedArenaCharacters = arena.savedCharacters;
+export const myArenaCharacterEntries = arena.characterEntries;
+export const createSavedCharacterArena = arena.produceSaved;
 export const playArena = arena.action;
 export const arenaPower = arena.power;
 export const myArenaCrowd = arena.pending;
@@ -2836,6 +2841,7 @@ function finishExperimentalMatch(
   const arenaResult = ctx.db.arenaState.matchId.find(match.id);
   const arenaProduction = ctx.db.arenaProduction.matchId.find(match.id);
   const arenaRoom = ctx.db.arenaRoom.matchId.find(match.id);
+  const challenge = ctx.db.arenaChallenge.matchId.find(match.id);
   const people = arenaRoom
     ? [0, 1]
         .filter(
@@ -2866,6 +2872,7 @@ function finishExperimentalMatch(
             },
           ];
   for (const person of people) {
+    if (challenge) continue; // Checkpoint practice never awards full-match progression or skill.
     if (!person.identity) continue;
     const progression = ensureMelaProfile(ctx, person.identity);
     const update = playerProgressAfterMatch(
@@ -2896,6 +2903,8 @@ function finishExperimentalMatch(
   const covered = (fallback?.leftTurns ?? 0) + (fallback?.rightTurns ?? 0);
   if (covered)
     notableMoment += ` MelaBot covered ${covered} missed agent turns.`;
+  if (challenge)
+    notableMoment = `Unranked practice from match ${challenge.sourceMatchId}, move ${challenge.startRevision}. ${notableMoment}`;
   ctx.db.matchMemory.insert({
     matchId: match.id,
     sequence: match.id,
@@ -2934,6 +2943,7 @@ function finishExperimentalMatch(
   });
   for (const spectator of ctx.db.matchSpectator.iter()) {
     if (spectator.matchId !== match.id) continue;
+    if (challenge) continue;
     const profile = ensureMelaProfile(ctx, spectator.identity);
     ctx.db.melaProfile.identity.update({
       ...profile,

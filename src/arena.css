@@ -7,6 +7,86 @@
   min-height: 100vh;
   font-family: var(--font-body);
 }
+.moment-challenge,
+.challenge-comparison {
+  margin: 18px 0;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid #789b84;
+  border-radius: 18px;
+  background: linear-gradient(120deg, #2b443e, #23383c);
+  color: #eff6ed;
+  overflow-wrap: anywhere;
+}
+.moment-challenge h2 {
+  font: 600 clamp(21px, 3vw, 28px)/1.18 var(--font-display);
+  margin: 10px 0;
+  letter-spacing: -0.5px;
+}
+.moment-challenge p,
+.challenge-comparison p {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 52ch;
+  color: #d3e0d8;
+}
+.moment-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  font-size: 14px;
+}
+.moment-challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.moment-challenge small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c2d4ca;
+}
+.challenge-comparison {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+.challenge-comparison strong {
+  display: block;
+  font-size: 19px;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+.challenge-original {
+  border-left: 1px solid #658675;
+  padding-left: 24px;
+}
+.challenge-original small {
+  font-size: 11px;
+  color: #c2d4ca;
+}
+.challenge-original a {
+  color: #ffe5a3;
+  display: block;
+  padding: 12px 0;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .challenge-comparison {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .challenge-original {
+    border-left: 0;
+    border-top: 1px solid #658675;
+    padding: 12px 0 0;
+  }
+  .moment-challenge-actions > button:first-child {
+    width: 100%;
+  }
+}
 .arena-shell * {
   box-sizing: border-box;
 }

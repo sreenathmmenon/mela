@@ -8,6 +8,11 @@ import {
 } from "./arenaSeats";
 import { CHARACTER_PRESETS } from "./arenaCharacter";
 import {
+  challengeCheckpoint,
+  CHALLENGE_POLICY,
+  CHALLENGE_RULES_VERSION,
+} from "./arenaChallenge";
+import {
   validateCharacter,
   decideCharacter,
   characterEvents,
@@ -35,6 +40,37 @@ const arenaWake = table(
   },
 );
 export const arenaTables = {
+  savedArenaCharacter: table(
+    { public: false },
+    {
+      id: t.u64().primaryKey().autoInc(),
+      owner: t.identity().index(),
+      character: t.string(),
+      parentId: t.u64(),
+      edition: t.u32(),
+      createdAt: t.timestamp(),
+    },
+  ),
+  arenaCharacterEntry: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      amberId: t.u64(),
+      tealId: t.u64(),
+    },
+  ),
+  arenaChallenge: table(
+    { public: true },
+    {
+      matchId: t.u64().primaryKey(),
+      sourceMatchId: t.u64().index(),
+      sourceFrameId: t.u64().index(),
+      startRevision: t.u32(),
+      rulesVersion: t.u32(),
+      opponentPolicy: t.string(),
+      createdAt: t.timestamp(),
+    },
+  ),
   arenaRoom: table(
     { public: true },
     {
@@ -169,6 +205,7 @@ export function arenaModule(db: any, services: any) {
     leftPolicy = "runner",
     rightPolicy = "trickster",
     walls?: number[],
+    checkpoint?: ArenaState,
   ) {
     if (!isArenaKind(kind)) fail("Choose an arena game.");
     services.ensureGuest(ctx);
@@ -178,7 +215,11 @@ export function arenaModule(db: any, services: any) {
       .sort((a, b) => Number(b.id - a.id))[0];
     const { matchId } = services.create(ctx, kind);
     ctx.db.arenaBudget.insert({ matchId, energy: 42, maxEnergy: 60 });
-    if (previous && !ctx.db.playgroundRematch.previousMatchId.find(previous.id))
+    if (
+      !checkpoint &&
+      previous &&
+      !ctx.db.playgroundRematch.previousMatchId.find(previous.id)
+    )
       ctx.db.playgroundRematch.insert({
         previousMatchId: previous.id,
         nextMatchId: matchId,
@@ -198,10 +239,10 @@ export function arenaModule(db: any, services: any) {
                 ? `Amber · ${leftPolicy}`
                 : `Teal · ${rightPolicy}`,
           });
-    const s = initialArena(kind as any, walls);
+    const s = checkpoint ?? initialArena(kind as any, walls);
     ctx.db.arenaState.insert({
       matchId,
-      revision: 0,
+      revision: s.beat,
       state: JSON.stringify(s),
       phase: mode === "agents" ? "thinking" : "planning",
       mode,
@@ -213,14 +254,68 @@ export function arenaModule(db: any, services: any) {
     ctx.db.arenaFrame.insert({
       id: 0n,
       matchId,
-      revision: 0,
+      revision: s.beat,
       state: JSON.stringify(s),
       actions: "[]",
-      source: "opening",
+      source: checkpoint
+        ? "Practice checkpoint · MelaBot deterministic"
+        : "opening",
     });
     if (mode === "agents") wake(ctx, matchId, 0, 25000000n);
     return matchId;
   }
+  const challenge = db.reducer({ frameId: t.u64() }, (ctx: any, a: any) => {
+    const frame = ctx.db.arenaFrame.id.find(a.frameId);
+    const original = frame && ctx.db.match.id.find(frame.matchId);
+    if (
+      !frame ||
+      original?.status !== "complete" ||
+      ctx.db.arenaChallenge.matchId.find(original.id)
+    )
+      fail("Choose a moment from a completed full match.");
+    let checkpoint: ArenaState;
+    try {
+      checkpoint = challengeCheckpoint(
+        frame.state,
+        original.gameKind,
+        frame.revision,
+      );
+    } catch {
+      fail("This moment cannot be played. Choose an earlier move.");
+    }
+    // Retrying the same request resumes the active attempt rather than abandoning it.
+    const identity = services.identity(ctx);
+    for (const attempt of ctx.db.arenaChallenge.sourceFrameId.filter(
+      a.frameId,
+    )) {
+      const match = ctx.db.match.id.find(attempt.matchId);
+      if (match?.status === "active" && match.playerIdentity.isEqual(identity))
+        return;
+    }
+    const id = start(
+      ctx,
+      original.gameKind,
+      "solo",
+      "runner",
+      CHALLENGE_POLICY,
+      undefined,
+      checkpoint!,
+    );
+    ctx.db.arenaChallenge.insert({
+      matchId: id,
+      sourceMatchId: original.id,
+      sourceFrameId: frame.id,
+      startRevision: frame.revision,
+      rulesVersion: CHALLENGE_RULES_VERSION,
+      opponentPolicy: CHALLENGE_POLICY,
+      createdAt: ctx.timestamp,
+    });
+    services.emit(
+      ctx,
+      id,
+      `A new version of match ${original.id}, from move ${frame.revision}. Unranked practice with MelaBot.`,
+    );
+  });
   function resolve(ctx: any, id: bigint, revision: number) {
     const { row, match, s } = state(ctx, id);
     if (
@@ -436,63 +531,139 @@ export function arenaModule(db: any, services: any) {
         wake(ctx, a.matchId, row.revision);
     },
   );
-  const produce = db.reducer(
-    {
-      gameKind: t.string(),
-      mode: t.string(),
-      amber: t.string(),
-      teal: t.string(),
-      courseId: t.u64(),
-      agent: t.identity().optional(),
-    },
+  function produceCharacterMatch(ctx: any, a: any) {
+    if (!["solo", "agents"].includes(a.mode)) fail("Choose play or watch.");
+    if (a.amber.length > 400 || a.teal.length > 400)
+      fail("Character is too long.");
+    let amber, teal;
+    try {
+      amber = validateCharacter(JSON.parse(a.amber));
+      teal = validateCharacter(JSON.parse(a.teal));
+    } catch {
+      fail("Choose supported character traits and a short name.");
+    }
+    const course = a.courseId
+      ? ctx.db.arenaCourse.id.find(a.courseId)
+      : undefined;
+    if (a.courseId && !course) fail("That course was not found.");
+    if (a.agent?.isEqual(ctx.sender))
+      fail("An agent needs an independent connection.");
+    const id = start(
+      ctx,
+      a.gameKind,
+      a.mode,
+      "runner",
+      "trickster",
+      course ? JSON.parse(course.walls) : undefined,
+    );
+    ctx.db.arenaProduction.insert({
+      matchId: id,
+      owner: services.identity(ctx),
+      amber: JSON.stringify(amber),
+      teal: JSON.stringify(teal),
+      courseId: a.courseId,
+      createdAt: ctx.timestamp,
+    });
+    for (const p of ctx.db.matchParticipant.iter())
+      if (p.matchId === id && (a.mode === "agents" || p.role !== "player"))
+        ctx.db.matchParticipant.id.update({
+          ...p,
+          displayName: p.role === "player" ? amber!.name : teal!.name,
+        });
+    const row = ctx.db.arenaState.matchId.find(id);
+    if (a.agent)
+      ctx.db.arenaState.matchId.update({
+        ...row,
+        agentIdentity: a.agent,
+        provenance: "External agent connected",
+      });
+    // A local character duel has no setup wait. External agents retain their bounded deadline.
+    else if (a.mode === "agents") wake(ctx, id, 0);
+    return id;
+  }
+  const productionArgs = {
+    gameKind: t.string(),
+    mode: t.string(),
+    amber: t.string(),
+    teal: t.string(),
+    courseId: t.u64(),
+    agent: t.identity().optional(),
+  };
+  const produce = db.reducer(productionArgs, (ctx: any, a: any) => {
+    produceCharacterMatch(ctx, a);
+  });
+  const savedCharacters = db.view(
+    { public: true },
+    t.array(arenaTables.savedArenaCharacter.rowType),
+    (ctx: any) =>
+      Array.from(
+        ctx.db.savedArenaCharacter.owner.filter(services.identity(ctx)),
+      ),
+  );
+  const characterEntries = db.view(
+    { public: true },
+    t.array(arenaTables.arenaCharacterEntry.rowType),
+    (ctx: any) =>
+      Array.from(ctx.db.arenaCharacterEntry.iter()).filter((r: any) =>
+        ctx.db.match.id
+          .find(r.matchId)
+          ?.playerIdentity.isEqual(services.identity(ctx)),
+      ),
+  );
+  const saveCharacter = db.reducer(
+    { character: t.string(), parentId: t.u64() },
     (ctx: any, a: any) => {
-      if (!["solo", "agents"].includes(a.mode)) fail("Choose play or watch.");
-      if (a.amber.length > 400 || a.teal.length > 400)
-        fail("Character is too long.");
-      let amber, teal;
+      if (a.character.length > 400) fail("Character is too long.");
+      let character: string;
       try {
-        amber = validateCharacter(JSON.parse(a.amber));
-        teal = validateCharacter(JSON.parse(a.teal));
+        character = JSON.stringify(validateCharacter(JSON.parse(a.character)));
       } catch {
-        fail("Choose supported character traits and a short name.");
+        fail("Choose a short name and supported tactics.");
       }
-      const course = a.courseId
-        ? ctx.db.arenaCourse.id.find(a.courseId)
+      const owner = services.identity(ctx);
+      const parent = a.parentId
+        ? ctx.db.savedArenaCharacter.id.find(a.parentId)
         : undefined;
-      if (a.courseId && !course) fail("That course was not found.");
-      if (a.agent?.isEqual(ctx.sender))
-        fail("An agent needs an independent connection.");
-      const id = start(
-        ctx,
-        a.gameKind,
-        a.mode,
-        "runner",
-        "trickster",
-        course ? JSON.parse(course.walls) : undefined,
-      );
-      ctx.db.arenaProduction.insert({
-        matchId: id,
-        owner: services.identity(ctx),
-        amber: JSON.stringify(amber),
-        teal: JSON.stringify(teal),
-        courseId: a.courseId,
+      if (a.parentId && (!parent || !parent.owner.isEqual(owner)))
+        fail("Only your own characters can have a new edition.");
+      const own = Array.from(
+        ctx.db.savedArenaCharacter.owner.filter(owner),
+      ) as any[];
+      if (own.some((c) => c.character === character!)) return; // Safe repeat save; same tactics retain the same identity.
+      if (own.length >= 32)
+        fail(
+          "Your 32 saved editions are full. You can still play with new tactics without saving.",
+        );
+      services.ensureGuest(ctx);
+      ctx.db.savedArenaCharacter.insert({
+        id: 0n,
+        owner,
+        character: character!,
+        parentId: a.parentId,
+        edition: parent ? parent.edition + 1 : 1,
         createdAt: ctx.timestamp,
       });
-      for (const p of ctx.db.matchParticipant.iter())
-        if (p.matchId === id && (a.mode === "agents" || p.role !== "player"))
-          ctx.db.matchParticipant.id.update({
-            ...p,
-            displayName: p.role === "player" ? amber!.name : teal!.name,
-          });
-      const row = ctx.db.arenaState.matchId.find(id);
-      if (a.agent)
-        ctx.db.arenaState.matchId.update({
-          ...row,
-          agentIdentity: a.agent,
-          provenance: "External agent connected",
-        });
-      // A local character duel has no setup wait. External agents retain their bounded deadline.
-      else if (a.mode === "agents") wake(ctx, id, 0);
+    },
+  );
+  const produceSaved = db.reducer(
+    { ...productionArgs, amberId: t.u64(), tealId: t.u64() },
+    (ctx: any, a: any) => {
+      const owner = services.identity(ctx);
+      const load = (id: bigint, raw: string) => {
+        if (!id) return raw;
+        const saved = ctx.db.savedArenaCharacter.id.find(id);
+        if (!saved || !saved.owner.isEqual(owner))
+          fail("Choose a character from your own roster.");
+        return saved.character;
+      };
+      const amber = load(a.amberId, a.amber),
+        teal = load(a.tealId, a.teal);
+      const id = produceCharacterMatch(ctx, { ...a, amber, teal });
+      ctx.db.arenaCharacterEntry.insert({
+        matchId: id,
+        amberId: a.mode === "agents" ? a.amberId : 0n,
+        tealId: a.tealId,
+      });
     },
   );
   const connectAgent = db.reducer(
@@ -501,6 +672,8 @@ export function arenaModule(db: any, services: any) {
       const { row, match } = state(ctx, a.matchId);
       if (ctx.db.arenaRoom.matchId.find(a.matchId))
         fail("Each agent must claim its own seat in this room.");
+      if (ctx.db.arenaChallenge.matchId.find(a.matchId))
+        fail("This practice challenge uses its declared MelaBot strategy.");
       if (
         match.status !== "active" ||
         !match.playerIdentity.isEqual(services.identity(ctx)) ||
@@ -583,13 +756,15 @@ export function arenaModule(db: any, services: any) {
         lastActor: spectator.displayName,
         lastPower: a.power,
       });
-      const profile = services.profile(ctx, identity);
-      ctx.db.melaProfile.identity.update({
-        ...profile,
-        crowdActions: profile.crowdActions + 1,
-        crowdInfluence: profile.crowdInfluence + 1,
-        updatedAt: ctx.timestamp,
-      });
+      if (!ctx.db.arenaChallenge.matchId.find(a.matchId)) {
+        const profile = services.profile(ctx, identity);
+        ctx.db.melaProfile.identity.update({
+          ...profile,
+          crowdActions: profile.crowdActions + 1,
+          crowdInfluence: profile.crowdInfluence + 1,
+          updatedAt: ctx.timestamp,
+        });
+      }
     },
   );
   const pending = db.view(
@@ -867,6 +1042,11 @@ export function arenaModule(db: any, services: any) {
       ),
   );
   return {
+    saveCharacter,
+    savedCharacters,
+    characterEntries,
+    produceSaved,
+    challenge,
     createRoom,
     claim,
     invitation,

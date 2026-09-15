@@ -15,6 +15,8 @@ import {
 } from "../spacetimedb/src/arenaRules";
 import { playSound, isMuted, toggleMuted, unlockAudio } from "./sound";
 import { matchMoments } from "./matchStories";
+import { MomentChallenge, ChallengeComparison } from "./MomentChallenge";
+import { requestedMoment } from "./challengePresentation";
 import { arenaCue } from "./arenaCue";
 import { followMatchDestination } from "./matchNavigation";
 import { CharacterPortrait } from "./CharacterStudio";
@@ -60,6 +62,13 @@ export function ArenaGames({
   } = usePlaygroundMatch(matchId, screen);
   const [roomRows] = useTable(
     tables.arenaRoom.where((r) => r.matchId.eq(matchId)),
+  );
+  const [origins, originsReady] = useTable(
+    tables.arenaChallenge.where((r) => r.matchId.eq(matchId)),
+  );
+  const origin = origins[0];
+  const [characterEntries] = useTable(
+    tables.arenaCharacterEntry.where((r) => r.matchId.eq(matchId)),
   );
   const [ownMoves] = useTable(tables.myArenaMove);
   const [crowdEnergy] = useTable(tables.myArenaEnergy);
@@ -135,11 +144,16 @@ export function ArenaGames({
     publish = useReducer(reducers.publishArenaCourse),
     connectAgent = useReducer(reducers.connectArenaAgent);
   const produce = useReducer(reducers.createCharacterArena);
+  const produceSaved = useReducer(reducers.createSavedCharacterArena);
   const createRoom = useReducer(reducers.createArenaRoom);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [camera, setCamera] = useState("isometric"),
-    [replay, setReplay] = useState<number | null>(null),
+    [replay, setReplay] = useState<number | null>(() =>
+      new URLSearchParams(location.search).get("memory") === String(matchId)
+        ? requestedMoment(location.search)
+        : null,
+    ),
     [replaying, setReplaying] = useState(false),
     [muted, setMuted] = useState(isMuted()),
     [mode, setMode] = useState("solo"),
@@ -245,14 +259,22 @@ export function ArenaGames({
         courseId: 0n,
       });
     const after = matches.reduce((n, m) => (m.id > n ? m.id : n), 0n);
-    await produce({
+    const args = {
       gameKind: match!.gameKind,
       mode: row.mode,
       amber: production.amber,
       teal: production.teal,
       courseId: production.courseId,
       agent: row.agentIdentity,
-    });
+    };
+    const entry = characterEntries[0];
+    if (entry && host)
+      await produceSaved({
+        ...args,
+        amberId: entry.amberId,
+        tealId: entry.tealId,
+      });
+    else await produce(args);
     setFollowAfter(after);
   }
   const url = new URL(location.href);
@@ -357,8 +379,37 @@ export function ArenaGames({
           complete={match.status !== "active"}
         />
       )}
+      {origin && (
+        <ChallengeComparison
+          sourceMatchId={origin.sourceMatchId}
+          startRevision={origin.startRevision}
+          complete={complete}
+          winner={state!.winner}
+          onRetry={() =>
+            location.assign(
+              `?memory=${origin.sourceMatchId}&moment=${origin.startRevision}`,
+            )
+          }
+        />
+      )}
       <div className="arena-layout">
         <section className="arena-main">
+          {complete && originsReady && !origin && !screen && (
+            <MomentChallenge
+              matchId={matchId}
+              frames={sorted}
+              revision={replay}
+              identity={identity}
+              connected={connected}
+              onSelect={(n) => {
+                setReplaying(false);
+                setReplay(n);
+              }}
+              onOpen={(id) =>
+                onOpen ? onOpen(id) : location.assign(`?match=${id}`)
+              }
+            />
+          )}
           {room && row.phase === "lobby" && (
             <ArenaRoomPanel matchId={matchId} host={host} closed={closed} />
           )}
@@ -440,6 +491,7 @@ export function ArenaGames({
               <label>
                 View{" "}
                 <select
+                  name="arena-camera"
                   value={camera}
                   onChange={(e) => setCamera(e.target.value)}
                 >
@@ -596,7 +648,8 @@ export function ArenaGames({
           {complete && (
             <section className="arena-result">
               <span className="arena-overline">
-                MATCH COMPLETE · {state!.beat} MOVES
+                {origin ? "PRACTICE COMPLETE" : "MATCH COMPLETE"} ·{" "}
+                {state!.beat - (origin?.startRevision ?? 0)} MOVES
               </span>
               <h2>{outcome}</h2>
               <p>
@@ -610,7 +663,7 @@ export function ArenaGames({
                   disabled={busy}
                   onClick={() => void run(rematch)}
                 >
-                  Play again →
+                  {origin ? "Play a full match →" : "Play again →"}
                 </button>
                 <button onClick={() => void share()}>Share this story</button>
                 <button
@@ -666,8 +719,9 @@ export function ArenaGames({
                 Replay the match{" "}
                 <input
                   aria-label="Replay move"
+                  name="arena-replay-move"
                   type="range"
-                  min={0}
+                  min={origin?.startRevision ?? 0}
                   max={row.revision}
                   value={replay ?? row.revision}
                   onChange={(e) => {
@@ -680,7 +734,8 @@ export function ArenaGames({
                 onClick={() => {
                   if (replaying) setReplaying(false);
                   else {
-                    if (replay === null || replay >= row.revision) setReplay(0);
+                    if (replay === null || replay >= row.revision)
+                      setReplay(origin?.startRevision ?? 0);
                     setReplaying(true);
                   }
                 }}
@@ -872,7 +927,11 @@ export function ArenaGames({
             )}
             <label>
               Mode
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <select
+                name="classic-arena-mode"
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+              >
                 <option value="solo">You + MelaBot</option>
                 <option value="agents">
                   {match.gameKind === "mela_heist"
@@ -884,6 +943,7 @@ export function ArenaGames({
             <label>
               Amber strategy
               <select
+                name="classic-amber-policy"
                 value={policy}
                 onChange={(e) => setPolicy(e.target.value)}
               >
@@ -894,7 +954,11 @@ export function ArenaGames({
             </label>
             <label>
               Teal strategy
-              <select value={rival} onChange={(e) => setRival(e.target.value)}>
+              <select
+                name="classic-teal-policy"
+                value={rival}
+                onChange={(e) => setRival(e.target.value)}
+              >
                 {POLICIES.map((p) => (
                   <option key={p}>{p}</option>
                 ))}
@@ -903,6 +967,7 @@ export function ArenaGames({
             <label>
               Teach a character
               <textarea
+                name="classic-character-prompt"
                 maxLength={400}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -923,6 +988,7 @@ export function ArenaGames({
               <label>
                 Course
                 <select
+                  name="classic-arena-course"
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
                 >
@@ -981,6 +1047,7 @@ export function ArenaGames({
               <label>
                 Course name
                 <input
+                  name="arena-course-name"
                   maxLength={40}
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}

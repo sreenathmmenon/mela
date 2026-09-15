@@ -65,6 +65,24 @@ export const ArenaBudget = __t.object("ArenaBudget", {
 });
 export type ArenaBudget = __Infer<typeof ArenaBudget>;
 
+export const ArenaChallenge = __t.object("ArenaChallenge", {
+  matchId: __t.u64(),
+  sourceMatchId: __t.u64(),
+  sourceFrameId: __t.u64(),
+  startRevision: __t.u32(),
+  rulesVersion: __t.u32(),
+  opponentPolicy: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type ArenaChallenge = __Infer<typeof ArenaChallenge>;
+
+export const ArenaCharacterEntry = __t.object("ArenaCharacterEntry", {
+  matchId: __t.u64(),
+  amberId: __t.u64(),
+  tealId: __t.u64(),
+});
+export type ArenaCharacterEntry = __Infer<typeof ArenaCharacterEntry>;
+
 export const ArenaCourse = __t.object("ArenaCourse", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -457,6 +475,12 @@ export type MyAccountStatus = __Infer<typeof MyAccountStatus>;
 export const MyArenaAgent = __t.object("MyArenaAgent", {});
 export type MyArenaAgent = __Infer<typeof MyArenaAgent>;
 
+export const MyArenaCharacterEntries = __t.object(
+  "MyArenaCharacterEntries",
+  {},
+);
+export type MyArenaCharacterEntries = __Infer<typeof MyArenaCharacterEntries>;
+
 export const MyArenaCrowd = __t.object("MyArenaCrowd", {});
 export type MyArenaCrowd = __Infer<typeof MyArenaCrowd>;
 
@@ -477,6 +501,9 @@ export type MyEmailContact = __Infer<typeof MyEmailContact>;
 
 export const MyIdentityLink = __t.object("MyIdentityLink", {});
 export type MyIdentityLink = __Infer<typeof MyIdentityLink>;
+
+export const MySavedArenaCharacters = __t.object("MySavedArenaCharacters", {});
+export type MySavedArenaCharacters = __Infer<typeof MySavedArenaCharacters>;
 
 export const OwnCooldownProjection = __t.object("OwnCooldownProjection", {
   id: __t.u64(),
@@ -632,6 +659,16 @@ export const RoomConnection = __t.object("RoomConnection", {
   spectator: __t.bool(),
 });
 export type RoomConnection = __Infer<typeof RoomConnection>;
+
+export const SavedArenaCharacter = __t.object("SavedArenaCharacter", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  character: __t.string(),
+  parentId: __t.u64(),
+  edition: __t.u32(),
+  createdAt: __t.timestamp(),
+});
+export type SavedArenaCharacter = __Infer<typeof SavedArenaCharacter>;
 
 export const SpectatorCooldown = __t.object("SpectatorCooldown", {
   id: __t.u64(),
