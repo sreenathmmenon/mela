@@ -130,7 +130,7 @@ export function createArenaService(origin: string) {
           : undefined;
         try {
           const result = await call(
-            `Choose one legalAction index for side ${side}. Character tactics: ${character ? characterBrief(character) : side === 0 ? row.leftPolicy : row.rightPolicy}. Follow these preferences while pursuing the objective. Rules: crown_run pick up centre crown with interact then carry to your home (side 0 x0,y4; side 1 x8,y4) and interact to bank. First 2 wins. bridge_breakers reach opposite home. mela_heist first stand together on switches (1,1) and (7,7), then pick up and deliver treasure to either home. Move/dash uses destination. Guard blocks shove. Dash costs 2 stamina, cannot dash carrying crown. At most 24 moves. Public state: ${JSON.stringify(s)}. LegalActions: ${JSON.stringify(legal)}`,
+            `Choose one legalAction index for side ${side}. Character tactics: ${character ? characterBrief(character, s.kind) : side === 0 ? row.leftPolicy : row.rightPolicy}. Follow these preferences while pursuing the objective. Rules: crown_run pick up centre crown with interact then carry to your home (side 0 x0,y4; side 1 x8,y4) and interact to bank. First 2 wins. bridge_breakers reach opposite home. mela_heist first stand together on switches (1,1) and (7,7), then pick up and deliver treasure to either home. Move/dash uses destination. Guard blocks shove. Dash costs 2 stamina, cannot dash carrying crown. At most 24 moves. Public state: ${JSON.stringify(s)}. LegalActions: ${JSON.stringify(legal)}`,
             { choice: { type: "integer", enum: legal.map((_, i) => i) } },
           );
           if (!Number.isInteger(result.choice) || !legal[result.choice])

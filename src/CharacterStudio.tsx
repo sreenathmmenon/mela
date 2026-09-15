@@ -9,6 +9,7 @@ import {
   type ArenaCharacter,
 } from "../spacetimedb/src/arenaCharacter";
 import "./characterStudio.css";
+import { isArenaKind } from "../spacetimedb/src/arenaRules";
 
 export function CharacterPortrait({
   character,
@@ -309,7 +310,12 @@ export function CharacterStudio({
                 Edit traits
               </button>
             </div>
-            <p className="studio-brief">{characterBrief(character)}</p>
+            <p className="studio-brief">
+              {characterBrief(
+                character,
+                isArenaKind(game) ? game : "bridge_breakers",
+              )}
+            </p>
             {editing && (
               <div className="studio-traits">
                 <label>

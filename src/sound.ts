@@ -4,14 +4,24 @@
  * demos, and shipping a folder of .mp3s would cost more bytes than the whole
  * app. Everything below is a few oscillators and a burst of noise.
  *
- * There are exactly six sounds, at the six moments where the game state
+ * The original six tactile sounds accompany moments where the game state
  * changes in a way the player already feels in their thumb: the flick, the
  * hit, the wobble, the fall, the six, the out. Nothing narrates, nothing
  * decorates, nothing plays on a tick or a hover. The vocabulary is a school
  * desk — pen taps, paper, wood — not an arcade.
  */
 
-export type MelaSound = "flick" | "contact" | "teeter" | "fall" | "six" | "out";
+export type MelaSound =
+  | "flick"
+  | "contact"
+  | "teeter"
+  | "fall"
+  | "six"
+  | "out"
+  | "step"
+  | "crowdReveal"
+  | "vault"
+  | "arenaWin";
 
 const MUTE_KEY = "mela.sound.muted";
 
@@ -82,7 +92,13 @@ export function setMuted(next: boolean): void {
 
 export function toggleMuted(): boolean {
   setMuted(!muted);
+  if (!muted) unlockAudio();
   return muted;
+}
+
+/** Call from a real input gesture; subscription delivery alone cannot unlock audio. */
+export function unlockAudio(): void {
+  if (!muted) getContext();
 }
 
 type AudioContextCtor = new () => AudioContext;
@@ -243,6 +259,64 @@ function burst(ac: AudioContext, bus: GainNode, o: BurstOptions): void {
 type Voice = (ac: AudioContext, bus: GainNode, t: number) => void;
 
 const VOICES: Record<MelaSound, Voice> = {
+  step(ac, bus, t) {
+    burst(ac, bus, {
+      start: t,
+      duration: 0.06,
+      gain: 0.3,
+      centre: 460,
+      q: 1.3,
+    });
+    burst(ac, bus, {
+      start: t + 0.095,
+      duration: 0.055,
+      gain: 0.18,
+      centre: 600,
+      q: 1.2,
+    });
+  },
+  crowdReveal(ac, bus, t) {
+    // A short mechanical sweep + chime, not fake voices or canned applause.
+    burst(ac, bus, {
+      start: t,
+      duration: 0.25,
+      gain: 0.25,
+      centre: 700,
+      centreTo: 2200,
+      q: 1.6,
+    });
+    [660, 880].forEach((from, i) =>
+      tone(ac, bus, {
+        from,
+        start: t + 0.09 + i * 0.07,
+        duration: 0.21,
+        gain: 0.19,
+        type: "triangle",
+      }),
+    );
+  },
+  vault(ac, bus, t) {
+    burst(ac, bus, { start: t, duration: 0.08, gain: 0.32, centre: 360, q: 2 });
+    [392, 587, 784].forEach((from, i) =>
+      tone(ac, bus, {
+        from,
+        start: t + 0.04 + i * 0.065,
+        duration: 0.3,
+        gain: 0.2,
+      }),
+    );
+  },
+  arenaWin(ac, bus, t) {
+    [392, 494, 587, 784].forEach((from, i) =>
+      tone(ac, bus, {
+        from,
+        start: t + i * 0.09,
+        duration: 0.32,
+        gain: 0.2,
+        type: "triangle",
+      }),
+    );
+  },
   /**
    * FLICK — the moment your finger leaves the pen. A nail-on-plastic tick with
    * the pitch collapsing under it, so it reads as energy leaving your hand and

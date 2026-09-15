@@ -48,6 +48,7 @@ Use narrow subscriptions for a player’s current world/match plus relevant even
 
 ## 6. Engineering standards
 
+- On 2026-09-15 Sreenath approved implementing the Mela v3 research direction and supplied the full 169-record research export. See `docs/MELA_V3_RESEARCH_AND_PLAN.md` and the bounded release evidence in `docs/MELA_V3_RELEASE_1.md`. Preserve existing games while delivering distinct arena presentation, factual recorded moments, guest-first entry and role-safe reloads. Do not call the whole v3 program complete when only a release slice is implemented; new games, agent continuity and playable replay challenges have their own authority and acceptance gates.
 - Use typed contracts and clear, small modules; keep reducer validation close to state transitions.
 - Preserve backwards-compatible migrations and document every schema/reducer change.
 - Keep UI mobile-first and big-screen readable; ensure keyboard access, semantic controls, contrast, and visible focus.

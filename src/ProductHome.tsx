@@ -1,6 +1,10 @@
 import { useRef, useState, type ReactNode } from "react";
 import { HOME_GAMES, HomeDiscovery } from "./HomeDiscovery";
 import { memoryResult, type PlayIntent } from "./productExperience";
+import { selectStories, storyCaption, type StoryMemory } from "./matchStories";
+import { FeaturedMatch } from "./FeaturedMatch";
+import { GameCover } from "./GameCover";
+import { isArenaKind } from "../spacetimedb/src/arenaRules";
 import "./productExperience.css";
 
 function DestinationIcon({ place }: { place: string }) {
@@ -29,18 +33,7 @@ function DestinationIcon({ place }: { place: string }) {
   );
 }
 
-type Memory = {
-  matchId: bigint;
-  gameKind: string;
-  humanName: string;
-  aiName: string;
-  winner: string;
-  humanScore: number;
-  botScore: number;
-  crowdActions: number;
-  notableMoment: string;
-  sequence: bigint;
-};
+type Memory = StoryMemory;
 type Place = "play" | "watch" | "agents" | "memories";
 const gameName = (kind: string) =>
   HOME_GAMES.find((g) => g.kind === kind)?.name ?? "Mela";
@@ -92,16 +85,17 @@ export function ProductHome({
   const [agentMode, setAgentMode] = useState<"human_agent" | "agent_duel">(
     "human_agent",
   );
-  const [agentPath, setAgentPath] = useState<"external" | "character">(() =>
-    new URLSearchParams(location.search).has("character")
-      ? "character"
-      : "external",
+  const [agentPath, setAgentPath] = useState<"external" | "character">(
+    "character",
   );
   const [copyStatus, setCopyStatus] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
-  const latest = [...memories]
-    .sort((a, b) => Number(b.sequence - a.sequence))
-    .slice(0, 6);
+  const latest = selectStories(memories);
+  const recentArenas = selectStories(
+    memories.filter((m) => isArenaKind(m.gameKind)),
+  );
+  const featured =
+    recentArenas.find((m) => m.crowdActions > 0) ?? recentArenas[0];
   const changePlace = (next: Place) => {
     setPlace(next);
     onPlaceChange?.(next);
@@ -117,7 +111,11 @@ export function ProductHome({
             key={String(m.matchId)}
             onClick={() => onMemory(m.matchId)}
             className="product-memory-card"
+            disabled={busy}
           >
+            <span className="product-memory-art" aria-hidden="true">
+              <GameCover kind={m.gameKind} />
+            </span>
             <small>{gameName(m.gameKind)} · Finished</small>
             <strong>
               {m.humanName} <em>{m.gameKind === "mela_heist" ? "+" : "×"}</em>{" "}
@@ -126,12 +124,12 @@ export function ProductHome({
             <span>
               {memoryResult(m)} · {m.humanScore}–{m.botScore}
             </span>
-            <p>{m.notableMoment}</p>
+            <p>{storyCaption(m)}</p>
             <span className="product-memory-foot">
               <span>
                 {m.crowdActions
                   ? `${m.crowdActions} crowd ${m.crowdActions === 1 ? "move" : "moves"}`
-                  : "No crowd powers used"}
+                  : "Completed match"}
               </span>
               <b>
                 {["bridge_breakers", "crown_run", "mela_heist"].includes(
@@ -224,6 +222,14 @@ export function ProductHome({
               <span>No signup needed</span>
             ) : null}
           </div>
+          {!friends && featured && (
+            <FeaturedMatch
+              memory={featured}
+              busy={busy}
+              onWatch={onMemory}
+              onPlay={(kind) => onPlay(kind, "solo")}
+            />
+          )}
           <HomeDiscovery
             busy={busy}
             intent={friends ? "friends" : "solo"}
@@ -275,8 +281,16 @@ export function ProductHome({
               </button>
             </div>
           )}
+          {featured && (
+            <FeaturedMatch
+              memory={featured}
+              busy={busy}
+              onWatch={onMemory}
+              onPlay={(kind) => onPlay(kind, "solo")}
+            />
+          )}
           <div className="product-subheading">
-            <h3>Completed matches</h3>
+            <h3>Recent matches</h3>
           </div>
           {cards(latest, "No completed matches yet.")}
         </>
@@ -290,18 +304,18 @@ export function ProductHome({
             aria-label="Agent experience"
           >
             <button
-              aria-pressed={agentPath === "external"}
-              onClick={() => setAgentPath("external")}
-            >
-              <strong>Connect an agent</strong>
-              <span>Requires an MCP-compatible agent</span>
-            </button>
-            <button
               aria-pressed={agentPath === "character"}
               onClick={() => setAgentPath("character")}
             >
               <strong>Create a character</strong>
               <span>No external setup</span>
+            </button>
+            <button
+              aria-pressed={agentPath === "external"}
+              onClick={() => setAgentPath("external")}
+            >
+              <strong>Connect an agent</strong>
+              <span>Requires an MCP-compatible agent</span>
             </button>
           </div>
           {agentPath === "character" ? (

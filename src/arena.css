@@ -395,6 +395,39 @@
   font-size: 28px;
   letter-spacing: -0.8px;
 }
+.arena-result h2 {
+  margin: 10px 0;
+}
+.arena-moment-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 20px;
+}
+.arena-moment-list button {
+  display: grid;
+  text-align: left;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+}
+.arena-moment-list button[aria-pressed="true"] {
+  border-color: #f3d08b;
+  background: #415753;
+}
+.arena-moment-list span {
+  font-size: 12px;
+  color: #c4d6d1;
+}
+.arena-moment-list strong {
+  font: 500 14px/1.5 var(--font-body);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .arena-moment-list {
+    grid-template-columns: 1fr;
+  }
+}
 .arena-result p {
   color: #c2d3c7;
   font-size: 14px;

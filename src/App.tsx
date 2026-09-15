@@ -22,6 +22,7 @@ import { ArenaGames, ARENA_TITLES } from "./ArenaGames";
 import { EmailRecap } from "./EmailRecap";
 import { isMuted, playSound, toggleMuted } from "./sound";
 import { StickCricketStage } from "./StickCricketStage";
+import { matchFromLocation, matchLocation } from "./matchNavigation";
 
 const POWER_CARDS = [
   {
@@ -165,13 +166,22 @@ function App() {
   const [creatingMatch, setCreatingMatch] = useState(false);
   const [showHome, setShowHome] = useState(() => {
     const query = new URLSearchParams(location.search);
-    return !query.has("join") && !query.has("memory");
+    return (
+      !query.has("join") &&
+      !query.has("memory") &&
+      !matchFromLocation(location.search)
+    );
   });
   // Reduced-motion visitors start muted, so they need a visible way back in.
   const [muted, setMuted] = useState(isMuted);
   // A scanned QR pins the match it names: the visitor lands in THAT game,
   // not whichever one they happened to play or watch last time.
-  const [pinnedMatchId, setPinnedMatchId] = useState<bigint | null>(null);
+  const [restoredMatchId, setRestoredMatchId] = useState(() =>
+    matchFromLocation(location.search),
+  );
+  const [pinnedMatchId, setPinnedMatchId] = useState<bigint | null>(() =>
+    matchFromLocation(location.search),
+  );
   const [pendingPower, setPendingPower] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<"human" | "melabot">(
     "human",
@@ -239,13 +249,13 @@ function App() {
   const seatPresence = [...penPresence, ...arenaPresence];
   const [penDuels] = useTable(tables.agentDuel);
   const [arenaRooms] = useTable(tables.arenaRoom);
-  const [participants] = useTable(tables.matchParticipant);
+  const [participants, participantsReady] = useTable(tables.matchParticipant);
   const [states] = useTable(tables.bookCricketState);
   const [history] = useTable(tables.matchHistory);
   const [memories] = useTable(tables.matchMemory);
   const [records] = useTable(tables.bookCricketRecord);
   const [crowds] = useTable(tables.matchCrowd);
-  const [spectators] = useTable(tables.matchSpectator);
+  const [spectators, spectatorsReady] = useTable(tables.matchSpectator);
   const [cooldowns] = useTable(tables.ownSpectatorCooldown);
   const [effects] = useTable(tables.visibleCrowdEffects);
   const [aiCharacters] = useTable(tables.aiCharacter);
@@ -329,7 +339,63 @@ function App() {
   );
   const displayedMatch = showHome
     ? undefined
-    : (pinnedMatch ?? myLiveMatch ?? myLastMatch);
+    : pinnedMatchId !== null
+      ? pinnedMatch
+      : (myLiveMatch ?? myLastMatch);
+  useEffect(() => {
+    if (
+      restoredMatchId === null ||
+      !connected ||
+      !profilesReady ||
+      !identityLinksReady ||
+      !matchesReady ||
+      !participantsReady ||
+      !spectatorsReady
+    )
+      return;
+    const target = matches.find((match) => match.id === restoredMatchId);
+    setRestoredMatchId(null);
+    if (!target || !isMine(target)) {
+      setPinnedMatchId(null);
+      setShowHome(true);
+      setError(
+        "That match isn't on this device. Use its crowd link to watch, or choose a game.",
+      );
+    }
+  }, [
+    restoredMatchId,
+    connected,
+    profilesReady,
+    identityLinksReady,
+    matchesReady,
+    participantsReady,
+    spectatorsReady,
+    matches,
+    isMine,
+  ]);
+  useEffect(() => {
+    // Keep reloads on the same server-owned seat/crowd. Do not consume an
+    // invitation while its subscription or guest entry is still pending.
+    if (requestedJoinMatchId || seatInvite || restoredMatchId !== null) return;
+    const destination = showHome
+      ? { kind: "home" as const }
+      : requestedMemoryId !== null
+        ? { kind: "memory" as const, id: requestedMemoryId }
+        : displayedMatch
+          ? { kind: "match" as const, id: displayedMatch.id }
+          : null;
+    if (!destination) return;
+    const href = matchLocation(window.location.href, destination);
+    if (href !== window.location.href)
+      window.history.replaceState(null, "", href);
+  }, [
+    showHome,
+    requestedMemoryId,
+    displayedMatch?.id,
+    requestedJoinMatchId,
+    seatInvite,
+    restoredMatchId,
+  ]);
   useRoomPresence(
     !requestedMemoryId && displayedMatch?.status === "active"
       ? displayedMatch.id

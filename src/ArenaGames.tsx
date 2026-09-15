@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
 import { useReducer, useTable } from "spacetimedb/react";
 import { Identity } from "spacetimedb";
 import { QRCodeSVG } from "qrcode.react";
@@ -13,7 +13,9 @@ import {
   DEFAULT_WALLS,
   type ArenaState,
 } from "../spacetimedb/src/arenaRules";
-import { playSound, isMuted, toggleMuted } from "./sound";
+import { playSound, isMuted, toggleMuted, unlockAudio } from "./sound";
+import { matchMoments } from "./matchStories";
+import { arenaCue } from "./arenaCue";
 import { CharacterPortrait } from "./CharacterStudio";
 import { arenaBoardDescription, arenaMoveLabel } from "./arenaDescription";
 import {
@@ -151,11 +153,17 @@ export function ArenaGames({
     const t = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(t);
   }, []); // UI cooldown clock only; never fetches or mutates.
+  const heard = useRef<{ id: bigint; revision: number }>();
   useEffect(() => {
-    if (row?.revision) playSound(row.phase === "complete" ? "six" : "flick");
+    if (!row || !state) return;
+    // Establish the subscription baseline silently: opening an old result is not a new win.
+    if (heard.current?.id === matchId && row.revision > heard.current.revision)
+      playSound(arenaCue(state));
+    heard.current = { id: matchId, revision: row.revision };
     setMessage("");
-  }, [row?.revision, row?.phase]);
+  }, [matchId, row?.revision]);
   const sorted = [...frames].sort((a, b) => a.revision - b.revision);
+  const moments = matchMoments(sorted);
   useEffect(() => {
     if (!replaying || !row) return;
     const timer = setInterval(
@@ -326,6 +334,8 @@ export function ArenaGames({
   return (
     <main
       className={`arena-shell arena-${match.gameKind} ${isSpectator ? "arena-audience" : ""} ${screen ? "arena-screen" : ""}`}
+      onPointerDownCapture={unlockAudio}
+      onKeyDownCapture={unlockAudio}
     >
       <header className="arena-header">
         <button onClick={onBack}>← Games</button>
@@ -357,14 +367,22 @@ export function ArenaGames({
                     ? (cast?.[0].name ?? "Amber · " + row.leftPolicy)
                     : humanName)}
               </strong>
-              <b>{shown.pawns[0].score}</b>
+              {shown.kind === "crown_run" && (
+                <b aria-label={`${shown.pawns[0].score} crowns`}>
+                  {shown.pawns[0].score}
+                </b>
+              )}
             </div>
             <span>
               {replay !== null ? "REPLAY · " : ""}
-              {shown.beat} / 24
+              Move {shown.beat} / 24
             </span>
             <div>
-              <b>{shown.pawns[1].score}</b>
+              {shown.kind === "crown_run" && (
+                <b aria-label={`${shown.pawns[1].score} crowns`}>
+                  {shown.pawns[1].score}
+                </b>
+              )}
               <strong>
                 {room?.rightName ??
                   cast?.[1].name ??
@@ -435,40 +453,42 @@ export function ArenaGames({
             </p>
             <p>{description.layout}</p>
           </details>
-          <div className="arena-call" role="status">
-            <strong>
-              {replay !== null && replay < row.revision
-                ? `Replay · move ${replay}`
-                : complete
-                  ? outcome
-                  : closed
-                    ? "This arena has closed. There’s another game waiting."
-                    : room && row.phase === "lobby"
-                      ? "Your arena is ready. Share the invitation to begin."
-                      : room && ownLocked && row.phase === "planning"
-                        ? room.mode === "friends"
-                          ? "Your move is locked. Waiting for your friend."
-                          : "Your move is locked. Waiting for the agent."
-                        : room && isPlayer && row.phase === "planning"
-                          ? `You’re ${side === 0 ? "Amber" : "Teal"}. Pick a lit tile or a move below.`
-                          : room && row.phase === "thinking"
-                            ? room.mode === "friends"
-                              ? "Both moves are locked. Here comes the reveal."
-                              : "Agents are choosing. Both plans reveal together."
-                            : row.phase === "thinking"
-                              ? row.agentIdentity
-                                ? row.mode === "agents"
-                                  ? "Two characters are choosing their next move."
-                                  : `${cast?.[1].name ?? "Astra"} is choosing. Your plan is locked.`
-                                : "Plans locked. The crowd has its moment."
-                              : row.mode === "agents"
-                                ? "Two strategies. One arena."
-                                : isPlayer
-                                  ? "Your move. Pick a lit tile."
-                                  : "Watch the runners. Shape their next move."}
-            </strong>
-            <span>{shown.log.join(" ")}</span>
-          </div>
+          {(!complete || replay !== null) && (
+            <div className="arena-call" role="status">
+              <strong>
+                {replay !== null && replay < row.revision
+                  ? `Replay · move ${replay}`
+                  : complete
+                    ? outcome
+                    : closed
+                      ? "This arena has closed. There’s another game waiting."
+                      : room && row.phase === "lobby"
+                        ? "Your arena is ready. Share the invitation to begin."
+                        : room && ownLocked && row.phase === "planning"
+                          ? room.mode === "friends"
+                            ? "Your move is locked. Waiting for your friend."
+                            : "Your move is locked. Waiting for the agent."
+                          : room && isPlayer && row.phase === "planning"
+                            ? `You’re ${side === 0 ? "Amber" : "Teal"}. Pick a lit tile or a move below.`
+                            : room && row.phase === "thinking"
+                              ? room.mode === "friends"
+                                ? "Both moves are locked. Here comes the reveal."
+                                : "Agents are choosing. Both plans reveal together."
+                              : row.phase === "thinking"
+                                ? row.agentIdentity
+                                  ? row.mode === "agents"
+                                    ? "Two characters are choosing their next move."
+                                    : `${cast?.[1].name ?? "Astra"} is choosing. Your plan is locked.`
+                                  : "Plans locked. The crowd has its moment."
+                                : row.mode === "agents"
+                                  ? "Two strategies. One arena."
+                                  : isPlayer
+                                    ? "Your move. Pick a lit tile."
+                                    : "Watch the runners. Shape their next move."}
+              </strong>
+              <span>{shown.log.join(" ")}</span>
+            </div>
+          )}
           {closed && !complete && (
             <button onClick={onBack}>Choose your next game →</button>
           )}
@@ -574,13 +594,14 @@ export function ArenaGames({
           )}
           {complete && (
             <section className="arena-result">
-              <span className="arena-overline">A MELA MEMORY</span>
+              <span className="arena-overline">
+                MATCH COMPLETE · {state!.beat} MOVES
+              </span>
               <h2>{outcome}</h2>
               <p>
-                {shown.eggs.length
-                  ? `${shown.eggs.length} little discoveries along the way.`
-                  : "Every crossing told a different story."}{" "}
-                This match and its crowd moves are saved.
+                {moments.find((m) => m.kind === "crowd")?.detail ??
+                  moments.find((m) => m.kind === "objective")?.detail ??
+                  state!.log.join(" ")}
               </p>
               <div className="arena-result-actions">
                 <button
@@ -615,6 +636,31 @@ export function ArenaGames({
                   Save match postcard ↓
                 </button>
               </div>
+              {moments.length > 0 && (
+                <div className="arena-moment-list" aria-label="Match moments">
+                  {moments.slice(-6).map((moment) => (
+                    <button
+                      key={moment.revision}
+                      aria-pressed={replay === moment.revision}
+                      onClick={() => {
+                        setReplaying(false);
+                        setReplay(moment.revision);
+                        document
+                          .querySelector(".arena-stage-wrap")
+                          ?.scrollIntoView({
+                            behavior: "auto",
+                            block: "center",
+                          });
+                      }}
+                    >
+                      <span>
+                        Move {moment.revision} · {moment.label}
+                      </span>
+                      <strong>{moment.detail}</strong>
+                    </button>
+                  ))}
+                </div>
+              )}
               <label>
                 Replay the match{" "}
                 <input
@@ -646,7 +692,7 @@ export function ArenaGames({
                   setReplay(null);
                 }}
               >
-                Final moment
+                Back to result
               </button>
             </section>
           )}
@@ -666,7 +712,7 @@ export function ArenaGames({
                     <p>
                       {i === 0 && row.mode === "solo"
                         ? `${isPlayer ? "You choose" : `${humanName} chooses`} every move. These tactics apply only when the character plays autonomously.`
-                        : characterBrief(c)}
+                        : characterBrief(c, state!.kind)}
                     </p>
                     <a
                       href={`/?character=${encodeCharacter(c)}&arena=${match.gameKind}`}
@@ -699,26 +745,30 @@ export function ArenaGames({
                   ? "Reach the opposite portal first. Save charge for a dash, and watch the crowd-controlled crossing. Simultaneous finishes tie."
                   : "Stand on the two gold switches together. Then one partner picks up the treasure and delivers it to their own portal. Finish together in 24 moves."}
             </p>
-            <small>
-              Amber starts left. Teal starts right.{" "}
-              {match.gameKind === "bridge_breakers"
-                ? "Your finish is the opposite portal."
-                : "Move, then use Pick up / deliver on the goal tile."}
-            </small>
           </section>
           <section id="arena-crowd-controls" className="arena-card arena-crowd">
             <div className="arena-card-top">
               <h2>The crowd</h2>
               <span>{spectators.length} joined</span>
             </div>
-            <strong className="arena-energy">
-              {pool?.energy ?? 0}
-              <small> / {pool?.maxEnergy ?? 60} shared energy</small>
-            </strong>
-            <p>
-              One crowd choice per move. +3 energy after each reveal.
-              {!isSpectator && " Energy shown is from the last reveal."}
-            </p>
+            {closed ? (
+              <p>
+                {moments.filter((m) => m.kind === "crowd").length > 0
+                  ? "The crowd's moves are saved in the replay."
+                  : "This match is over. Join the next crowd to influence a move."}
+              </p>
+            ) : (
+              <>
+                <strong className="arena-energy">
+                  {pool?.energy ?? 0}
+                  <small> / {pool?.maxEnergy ?? 60} shared energy</small>
+                </strong>
+                <p>
+                  One crowd choice per move. +3 energy after each reveal.
+                  {!isSpectator && " Energy shown is from the last reveal."}
+                </p>
+              </>
+            )}
             {!isPlayer && !isSpectator && !closed && !screen && (
               <button
                 className="arena-primary"
@@ -781,7 +831,7 @@ export function ArenaGames({
               {closed ? "Share the replay ↗" : "Invite a spectator ↗"}
             </button>
             <details>
-              <summary>Show crowd QR</summary>
+              <summary>{closed ? "Show replay QR" : "Show crowd QR"}</summary>
               <QRCodeSVG value={url.href} size={156} marginSize={2} />
               <a className="arena-crowd-link" href={url.href}>
                 {closed ? "Open this replay" : "Open the crowd link"} ↗

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { arenaFrustum } from "./arenaCamera";
 import { type Action, type ArenaState } from "../spacetimedb/src/arenaRules";
+import { ARENA_THEMES, createArenaScenery } from "./arenaScenery";
 
 /** A projection of committed board coordinates. Rendering never resolves a move. */
 export default function ArenaStage({
@@ -34,13 +36,16 @@ export default function ArenaStage({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
     element.appendChild(renderer.domElement);
     const scene = new THREE.Scene(),
       cam = new THREE.OrthographicCamera(-7, 7, 7, -7, 0.1, 100);
-    scene.background = new THREE.Color("#172b36");
-    scene.fog = new THREE.Fog("#172b36", 25, 65);
+    const theme = ARENA_THEMES[latest.current.state.kind];
+    scene.background = new THREE.Color(theme.sky);
+    scene.fog = new THREE.Fog(theme.sky, 25, 65);
     scene.add(new THREE.HemisphereLight(0xe1faff, 0x473127, 2.6));
-    const sun = new THREE.DirectionalLight(0xffe4b3, 4);
+    const sun = new THREE.DirectionalLight(theme.light, 3);
     sun.position.set(-7, 15, 8);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -76,9 +81,9 @@ export default function ArenaStage({
       parent.add(o);
       return o;
     };
-    const grass = material(0x48685e),
-      stone = material(0x799284),
-      water = material(0x214758, 0.35),
+    const grass = material(theme.tileA),
+      stone = material(theme.tileB),
+      water = material(theme.ground, 0.35),
       wood = material(0xcfa77a),
       gold = material(0xffc259, 0.5),
       dark = material(0x17262f),
@@ -86,7 +91,9 @@ export default function ArenaStage({
       teal = material(0x50d3c7),
       amber = material(0xff965b),
       hint = material(0xabecb7);
-    mesh(new THREE.BoxGeometry(12, 0.6, 12), water, 0, -1, 0);
+    const obstacle = material(theme.obstacle);
+    mesh(new THREE.BoxGeometry(16, 0.3, 16), water, 0, -1.3, 0);
+    const scenery = createArenaScenery(scene, latest.current.state.kind);
     const tiles: THREE.Mesh[] = [],
       blocks: THREE.Mesh[] = [],
       highlights: THREE.Mesh[] = [];
@@ -103,7 +110,7 @@ export default function ArenaStage({
         );
         const b = mesh(
           new THREE.BoxGeometry(0.82, 0.9, 0.82),
-          wood,
+          obstacle,
           x - 4,
           0.25,
           y - 4,
@@ -225,7 +232,6 @@ export default function ArenaStage({
       mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.9, 6), wood, x, 0, z);
       mesh(new THREE.OctahedronGeometry(0.22), i % 2 ? gold : teal, x, 1.1, z);
     }
-    const moon = mesh(new THREE.SphereGeometry(0.65, 20, 12), gold, -6, 3, -5);
     const kite = mesh(new THREE.OctahedronGeometry(0.5, 0), amber, 3, 2, -5);
     const cup = new THREE.Group();
     scene.add(cup);
@@ -279,11 +285,7 @@ export default function ArenaStage({
       const w = element.clientWidth,
         h = element.clientHeight;
       renderer.setSize(w, h);
-      const scale = 7;
-      cam.left = (-scale * w) / h;
-      cam.right = (scale * w) / h;
-      cam.top = scale;
-      cam.bottom = -scale;
+      Object.assign(cam, arenaFrustum(w, h));
       cam.updateProjectionMatrix();
     };
     const observer = new ResizeObserver(resize);
@@ -296,6 +298,7 @@ export default function ArenaStage({
       const dt = Math.min(0.1, (time - prior) / 1000);
       prior = time;
       const { state: s, choices, camera: view } = latest.current;
+      scenery.update(s.bridge);
       const target =
         view === "top"
           ? new THREE.Vector3(0, 18, 0.01)
@@ -357,11 +360,10 @@ export default function ArenaStage({
           : 0.55 + (reduced ? 0 : Math.sin(time * 0.002) * 0.07),
         cp.z,
       );
-      crown.rotation.y = time * 0.0005;
+      crown.rotation.y = reduced ? 0 : time * 0.0005;
       ring.visible = crown.visible;
       ring.position.x = cp.x;
       ring.position.z = cp.z;
-      moon.rotation.y = time * 0.0001;
       kite.visible = s.eggs.includes("sky-route");
       kite.rotation.z = reduced ? 0.2 : Math.sin(time * 0.001) * 0.2;
       cup.visible = s.eggs.includes("tea-break");
@@ -392,17 +394,21 @@ export default function ArenaStage({
       setError(true);
     };
     renderer.domElement.addEventListener("webglcontextlost", lost);
+    const restored = () => setError(false);
+    renderer.domElement.addEventListener("webglcontextrestored", restored);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerup", click);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
+      renderer.domElement.removeEventListener("webglcontextrestored", restored);
+      scenery.dispose();
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [state.kind]);
   return (
     <div className="arena-stage" ref={host}>
       {error && (

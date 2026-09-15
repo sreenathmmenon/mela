@@ -57,8 +57,23 @@ export function validateCharacter(value: unknown): ArenaCharacter {
     look: c.look,
   };
 }
-export function characterBrief(c: ArenaCharacter): string {
-  return `${c.pace === "dash" ? "Dash when charged" : "Take one careful step at a time"}. ${c.route === "direct" ? "Take the shortest route" : `Prefer the ${c.route} route when equally short`}. ${c.nerve === "bold" ? "Chase and shove a rival carrying the crown" : "Avoid close encounters when another equally short path is open"}.`;
+export function characterBrief(
+  c: ArenaCharacter,
+  kind: ArenaState["kind"] = "crown_run",
+): string {
+  const objective =
+    kind === "mela_heist"
+      ? "Reach your switch, then help bring the treasure home"
+      : kind === "bridge_breakers"
+        ? "Race to the opposite portal"
+        : "Collect the crown and bring it home";
+  const caution =
+    kind === "mela_heist"
+      ? "Work with your partner"
+      : c.nerve === "careful"
+        ? "Prefer a clear route away from the rival"
+        : "Take the direct contest when paths are equally good";
+  return `${objective}. ${c.pace === "dash" ? "Dash when charged" : "Prefer single steps"}. ${c.route === "direct" ? "Take the shortest route" : `Prefer the ${c.route} route when equally short`}. ${caution}.`;
 }
 /** Replace seat labels once; a name containing "Amber" or "Teal" is literal data. */
 export function characterEvents(
