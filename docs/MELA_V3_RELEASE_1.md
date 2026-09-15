@@ -1,6 +1,6 @@
 # Mela v3 — discovery, arena identity and remembered moments
 
-15 September 2026. This is an implemented release slice of the approved v3 direction, not completion of the entire v3 roadmap. Release/production evidence is recorded in STATUS.md.
+15 September 2026. This is a **deployed** release slice of the approved v3 direction, not completion of the entire v3 roadmap. Final source `8c7f68210f7642b65eb6caeab77f5845974bd340`; Railway deployment `19cf9ad0-be8c-4d6d-9bff-9c5517b200b5` observed SUCCESS. Release/production evidence is recorded in STATUS.md.
 
 ## What changed
 
@@ -57,7 +57,7 @@ All real-client scripts used `TEST_SPACETIME_DB=mela-v3-0915`. These use actual 
 - This release does **not** implement Carrom, Kite Rivals, durable agent passports/delegation budgets, playable checkpoint challenges or the multi-game Circuit. Those require additional authoritative design, implementation and real-client gates from the v3 plan. Existing ten games remain available.
 - No new independent human newcomer study, real-device iOS/Android certification, audio listening study, retention result or comparative game-quality ranking. Browser-emulated mobile is not hardware certification.
 - Existing bundle-size warnings remain. Some local multi-subscription churn produced the known SDK “deleting a row not present in cache” warning; the convergence assertions passed. This does not certify every network/device condition.
-- No production match/identity/email or paid live model call was created by this local validation. Production smoke and release IDs belong in STATUS.md after deployment is observed.
+- All game-mutating validation ran against the local database. Production smoke used public reads and the existing in-app profile: twelve responsive destination checks, public replay 73, native tool discovery/read-only execution and final deployed-asset verification passed. No production game/profile/email or paid model request was created. The final deployed in-app homepage retained Profile and the existing Heist resume. Production mobile replay snapshot audit: 30 passed, 0 failed; no performance or full production-match claim.
 - Challenge relaunch eligibility and unpublished judging details remain unverified. No claim of guaranteed award placement, virality, investment, acquisition or universal bug-freedom.
 
 **Next implementation task:** the authoritative, unranked “try this recorded moment” challenge, with fresh match ownership, validated checkpoint/version handling and independent player/agent/crowd tests. Do not mutate the original match or expose private seeds/pending intents.
