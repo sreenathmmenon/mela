@@ -19,7 +19,7 @@ Additive tables only; no existing fields or reducer signatures removed:
 
 New reducers: `challenge_arena_moment(frameId)`, `save_arena_character(character,parentId)`, `create_saved_character_arena(...)`. Existing `create_character_arena` calls the same internal `produceCharacterMatch` function; no reducer-to-reducer calls. New caller-scoped views: `my_saved_arena_characters`, `my_arena_character_entries`. Character setup reads those views, not a global private roster. Challenge queries are original-match scoped; replay and comparison are match scoped.
 
-Researched fact: reducers remain the mutation boundary and module publication attempts automatic migration; see [official reducer documentation](https://spacetimedb.com/docs/functions/reducers/) and [publication documentation](https://spacetimedb.com/docs/databases/building-publishing/). No new architectural assumption replaces SpacetimeDB. Local additive migrations were observed with existing test matches intact. Production release uses `--delete-data=never --yes=remote,migrate`; observe the migration plan and reject any destructive requirement. Reverting a module after adding tables must retain those table declarations; do not delete the new durable data to roll back presentation.
+Researched fact: reducers remain the mutation boundary and module publication attempts automatic migration; see [official reducer documentation](https://spacetimedb.com/docs/functions/reducers/) and [publication documentation](https://spacetimedb.com/docs/databases/building-publishing/). No new architectural assumption replaces SpacetimeDB. Local additive migrations were observed with existing test matches intact. Production publication used `--delete-data=never --yes=remote --no-config`; the observed automatic migration added only the three tables and two views. Reverting a module after adding tables must retain those table declarations; do not delete the new durable data to roll back presentation.
 
 ### Practice validation
 
@@ -56,4 +56,9 @@ Researched fact: reducers remain the mutation boundary and module publication at
 
 Preserved ten games and existing physics/rules, human seats, agents, QR, accounts and production origins. No new games, Circuit, persistent external-agent delegation, durable hosted inference budget, video export or measured viral/retention result in this release. Carrom/Kite need actual dedicated playtests and authority/physics work; they are not hidden behind renamed existing boards. The broader approved v3 work remains open.
 
-Deployment and exact commit evidence are appended after release verification in STATUS.md.
+## Release evidence
+
+- Source `ada7eb8464413a1559c282f56a28dce928806227` committed and pushed to main with Sreenath as sole author. Maincloud `mela-cah23` additive publication succeeded without removing existing data/contracts.
+- Railway deployment `648de616-49f2-4dc2-92ad-a6a51bb4e0ed` observed **SUCCESS**; production serves `index-B9ODTiH8.js`. Explicit production project/environment/service were used; no personal-site deployment.
+- Read-only deployed browser smoke opened the homepage's real Bridge 73/move-5 challenge link. Correct recorded position, enabled guest play and character saving/launch controls were observed. Ten game cards remained available. Replay and character controls fit 320/390px; desktop discovery fit 1440px. Deployed replay audit: 33 passed, 0 failed, four categories 100, failure list independently read. No console errors/warnings/issues in the inspected session.
+- Reloaded the actual user-facing in-app production tab: new moment link visible, existing Profile and Heist resume retained. No production game, saved character, email or paid inference was created during this smoke. Full match/roster mutation tests were local, as documented above; this is not a production full-match test or proof of worldwide superiority.
